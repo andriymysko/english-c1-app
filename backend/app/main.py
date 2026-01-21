@@ -5,6 +5,13 @@ from app.core.config import settings
 
 app = FastAPI(title="English C1 Generator API")
 
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "https://english-c1-app.vercel.app"
+]
+
 # Configuració CORS per permetre connexió amb el Frontend (Vite)
 app.add_middleware(
     CORSMiddleware,
