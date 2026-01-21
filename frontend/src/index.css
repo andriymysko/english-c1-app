@@ -1,0 +1,50 @@
+/* 1. PRIMER: Les fonts (sempre a dalt de tot) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap');
+
+/* 2. SEGON: Tailwind (v4) */
+@import "tailwindcss";
+
+@layer base {
+  body {
+    /* Tailwind v4 ja aplica font-sans per defecte.
+       Afegim colors i fons. */
+    @apply text-slate-800 antialiased bg-slate-50;
+    
+    /* Fons amb degradat */
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+      radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+      radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+    background-attachment: fixed;
+    background-size: cover;
+    min-height: 100vh;
+  }
+  
+  /* Tipografia serif per als textos de lectura */
+  .prose {
+    font-family: 'Merriweather', serif;
+  }
+}
+
+@layer components {
+  /* Panells de vidre */
+  .glass-panel {
+    @apply bg-white/90 backdrop-blur-xl border border-white/20 shadow-xl;
+  }
+
+  /* Targetes de vidre interactives */
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-lg border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1;
+  }
+}
+
+@layer utilities {
+  /* Amagar scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

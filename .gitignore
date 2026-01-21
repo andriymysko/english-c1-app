@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+venv/
+.env
+
+# Node / Frontend
+node_modules/
+dist/
+.DS_Store
+
+# Firebase i Claus Secretes (MOLT IMPORTANT)
+backend/serviceAccountKey.json
+serviceAccountKey.json
