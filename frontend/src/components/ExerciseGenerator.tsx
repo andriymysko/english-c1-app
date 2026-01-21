@@ -75,7 +75,7 @@ type SkillKey = keyof typeof SKILLS;
 export default function Dashboard() {
   const { user, logout } = useAuth();
   
-  const [currentView, setCurrentView] = useState<'dashboard' | 'profile'>('dashboard');
+  const [currentView, setCurrentView] = useState<string>('dashboard');
   const [activeSkill, setActiveSkill] = useState<SkillKey>('reading');
   
   const [loading, setLoading] = useState(false);
