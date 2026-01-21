@@ -5,3 +5,4 @@ pydantic-settings
 openai
 reportlab
 python-dotenv
+firebase-admin
