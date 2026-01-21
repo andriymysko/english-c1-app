@@ -1,17 +1,16 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged, 
-  User 
+  type User 
 } from "firebase/auth";
 import { auth } from "../firebase";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  // CORRECCIÓ: fem servir 'string' en lloc de 'str'
   signup: (email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;

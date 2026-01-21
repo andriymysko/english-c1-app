@@ -1,4 +1,4 @@
-import { ArrowRight, Brain, Mic, CheckCircle2, Globe, ShieldCheck, Zap } from "lucide-react";
+import { ArrowRight, Brain, Mic, Globe, ShieldCheck, Zap } from "lucide-react";
 
 interface Props {
   onGetStarted: () => void;
