@@ -15,7 +15,7 @@ origins = [
 # Configuració CORS per permetre connexió amb el Frontend (Vite)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL], # definit a config.py
+    allow_origins=["*"], # definit a config.py
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
