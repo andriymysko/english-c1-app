@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // <--- HE AFEGIT useEffect
 import { 
   BookOpen, PenTool, Mic, Headphones, 
   Loader2, Play, BarChart2, GraduationCap, 
@@ -84,6 +84,27 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [exerciseData, setExerciseData] = useState<any>(null);
   const [examData, setExamData] = useState<any>(null);
+
+  // --- NOU CODI: GESTIÓ DE RETORN DE STRIPE ---
+  useEffect(() => {
+    // 1. Llegim els paràmetres de la URL
+    const query = new URLSearchParams(window.location.search);
+    
+    // 2. Si el pagament ha anat bé
+    if (query.get('success') === 'true') {
+      setCurrentView('profile'); // Canviem la vista al perfil
+      window.history.replaceState({}, '', '/'); // Netegem la URL perquè no surti "?success=true"
+      alert("🎉 Payment Successful! Your VIP Pass is active.");
+    }
+    
+    // 3. Si l'usuari ha cancel·lat
+    if (query.get('canceled') === 'true') {
+      setCurrentView('profile');
+      window.history.replaceState({}, '', '/');
+      alert("Payment canceled.");
+    }
+  }, []); // S'executa només 1 cop al carregar la pàgina
+  // ---------------------------------------------
 
   const handleGenerate = async (partId: string) => {
     if (!user) return;
