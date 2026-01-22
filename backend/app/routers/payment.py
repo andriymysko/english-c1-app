@@ -35,8 +35,8 @@ async def create_checkout_session(data: dict):
                 'quantity': 1,
             }],
             mode='payment', # Pagament únic (si fos subscripció seria 'subscription')
-            success_url=f'{FRONTEND_URL}/profile?success=true',
-            cancel_url=f'{FRONTEND_URL}/profile?canceled=true',
+            success_url=f'{FRONTEND_URL}/?success=true',
+            cancel_url=f'{FRONTEND_URL}/?canceled=true',
             # ⚠️ CLAU: Passem l'ID de l'usuari a les metadades per saber qui ha pagat després
             metadata={
                 "user_id": user_id
