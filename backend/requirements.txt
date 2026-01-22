@@ -7,3 +7,4 @@ reportlab
 python-dotenv
 firebase-admin
 python-multipart
+stripe
