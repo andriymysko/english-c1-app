@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import router
 from app.core.config import settings
+from app.routers.payment import payment_router
 
 app = FastAPI(title="English C1 Generator API")
 
@@ -22,7 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
-
+app.include_router(payment_router)
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

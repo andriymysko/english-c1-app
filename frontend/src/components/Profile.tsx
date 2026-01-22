@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getUserStats, generateReview, getCoachAnalysis } from "../api"; // Added getCoachAnalysis
-import { BarChart, Trophy, AlertTriangle, ArrowLeft, Sparkles, Loader2, Zap, Star, Brain, AlertCircle } from "lucide-react";
+import { getUserStats, generateReview, getCoachAnalysis } from "../api";
+import { BarChart, Trophy, AlertTriangle, ArrowLeft, Sparkles, Loader2, Zap, Star, Brain, AlertCircle, CheckCircle } from "lucide-react";
 import Flashcards from "./Flashcards"; 
 
 export default function Profile({ onBack, onStartReview }: { onBack: () => void, onStartReview: (data: any) => void }) {
@@ -33,6 +33,28 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
         .finally(() => setCoachLoading(false));
     }
   }, [user]);
+
+  // --- NOVA FUNCIÓ DE PAGAMENT (STRIPE) ---
+  const handleBuyPass = async () => {
+    if (!user) return;
+    try {
+      // Cridem al backend per crear la sessió de pagament
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/create-checkout-session/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.uid }),
+      });
+      
+      const data = await response.json();
+      
+      // Si el backend ens torna una URL, redirigim a Stripe
+      if (data.url) {
+        window.location.href = data.url; 
+      }
+    } catch (error) {
+      alert("Error starting payment. Please try again.");
+    }
+  };
 
   const handleCreateReview = async () => {
     if (!user) return;
@@ -106,6 +128,37 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
           </div>
         </div>
       </div>
+
+      {/* --- SEASON PASS BANNER (NOMÉS SI NO ÉS VIP) --- */}
+      {!stats?.is_vip ? (
+        <div className="mb-10 bg-gradient-to-r from-gray-900 to-slate-800 rounded-2xl p-8 text-white relative overflow-hidden shadow-2xl animate-in slide-in-from-bottom-5 duration-700">
+            <div className="absolute top-0 right-0 p-32 bg-blue-500/20 rounded-full blur-3xl"></div>
+            
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                    <h3 className="text-2xl font-bold mb-2">C1 Master <span className="text-yellow-400">Season Pass</span></h3>
+                    <ul className="space-y-2 text-gray-300 mb-4 text-sm md:text-base">
+                        <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-400"/> Unlimited Exercises (No Daily Limit)</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-400"/> 5 Premium AI Corrections included</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-400"/> Ad-free experience</li>
+                    </ul>
+                    <div className="text-3xl font-bold text-white">19.99€ <span className="text-sm font-normal text-gray-400">/ one-time</span></div>
+                </div>
+                
+                <button 
+                    onClick={handleBuyPass}
+                    className="w-full md:w-auto bg-white text-slate-900 px-8 py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform shadow-lg hover:shadow-white/20 whitespace-nowrap"
+                >
+                    Unlock Everything 🔓
+                </button>
+            </div>
+        </div>
+      ) : (
+        <div className="mb-10 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-800">
+             <Star className="w-6 h-6 fill-yellow-400 text-yellow-500" />
+             <span className="font-bold">You are a Season Pass Member! Enjoy unlimited access.</span>
+        </div>
+      )}
 
       {/* AI COACH INSIGHTS (NEW SECTION) */}
       <div className="bg-white rounded-2xl p-6 shadow-xl border border-purple-100 relative overflow-hidden mb-10">
