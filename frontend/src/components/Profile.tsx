@@ -20,19 +20,33 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
 
   useEffect(() => {
     if (user) {
-      // 1. Load Stats
+      // 1. Mirem si acabem de comprar (llegim la URL)
+      const query = new URLSearchParams(window.location.search);
+      const isJustPurchased = query.get('success') === 'true';
+
+      // 2. Carreguem les dades reals de la base de dades
       getUserStats(user.uid).then(data => {
-        setStats(data);
+        if (isJustPurchased) {
+            // ✨ MÀGIA: Si venim de pagar, forcem que "is_vip" sigui true visualment
+            // Això fa que el banner desaparegui a l'instant
+            setStats({ ...data, is_vip: true });
+            
+            // Ara sí, netegem la URL perquè quedi neta ('/')
+            window.history.replaceState({}, '', '/');
+        } else {
+            // Si és una visita normal, mostrem el que digui la base de dades
+            setStats(data);
+        }
         setLoading(false);
       });
 
-      // 2. Load AI Coach Analysis
+      // 3. Carreguem el Coach normalment
       getCoachAnalysis(user.uid)
         .then(data => setCoachData(data))
         .catch(err => console.error("Coach API Error:", err))
         .finally(() => setCoachLoading(false));
     }
-  }, [user]);
+}, [user]);
 
   // --- NOVA FUNCIÓ DE PAGAMENT (STRIPE) ---
   const handleBuyPass = async () => {

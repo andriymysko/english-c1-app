@@ -93,14 +93,14 @@ export default function Dashboard() {
     // 2. Si el pagament ha anat bé
     if (query.get('success') === 'true') {
       setCurrentView('profile'); // Canviem la vista al perfil
-      window.history.replaceState({}, '', '/'); // Netegem la URL perquè no surti "?success=true"
+      //window.history.replaceState({}, '', '/'); // Netegem la URL perquè no surti "?success=true"
       alert("🎉 Payment Successful! Your VIP Pass is active.");
     }
     
     // 3. Si l'usuari ha cancel·lat
     if (query.get('canceled') === 'true') {
       setCurrentView('profile');
-      window.history.replaceState({}, '', '/');
+      //window.history.replaceState({}, '', '/');
       alert("Payment canceled.");
     }
   }, []); // S'executa només 1 cop al carregar la pàgina
