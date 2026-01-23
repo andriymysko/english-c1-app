@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react'; // <--- HE AFEGIT useEffect
+import { useState, useEffect } from 'react';
 import { 
   BookOpen, PenTool, Mic, Headphones, 
   Loader2, Play, BarChart2, GraduationCap, 
-  Brain, Layout, LogOut, Download, Zap
+  Brain, Layout, LogOut, Download, Zap, ShoppingBag, Crown
 } from 'lucide-react';
 import ExercisePlayer from './ExercisePlayer';
 import ExamPlayer from './ExamPlayer';
 import { fetchExercise, generateFullExam, downloadOfflinePack, getOfflineExercise } from '../api';
 import Profile from './Profile';
+import Pricing from './Pricing'; // <--- NOU COMPONENT
+import AdModal from './AdModal'; // <--- NOU COMPONENT
 import { useAuth } from '../context/AuthContext';
 
 const SKILLS = {
@@ -75,6 +77,7 @@ type SkillKey = keyof typeof SKILLS;
 export default function Dashboard() {
   const { user, logout } = useAuth();
   
+  // Vistes possibles: 'dashboard', 'profile', 'pricing'
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [activeSkill, setActiveSkill] = useState<SkillKey>('reading');
   
@@ -85,26 +88,27 @@ export default function Dashboard() {
   const [exerciseData, setExerciseData] = useState<any>(null);
   const [examData, setExamData] = useState<any>(null);
 
-  // --- NOU CODI: GESTIÓ DE RETORN DE STRIPE ---
+  // ESTAT PER L'ANUNCI (MODAL)
+  const [showAdModal, setShowAdModal] = useState(false);
+
+  // --- GESTIÓ DE RETORN DE STRIPE ---
   useEffect(() => {
-    // 1. Llegim els paràmetres de la URL
     const query = new URLSearchParams(window.location.search);
     
-    // 2. Si el pagament ha anat bé
+    // Si el pagament ha anat bé
     if (query.get('success') === 'true') {
-      setCurrentView('profile'); // Canviem la vista al perfil
-      //window.history.replaceState({}, '', '/'); // Netegem la URL perquè no surti "?success=true"
+      setCurrentView('profile'); // Anem al perfil per veure el canvi
+      // No fem replaceState aquí per deixar que el Profile faci la seva màgia visual
       alert("🎉 Payment Successful! Your VIP Pass is active.");
     }
     
-    // 3. Si l'usuari ha cancel·lat
+    // Si l'usuari ha cancel·lat
     if (query.get('canceled') === 'true') {
-      setCurrentView('profile');
-      //window.history.replaceState({}, '', '/');
+      setCurrentView('pricing'); // Tornem a la botiga per si vol provar un altre pack
+      window.history.replaceState({}, '', '/');
       alert("Payment canceled.");
     }
-  }, []); // S'executa només 1 cop al carregar la pàgina
-  // ---------------------------------------------
+  }, []);
 
   const handleGenerate = async (partId: string) => {
     if (!user) return;
@@ -128,8 +132,13 @@ export default function Dashboard() {
       const data = await fetchExercise(partId, user.uid);
       setExerciseData(data);
     } catch (err: any) {
-      if (err.message === "DAILY_LIMIT") setError("🚫 Daily limit reached (10/10). Come back tomorrow!");
-      else setError("Failed to generate exercise.");
+      if (err.message === "DAILY_LIMIT") {
+         // EN LLOC D'ERROR, MOSTREM L'ANUNCI/PAYWALL
+         setShowAdModal(true);
+      }
+      else {
+         setError("Failed to generate exercise. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -147,7 +156,10 @@ export default function Dashboard() {
       const data = await generateFullExam(user.uid);
       setExamData(data);
     } catch (err: any) {
-      if (err.message === "DAILY_LIMIT") setError("🚫 Daily limit reached. No mock exams today.");
+      if (err.message === "DAILY_LIMIT") {
+        // TAMBÉ SALTA L'ANUNCI SI VOLEN FER EXAMEN I NO PODEN
+        setShowAdModal(true);
+      }
       else setError("Failed to generate exam.");
     } finally {
       setExamLoading(false);
@@ -173,6 +185,8 @@ export default function Dashboard() {
     }
   };
 
+  // --- RENDERITZAT DE VISTES ---
+
   if (currentView === 'profile') {
     return <Profile onBack={() => setCurrentView('dashboard')} onStartReview={(data) => { setCurrentView('dashboard'); setExerciseData(data); }} />;
   }
@@ -194,6 +208,17 @@ export default function Dashboard() {
   return (
     <div className="flex min-h-screen font-sans text-slate-800 bg-slate-50">
       
+      {/* --- MODAL D'ANUNCIS (PAYWALL) --- */}
+      {showAdModal && (
+        <AdModal 
+            onClose={() => setShowAdModal(false)}
+            onReward={() => {
+                setShowAdModal(false);
+                alert("🎁 Reward granted! You have 1 extra life. Try generating again.");
+            }}
+        />
+      )}
+
       {/* 1. SIDEBAR (DESKTOP) */}
       <aside className="hidden lg:flex w-64 bg-white/90 backdrop-blur-xl border-r border-white/20 shadow-2xl flex-col justify-between fixed h-full z-20">
         <div>
@@ -225,7 +250,17 @@ export default function Dashboard() {
               <span>Stats & Profile</span>
             </button>
 
-             {/* BOTÓ OFFLINE AL SIDEBAR */}
+            {/* BOTÓ PREMIUM / STORE */}
+            <button 
+              onClick={() => setCurrentView('pricing')}
+              className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group
+                ${currentView === 'pricing' ? 'bg-yellow-50 text-yellow-700 font-semibold shadow-sm' : 'text-gray-500 hover:bg-yellow-50 hover:text-yellow-700'}`}
+            >
+              <ShoppingBag className="w-5 h-5" />
+              <span>Upgrade / Store</span>
+            </button>
+
+             {/* BOTÓ OFFLINE */}
              <button 
               onClick={handleDownloadPack}
               disabled={downloadingPack}
@@ -258,7 +293,9 @@ export default function Dashboard() {
             </div>
             
             <div className="flex gap-2">
-                 {/* BOTÓ OFFLINE MÒBIL */}
+                 <button onClick={() => setCurrentView('pricing')} className="p-2 bg-yellow-100 rounded-full shadow-sm text-yellow-600">
+                    <Crown className="w-5 h-5" />
+                 </button>
                  <button onClick={handleDownloadPack} disabled={downloadingPack} className="p-2 bg-white rounded-full shadow-sm text-gray-500">
                     {downloadingPack ? <Loader2 className="w-5 h-5 animate-spin"/> : <Download className="w-5 h-5" />}
                  </button>
@@ -268,11 +305,23 @@ export default function Dashboard() {
             </div>
         </div>
 
-        {currentView === 'profile' ? (
-             <Profile onBack={() => setCurrentView('dashboard')} onStartReview={(data) => { setCurrentView('dashboard'); setExerciseData(data); }} />
+        {/* --- CONTINGUT PRINCIPAL SEGONS LA VISTA --- */}
+        
+        {currentView === 'pricing' ? (
+            // VISTA DE LA BOTIGA
+            <div className="animate-in fade-in slide-in-from-bottom-4">
+                <button onClick={() => setCurrentView('dashboard')} className="flex items-center gap-2 text-gray-600 mb-6 hover:text-gray-900">
+                    <Layout className="w-4 h-4" /> Back to Dashboard
+                </button>
+                <div className="text-center mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900">Upgrade your Plan</h1>
+                    <p className="text-gray-500">Choose the best option to ace your C1 Exam.</p>
+                </div>
+                <Pricing />
+            </div>
         ) : (
+            // VISTA DASHBOARD (DEFAULT)
             <>
-                {/* WELCOME */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div>
                     <h1 className="text-2xl lg:text-4xl font-extrabold text-gray-900">
@@ -369,12 +418,11 @@ export default function Dashboard() {
          </button>
 
          <button 
-            onClick={() => handleStartExam()}
-            className="flex flex-col items-center justify-center -mt-8"
+            onClick={() => setCurrentView('pricing')}
+            className={`flex flex-col items-center gap-1 ${currentView === 'pricing' ? 'text-yellow-600' : 'text-gray-400'}`}
          >
-             <div className="w-14 h-14 bg-gray-900 rounded-full flex items-center justify-center shadow-lg text-white border-4 border-slate-50">
-                <GraduationCap className="w-6 h-6" />
-             </div>
+            <Crown className="w-6 h-6" />
+            <span className="text-[10px] font-bold">Store</span>
          </button>
 
          <button 

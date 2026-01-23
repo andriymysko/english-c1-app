@@ -32,33 +32,131 @@ db = firestore.client()
 
 class DatabaseService:
     
-    # --- RATE LIMITING (NOU) ---
+    # --- NOVES FUNCIONS DE GESTIÓ DE VIP I CRÈDITS (PAS 1) ---
+    
+    @staticmethod
+    def grant_vip_access(user_id: str, days: int, correction_credits: int):
+        """Dona accés VIP temporal i suma crèdits de correcció"""
+        try:
+            user_ref = db.collection('users').document(user_id)
+            user_doc = user_ref.get()
+            data = user_doc.to_dict() if user_doc.exists else {}
+
+            # Calculem nova data d'expiració
+            current_expiry = data.get('vip_expiry')
+            now = datetime.now()
+            
+            # Si ja era VIP, sumem dies a la data actual. Si no, des d'avui.
+            if current_expiry:
+                # Gestió de dates segons si venen amb zona horària o no
+                current_expiry = current_expiry.replace(tzinfo=None) if hasattr(current_expiry, 'replace') else current_expiry
+                
+                if current_expiry > now:
+                    new_expiry = current_expiry + timedelta(days=days)
+                else:
+                    new_expiry = now + timedelta(days=days)
+            else:
+                new_expiry = now + timedelta(days=days)
+
+            # Sumem crèdits als que ja tingués
+            current_credits = data.get('correction_credits', 0)
+            new_credits = current_credits + correction_credits
+
+            user_ref.set({
+                'is_vip': True, # Mantenen el flag per compatibilitat ràpida al frontend
+                'vip_expiry': new_expiry,
+                'correction_credits': new_credits
+            }, merge=True)
+            
+            print(f"✅ User {user_id} upgraded: +{days} days, +{correction_credits} credits.")
+            return True
+        except Exception as e:
+            print(f"Error granting VIP: {e}")
+            return False
+
+    @staticmethod
+    def add_credits_only(user_id: str, credits: int):
+        """Només afegeix crèdits de correcció (per packs sueltos)"""
+        try:
+            user_ref = db.collection('users').document(user_id)
+            # Utilitzem 'increment' de firestore que és atòmic i segur
+            user_ref.update({'correction_credits': firestore.Increment(credits)})
+            return True
+        except Exception as e:
+            print(f"Error adding credits: {e}")
+            return False
+
+    @staticmethod
+    def use_correction_credit(user_id: str) -> bool:
+        """Intenta gastar un crèdit. Retorna True si ha pogut, False si no en té."""
+        try:
+            user_ref = db.collection('users').document(user_id)
+            
+            # Necessitem una transacció per assegurar que no baixi de 0
+            @firestore.transactional
+            def consume_credit(transaction, ref):
+                snapshot = transaction.get(ref)
+                if not snapshot.exists: return False
+                credits = snapshot.get('correction_credits') or 0
+                if credits > 0:
+                    transaction.update(ref, {'correction_credits': credits - 1})
+                    return True
+                return False
+
+            transaction = db.transaction()
+            return consume_credit(transaction, user_ref)
+        except Exception as e:
+            print(f"Error using credit: {e}")
+            return False
+
+    @staticmethod
+    def reward_ad_view(user_id: str):
+        """
+        L'usuari ha vist un anunci: Li restem generacions del comptador perquè pugui fer-ne més.
+        Exemple: Si portava 3/3 (bloquejat), el baixem a 2/3 i així en pot fer un altre.
+        """
+        try:
+            user_ref = db.collection('users').document(user_id)
+            # daily_gen_count és el total fet avui. Si el baixem, el sistema es pensa que n'ha fet menys.
+            user_ref.update({'daily_gen_count': firestore.Increment(-1)})
+            return True
+        except Exception as e:
+            print(f"Error rewarding ad: {e}")
+            return False
+
+    # --- RATE LIMITING ---
     @staticmethod
     def check_user_quota(user_id: str, cost: int = 1, limit: int = 10) -> bool:
         """
         Retorna True si l'usuari pot generar. False si ha superat el límit diari.
+        Ara també comprova si el VIP ha caducat.
         """
-        if not user_id: return True # Si no hi ha ID, deixem passar (per tests)
+        if not user_id: return True 
         
         try:
             user_ref = db.collection('users').document(user_id)
             user_doc = user_ref.get()
             data = user_doc.to_dict() if user_doc.exists else {}
             
+            # 1. Comprovem VIP per Data (NOU)
+            vip_expiry = data.get('vip_expiry')
+            if vip_expiry:
+                expiry_date = vip_expiry.replace(tzinfo=None) if hasattr(vip_expiry, 'replace') else vip_expiry
+                if expiry_date > datetime.now():
+                    return True # És VIP vigent -> Barra lliure
+
+            # 2. Si no és VIP (o ha caducat), mirem quota diària
             today = datetime.now().strftime('%Y-%m-%d')
             last_date = data.get('last_gen_date', '')
             daily_count = data.get('daily_gen_count', 0)
             
-            # Reset si és un nou dia
             if last_date != today:
                 daily_count = 0
             
-            # Comprovem límit
             if daily_count + cost > limit:
                 print(f"🚫 QUOTA EXCEEDED: User {user_id} ({daily_count}/{limit})")
                 return False
             
-            # Si passem, incrementem i guardem
             user_ref.set({
                 'last_gen_date': today,
                 'daily_gen_count': daily_count + cost
@@ -67,13 +165,12 @@ class DatabaseService:
             return True
         except Exception as e:
             print(f"⚠️ Error checking quota: {e}")
-            return True # Fail open: si falla la DB, deixem generar per no bloquejar
+            return True 
 
     # --- REPORTING ---
     @staticmethod
     def report_issue(user_id: str, exercise_id: str, question_index: int, reason: str, exercise_data: dict):
         try:
-            # 1. Guardem el report individual (Això sempre ho fem)
             db.collection('reports').add({
                 'user_id': user_id,
                 'exercise_id': exercise_id,
@@ -84,23 +181,15 @@ class DatabaseService:
                 'status': 'open'
             })
             
-            # 2. LOGICA DE LLINDAR (THRESHOLD)
             if exercise_id:
-                # Busquem quants reports té aquest exercici en total
-                # (Podem filtrar també per question_index si volem ser molt precisos, 
-                # però normalment si un exercici té 3 queixes en general, millor treure'l).
                 reports_query = db.collection('reports').where('exercise_id', '==', exercise_id).stream()
-                
-                # Comptem els resultats
                 total_reports = sum(1 for _ in reports_query)
-                
-                # DEFINIM EL MÍNIM DE PERSONES NECESSÀRIES
                 MIN_REPORTS_TO_BAN = 3 
                 
                 print(f"🚩 Report rebut per {exercise_id}. Total acumulats: {total_reports}/{MIN_REPORTS_TO_BAN}")
 
                 if total_reports >= MIN_REPORTS_TO_BAN:
-                    print(f"🚫 Exercici {exercise_id} descartat automàticament (Massa reports).")
+                    print(f"🚫 Exercici {exercise_id} descartat automàticament.")
                     db.collection('exercises').document(exercise_id).update({'is_flagged': True})
                 
             return True
@@ -108,7 +197,7 @@ class DatabaseService:
             print(f"Error reporting issue: {e}")
             return False
 
-    # --- GAMIFICATION ---
+    # --- GAMIFICATION & STATS ---
     @staticmethod
     def update_user_gamification(user_id: str, score: int):
         try:
@@ -125,7 +214,7 @@ class DatabaseService:
             if last_active == yesterday_str:
                 current_streak += 1
             elif last_active != today_str:
-                current_streak = 1 # Reset o inici
+                current_streak = 1 
             
             current_xp = data.get('xp', 0)
             gained_xp = 10 + score
@@ -160,10 +249,16 @@ class DatabaseService:
             
             avg = (total_s / total_p * 100) if total_p > 0 else 0
             
-            # Get User Profile Data
             u_doc = db.collection('users').document(user_id).get()
             u_data = u_doc.to_dict() if u_doc.exists else {}
             
+            # Comprovar si VIP segueix actiu
+            is_vip_active = False
+            vip_expiry = u_data.get('vip_expiry')
+            if vip_expiry:
+                expiry_date = vip_expiry.replace(tzinfo=None) if hasattr(vip_expiry, 'replace') else vip_expiry
+                is_vip_active = expiry_date > datetime.now()
+
             return {
                 "average_score": round(min(avg, 100.0), 1),
                 "exercises_completed": count,
@@ -171,7 +266,12 @@ class DatabaseService:
                 "streak": u_data.get('streak', 0),
                 "level": u_data.get('level', 1),
                 "xp": u_data.get('xp', 0),
-                "daily_gen_count": u_data.get('daily_gen_count', 0) # Per mostrar quota restant si vols
+                "daily_gen_count": u_data.get('daily_gen_count', 0),
+                
+                # NOUS CAMPS
+                "is_vip": is_vip_active, # Sobreescrivim el camp estàtic amb la lògica real
+                "correction_credits": u_data.get('correction_credits', 0),
+                "vip_expiry_date": vip_expiry.isoformat() if vip_expiry else None
             }
         except Exception as e:
             return {"average_score": 0, "mistakes_pool": []}
@@ -192,7 +292,7 @@ class DatabaseService:
         except Exception:
             return None
 
-    # --- CORE ---
+    # --- CORE EXERCISE ---
     @staticmethod
     def save_exercise(exercise_data: dict, level: str, type_category: str, is_public: bool = True):
         try:
@@ -208,8 +308,6 @@ class DatabaseService:
     @staticmethod
     def get_existing_exercise(level: str, exercise_type: str, completed_ids: list):
         try:
-            # 1. Busquem una POOL d'exercicis (no només 1)
-            # Agafem fins a 20 candidats per tenir varietat
             docs = db.collection('exercises')\
                 .where('level', '==', level)\
                 .where('type', '==', exercise_type)\
@@ -217,7 +315,6 @@ class DatabaseService:
                 .limit(20)\
                 .stream()
             
-            # 2. Convertim a llista i filtrem els fets
             candidates = []
             for doc in docs:
                 data = doc.to_dict()
@@ -225,14 +322,12 @@ class DatabaseService:
                 if doc.id not in completed_ids:
                     candidates.append(data)
             
-            # 3. SELECCIÓ RANDOM
             if candidates:
-                selected = random.choice(candidates) # <--- Màgia aquí
+                selected = random.choice(candidates)
                 print(f"🎲 Random Select: {selected['id']} from {len(candidates)} options.")
                 return selected
             
             return None
-
         except Exception as e:
             print(f"Error fetching existing exercise: {e}")
             return None

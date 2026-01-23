@@ -67,6 +67,9 @@ class CoachAnalysis(BaseModel):
     weaknesses: List[str]
     advice: str
 
+class AdRewardRequest(BaseModel):
+    user_id: str
+
 # --- HELPER FUNCTION ---
 def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool = True):
     print(f"🤖 GENERANT NOU EXERCICI ({exercise_type})...")
@@ -331,3 +334,10 @@ def analyze_weaknesses(user_id: str):
     )
     
     return json.loads(response.choices[0].message.content)
+
+@router.post("/ad_reward/")
+def ad_reward(request: AdRewardRequest):
+    # En un entorn real, aquí validaries un token del proveïdor d'anuncis
+    # per assegurar que no fan trampes. Per ara, confiem en el frontend.
+    DatabaseService.reward_ad_view(request.user_id)
+    return {"status": "rewarded"}
