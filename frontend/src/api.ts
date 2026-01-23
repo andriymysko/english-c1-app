@@ -12,7 +12,10 @@ export async function fetchExercise(type: string, userId: string, level: string 
       completed_ids: []
     }),
   });
+
+  // AQUI ESTÀ LA CLAU: Si el backend diu 429, llancem l'error específic
   if (response.status === 429) throw new Error("DAILY_LIMIT");
+  
   if (!response.ok) throw new Error("Failed to fetch exercise");
   return response.json();
 }
@@ -26,7 +29,10 @@ export async function generateFullExam(userId: string, level: string = "C1") {
         level: level 
     }),
   });
+  
+  // TAMBÉ PER EXÀMENS COMPLETS
   if (response.status === 429) throw new Error("DAILY_LIMIT");
+
   if (!response.ok) throw new Error("Failed to generate exam");
   return response.json();
 }
@@ -62,7 +68,10 @@ export async function getUserStats(userId: string) {
 
 export async function generateReview(userId: string) {
   const response = await fetch(`${API_URL}/generate_review/${userId}`, { method: "POST" });
+  
+  // TAMBÉ PER REVIEWS
   if (response.status === 429) throw new Error("DAILY_LIMIT");
+  
   if (response.status === 404) throw new Error("NO_MISTAKES");
   if (!response.ok) throw new Error("Failed");
   return response.json();
@@ -145,13 +154,14 @@ export async function gradeSpeaking(userId: string, task: string, text: string) 
     return response.json();
 }
 
-// ARREGLAT: Ara fem servir 'level' a la crida fetchExercise per evitar l'error TS
 export const downloadOfflinePack = async (userId: string, level: string = "C1") => {
   const exercises = [];
   for (let i = 0; i < 5; i++) {
-    // Passem 'level' aquí perquè TypeScript vegi que l'estem fent servir
-    const ex = await fetchExercise("reading_and_use_of_language1", userId, level); 
-    exercises.push(ex);
+    try {
+        // Capturem errors individuals per no trencar tot el pack si un falla
+        const ex = await fetchExercise("reading_and_use_of_language1", userId, level); 
+        exercises.push(ex);
+    } catch(e) { console.warn("Skipped offline exercise due to error/limit"); }
   }
   localStorage.setItem("offline_pack", JSON.stringify(exercises));
   return true;
