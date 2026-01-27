@@ -1,8 +1,9 @@
+import React from 'react'; // Often needed for JSX in some setups
 import { ArrowRight, Brain, Mic, Globe, ShieldCheck, Zap } from "lucide-react";
 
 interface Props {
   onGetStarted: () => void;
-  // Afegeixo aquesta funció per obrir els documents legals
+  // Function to open legal documents
   onShowLegal: (type: 'privacy' | 'terms') => void;
 }
 
@@ -88,7 +89,7 @@ export default function Landing({ onGetStarted, onShowLegal }: Props) {
   );
 }
 
-function FeatureCard({ icon, title, desc }: { icon: any, title: string, desc: string }) {
+function FeatureCard({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
   return (
     <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-100 hover:shadow-lg transition-all duration-300">
       <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm mb-4">
