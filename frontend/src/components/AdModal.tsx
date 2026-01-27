@@ -1,90 +1,83 @@
 import { useState, useEffect } from 'react';
-import { X, Loader2, PlayCircle } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { Gift, Timer } from 'lucide-react'; // Canviem icones per adaptar al nou disseny
+import AdBanner from './AdBanner'; 
 
-// IMPORTANT: Aquest component simula un anunci.
-// En el futur, aquí posaries el codi de Google AdMob / AdSense.
+interface Props {
+    onClose: () => void;
+    onReward: () => void;
+}
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
-
-export default function AdModal({ onClose, onReward }: { onClose: () => void, onReward: () => void }) {
-  const { user } = useAuth();
-  const [timeLeft, setTimeLeft] = useState(10); // L'anunci dura 10 segons
-  const [canClose, setCanClose] = useState(false);
-  const [adState, setAdState] = useState<'loading' | 'playing' | 'finished'>('loading');
-
-  useEffect(() => {
-    // Simulem càrrega de l'anunci
-    const loadTimer = setTimeout(() => {
-      setAdState('playing');
-    }, 1500);
-    return () => clearTimeout(loadTimer);
-  }, []);
+export default function AdModal({ onClose, onReward }: Props) {
+  // L'usuari ha d'esperar 10 segons mirant l'anunci
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [canClaim, setCanClaim] = useState(false);
 
   useEffect(() => {
-    if (adState === 'playing') {
-      const timer = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            setCanClose(true);
-            setAdState('finished');
-            // Cridem al backend per donar la recompensa
-            fetch(`${API_URL}/ad_reward/`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: user?.uid }),
-            }).then(() => onReward());
-            
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
+    if (timeLeft > 0) {
+        const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+        return () => clearTimeout(timer);
+    } else {
+        setCanClaim(true);
     }
-  }, [adState]);
+  }, [timeLeft]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-lg bg-gray-900 rounded-xl overflow-hidden shadow-2xl border border-gray-700 m-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in p-4">
+      <div className="relative w-full max-w-lg bg-white rounded-2xl overflow-hidden shadow-2xl text-center">
         
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 bg-gray-800 border-b border-gray-700">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                {adState === 'finished' ? 'Reward Granted' : `Ad ends in ${timeLeft}s`}
-            </span>
-            {canClose && (
-                <button onClick={onClose} className="text-white hover:text-gray-300">
-                    <X className="w-6 h-6" />
-                </button>
-            )}
+        {/* Capçalera */}
+        <div className="p-6 pb-2">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                <Gift className="w-8 h-8 text-blue-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900">Extra Life Available!</h2>
+            <p className="text-slate-500 text-sm mt-1">
+                Support AIdvanced by viewing this ad to unlock your reward.
+            </p>
         </div>
 
-        {/* Content */}
-        <div className="h-64 flex flex-col items-center justify-center p-8 text-center">
-            {adState === 'loading' && <Loader2 className="w-10 h-10 text-white animate-spin" />}
-            
-            {adState === 'playing' && (
-                <div className="animate-pulse">
-                    <h3 className="text-2xl font-bold text-white mb-2">PRO VERSION</h3>
-                    <p className="text-gray-400">Support the app to remove these ads.</p>
-                    <div className="mt-6 p-4 bg-blue-600 rounded-lg text-white font-bold">
-                        Great things are coming...
-                    </div>
-                </div>
+        {/* --- ZONA DE L'ANUNCI REAL --- */}
+        <div className="bg-slate-100 p-4 border-y border-slate-200 min-h-[250px] flex items-center justify-center relative">
+             
+             {/* IMPORTANT: 
+                 1. 'dataAdClient': Ja he posat el teu ID real.
+                 2. 'dataAdSlot': Has de crear un "Display Ad Unit" a Google AdSense 
+                    i enganxar aquí el número que et donin.
+             */}
+             <AdBanner 
+                dataAdClient="ca-pub-6220801511844436"
+                dataAdSlot="1234567890"  // <--- SUBSTITUEIX AIXÒ PEL SLOT ID DE GOOGLE
+                style={{ display: 'block', minHeight: '250px', width: '100%' }}
+             />
+             
+             <span className="absolute top-1 right-2 text-[10px] text-slate-400 uppercase tracking-wide">Advertisement</span>
+        </div>
+
+        {/* Peu amb el botó */}
+        <div className="p-6">
+            {canClaim ? (
+                <button 
+                    onClick={onReward}
+                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-lg hover:shadow-blue-200 hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                >
+                    <Gift className="w-5 h-5" /> Claim Reward
+                </button>
+            ) : (
+                <button 
+                    disabled
+                    className="w-full py-3 bg-slate-100 text-slate-400 rounded-xl font-bold flex items-center justify-center gap-2 cursor-wait"
+                >
+                    <Timer className="w-5 h-5 animate-pulse" /> 
+                    Wait {timeLeft}s to claim...
+                </button>
             )}
 
-            {adState === 'finished' && (
-                <div className="text-green-400">
-                    <PlayCircle className="w-16 h-16 mx-auto mb-4" />
-                    <h3 className="text-2xl font-bold text-white">Reward Unlocked!</h3>
-                    <p className="text-gray-400 mt-2">You can now generate another exercise.</p>
-                    <button onClick={onClose} className="mt-6 px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-gray-200">
-                        Close & Continue
-                    </button>
-                </div>
-            )}
+            <button 
+                onClick={onClose} 
+                className="mt-4 text-sm text-slate-400 hover:text-slate-600 font-medium"
+            >
+                No thanks, I'll stop for today
+            </button>
         </div>
       </div>
     </div>
