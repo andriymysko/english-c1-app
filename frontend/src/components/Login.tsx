@@ -1,118 +1,150 @@
-import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import { LogIn, UserPlus, Mail, Lock, AlertCircle } from "lucide-react";
+import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { Loader2, ArrowLeft, Mail, Lock, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 
-export default function Login() {
-  const { login, signup } = useAuth();
-  const [isRegistering, setIsRegistering] = useState(false);
+// 1. Definim la interfície per a les Props
+interface LoginProps {
+  onBack?: () => void; // És opcional (?) per si el fas servir en altres llocs sense botó back
+}
+
+export default function Login({ onBack }: LoginProps) {
+  const { login, signup, loginWithGoogle } = useAuth();
+  
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
-      if (isRegistering) {
-        await signup(email, password);
-      } else {
+      if (isLogin) {
         await login(email, password);
+      } else {
+        await signup(email, password);
       }
     } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/wrong-password') setError('Incorrect password.');
-      else if (err.code === 'auth/user-not-found') setError('No account found with this email.');
-      else if (err.code === 'auth/email-already-in-use') setError('Email already in use.');
-      else if (err.code === 'auth/weak-password') setError('Password should be at least 6 characters.');
-      else setError('Failed to log in. Please check your details.');
+      setError(err.message.replace("Firebase:", "").trim());
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }
+  };
+
+  const handleGoogle = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (err) {
+      setError("Failed to login with Google.");
+    }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-2xl shadow-xl border border-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 animate-in fade-in slide-in-from-bottom-4">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
         
-        <div className="text-center">
-          <h2 className="mt-2 text-3xl font-extrabold text-gray-900">
-            {isRegistering ? "Create Account" : "Welcome Back"}
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            {isRegistering 
-              ? "Sign up to start practicing C1 English." 
-              : "Log in to access your saved exercises."}
-          </p>
+        {/* HEADER AMB BOTÓ BACK */}
+        <div className="px-8 pt-8 pb-4 relative">
+            {onBack && (
+                <button 
+                    onClick={onBack}
+                    className="absolute top-8 left-6 text-slate-400 hover:text-slate-800 transition p-2 rounded-full hover:bg-slate-50"
+                    title="Back to Home"
+                >
+                    <ArrowLeft className="w-5 h-5" />
+                </button>
+            )}
+            <div className="text-center mt-4">
+                <h2 className="text-3xl font-extrabold text-slate-900">
+                    {isLogin ? "Welcome Back" : "Create Account"}
+                </h2>
+                <p className="text-slate-500 mt-2 text-sm">
+                    {isLogin ? "Enter your credentials to access your workspace." : "Start your journey to C1 mastery today."}
+                </p>
+            </div>
         </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-center gap-2 text-sm">
-            <AlertCircle className="w-4 h-4" />
-            {error}
-          </div>
-        )}
-
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Email address"
-              />
-            </div>
-
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Password"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all shadow-lg hover:shadow-blue-500/30 disabled:bg-blue-300"
+        {/* FORM */}
+        <div className="p-8 pt-2">
+            
+          {/* GOOGLE BUTTON */}
+          <button 
+            onClick={handleGoogle}
+            className="w-full py-3 px-4 border border-slate-200 rounded-xl flex items-center justify-center gap-3 text-slate-700 font-bold hover:bg-slate-50 transition mb-6"
           >
-            <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-              {isRegistering ? (
-                <UserPlus className="h-5 w-5 text-blue-300 group-hover:text-blue-100" />
-              ) : (
-                <LogIn className="h-5 w-5 text-blue-300 group-hover:text-blue-100" />
-              )}
-            </span>
-            {loading ? "Processing..." : (isRegistering ? "Sign Up" : "Sign In")}
+            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+            Continue with Google
           </button>
-        </form>
 
-        <div className="text-center mt-4">
-          <p className="text-sm text-gray-600">
-            {isRegistering ? "Already have an account?" : "Don't have an account?"}{" "}
-            <button
-              onClick={() => { setIsRegistering(!isRegistering); setError(""); }}
-              className="font-medium text-blue-600 hover:text-blue-500 underline"
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
+            <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-slate-500">Or continue with email</span></div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1 ml-1">Email</label>
+                <div className="relative">
+                    <Mail className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+                    <input 
+                        type="email" 
+                        required
+                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition font-medium"
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1 ml-1">Password</label>
+                <div className="relative">
+                    <Lock className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+                    <input 
+                        type="password" 
+                        required
+                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition font-medium"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            {error && (
+                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {error}
+                </div>
+            )}
+
+            <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition shadow-lg hover:shadow-xl active:scale-95 disabled:opacity-70 flex justify-center items-center gap-2"
             >
-              {isRegistering ? "Log in" : "Sign up"}
+                {loading ? <Loader2 className="w-5 h-5 animate-spin"/> : (isLogin ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />)}
+                {isLogin ? "Log In" : "Sign Up"}
             </button>
-          </p>
-        </div>
+          </form>
 
+          <div className="mt-6 text-center">
+            <p className="text-slate-500 text-sm">
+                {isLogin ? "Don't have an account? " : "Already have an account? "}
+                <button 
+                    onClick={() => setIsLogin(!isLogin)} 
+                    className="text-blue-600 font-bold hover:underline"
+                >
+                    {isLogin ? "Sign Up" : "Log In"}
+                </button>
+            </p>
+          </div>
+
+        </div>
       </div>
     </div>
   );

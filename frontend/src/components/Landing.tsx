@@ -2,9 +2,11 @@ import { ArrowRight, Brain, Mic, Globe, ShieldCheck, Zap } from "lucide-react";
 
 interface Props {
   onGetStarted: () => void;
+  // Afegeixo aquesta funció per obrir els documents legals
+  onShowLegal: (type: 'privacy' | 'terms') => void;
 }
 
-export default function Landing({ onGetStarted }: Props) {
+export default function Landing({ onGetStarted, onShowLegal }: Props) {
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-100">
       
@@ -75,7 +77,11 @@ export default function Landing({ onGetStarted }: Props) {
       </div>
 
       {/* FOOTER */}
-      <footer className="py-10 text-center text-gray-400 text-sm border-t border-gray-100">
+      <footer className="py-10 text-center text-gray-400 text-sm border-t border-gray-100 bg-slate-50">
+        <div className="flex justify-center gap-6 mb-4 font-medium">
+            <button onClick={() => onShowLegal('terms')} className="hover:text-slate-600 transition hover:underline underline-offset-4">Terms of Service</button>
+            <button onClick={() => onShowLegal('privacy')} className="hover:text-slate-600 transition hover:underline underline-offset-4">Privacy Policy</button>
+        </div>
         <p>© {new Date().getFullYear()} C1 Master AI. Built for Cambridge Students.</p>
       </footer>
     </div>

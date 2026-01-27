@@ -1,25 +1,40 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+// CORRECCIÓ 1: Importem el tipus ReactNode separadament
+import type { ReactNode } from "react"; 
+
 import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut, 
   onAuthStateChanged, 
-  type User 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut,
+  signInWithPopup,      
+  GoogleAuthProvider    
 } from "firebase/auth";
-import { auth } from "../firebase";
+
+// CORRECCIÓ 2: Importem el tipus User separadament
+import type { User } from "firebase/auth"; 
+
+// CORRECCIÓ 3: Ajustem la ruta. Si firebase.ts està a src/, pugem un nivell (..) i llestos.
+// Si el tens a utils, canvia-ho per "../utils/firebase"
+import { auth } from "../firebase"; 
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signup: (email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({} as AuthContextType);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -31,29 +46,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentUser);
       setLoading(false);
     });
-    return unsubscribe;
+    return () => unsubscribe();
   }, []);
 
-  // Funció per crear un usuari nou
-  const signup = async (email: string, password: string) => {
-    await createUserWithEmailAndPassword(auth, email, password);
-  };
-
-  // Funció per entrar amb un usuari existent
+  // Funcions d'autenticació
   const login = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const signup = async (email: string, password: string) => {
+    await createUserWithEmailAndPassword(auth, email, password);
   };
 
   const logout = async () => {
     await signOut(auth);
   };
 
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  };
+
   const value = {
     user,
     loading,
-    signup,
     login,
-    logout
+    signup,
+    logout,
+    loginWithGoogle 
   };
 
   return (

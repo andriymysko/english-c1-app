@@ -8,9 +8,10 @@ import ExercisePlayer from './ExercisePlayer';
 import ExamPlayer from './ExamPlayer';
 import { fetchExercise, generateFullExam, downloadOfflinePack, getOfflineExercise } from '../api';
 import Profile from './Profile';
-import Pricing from './Pricing'; // <--- NOU COMPONENT
-import AdModal from './AdModal'; // <--- NOU COMPONENT
+import Pricing from './Pricing'; 
+import AdModal from './AdModal'; 
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner'; // <--- IMPORTANT
 
 const SKILLS = {
   reading: {
@@ -97,16 +98,22 @@ export default function Dashboard() {
     
     // Si el pagament ha anat bé
     if (query.get('success') === 'true') {
-      setCurrentView('profile'); // Anem al perfil per veure el canvi
-      // No fem replaceState aquí per deixar que el Profile faci la seva màgia visual
-      alert("🎉 Payment Successful! Your VIP Pass is active.");
+      setCurrentView('profile'); 
+      toast.success("Payment Successful! 🌟", {
+        description: "Your VIP Pass is now active. Enjoy unlimited access!",
+        duration: 5000,
+      });
+      // Opcional: netejar la URL sense recarregar
+      window.history.replaceState({}, '', '/');
     }
     
     // Si l'usuari ha cancel·lat
     if (query.get('canceled') === 'true') {
-      setCurrentView('pricing'); // Tornem a la botiga per si vol provar un altre pack
+      setCurrentView('pricing'); 
       window.history.replaceState({}, '', '/');
-      alert("Payment canceled.");
+      toast.info("Payment canceled", {
+        description: "No worries, you can try again anytime."
+      });
     }
   }, []);
 
@@ -118,7 +125,9 @@ export default function Dashboard() {
         const offlineEx = getOfflineExercise();
         if (offlineEx) {
             setExerciseData(offlineEx);
-            alert("⚠️ You are offline. Loaded exercise from your Downloaded Pack.");
+            toast.warning("You are offline", {
+                description: "Loaded exercise from your Downloaded Pack."
+            });
             return;
         } else {
             setError("🌐 You are offline and have no downloaded exercises.");
@@ -157,7 +166,6 @@ export default function Dashboard() {
       setExamData(data);
     } catch (err: any) {
       if (err.message === "DAILY_LIMIT") {
-        // TAMBÉ SALTA L'ANUNCI SI VOLEN FER EXAMEN I NO PODEN
         setShowAdModal(true);
       }
       else setError("Failed to generate exam.");
@@ -169,17 +177,24 @@ export default function Dashboard() {
   const handleDownloadPack = async () => {
     if(!user) return;
     if(!navigator.onLine) {
-        alert("You need internet to download the pack!");
+        toast.error("You are offline", {
+            description: "Please connect to the internet to download the pack."
+        });
         return;
     }
+    // El confirm el deixem perquè és funcional, o podríem fer un toast amb acció (més complex)
     if(!confirm("Download 5 Reading exercises for offline use? This might take a minute.")) return;
     
     setDownloadingPack(true);
     try {
         await downloadOfflinePack(user.uid);
-        alert("✅ Pack Downloaded! You can now practice offline.");
+        toast.success("Pack Downloaded! ✅", {
+            description: "You can now practice Reading offline."
+        });
     } catch (e) {
-        alert("Failed to download pack.");
+        toast.error("Download Failed", {
+            description: "Please check your connection and try again."
+        });
     } finally {
         setDownloadingPack(false);
     }
@@ -214,7 +229,9 @@ export default function Dashboard() {
             onClose={() => setShowAdModal(false)}
             onReward={() => {
                 setShowAdModal(false);
-                alert("🎁 Reward granted! You have 1 extra life. Try generating again.");
+                toast.success("Reward Granted! 🎁", {
+                    description: "You earned 1 extra life. Try generating again!"
+                });
             }}
         />
       )}
