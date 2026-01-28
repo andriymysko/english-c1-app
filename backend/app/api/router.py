@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Response, UploadFile, File
+from fastapi import APIRouter, HTTPException, Response, UploadFile, File, BackgroundTasks # <--- 1. IMPORTAT BackgroundTasks
 from app.services.generators.factory import ExerciseFactory
 from app.services.pdf.generator import generate_pdf_file
 from app.services.db import DatabaseService
@@ -16,7 +16,7 @@ import base64
 from openai import OpenAI
 import json
 from datetime import datetime
-from firebase_admin import firestore # <--- Necessari per al comptador
+from firebase_admin import firestore
 
 router = APIRouter()
 
@@ -72,53 +72,50 @@ class AdRewardRequest(BaseModel):
 
 # --- HELPER FUNCTION ---
 def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool = True):
-    print(f"🤖 GENERANT NOU EXERCICI ({exercise_type})...")
-    # Nota: ExerciseFactory ja hauria de fer servir gpt-4o-mini internament per estalviar
-    exercise_object = ExerciseFactory.create_exercise(exercise_type, level)
-    exercise_data = exercise_object.model_dump()
-    
-    if exercise_type.startswith("listening"):
-        try:
-            audio_bytes = AudioService.generate_audio(exercise_data['text'])
-            audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-            exercise_data['audio_base64'] = audio_base64
-        except Exception as e:
-            print(f"⚠️ Error generant àudio inicial: {e}")
+    print(f"⚙️ BACKGROUND: Generant nou exercici de reserva ({exercise_type})...")
+    try:
+        # Nota: ExerciseFactory ja hauria de fer servir gpt-4o-mini internament per estalviar
+        exercise_object = ExerciseFactory.create_exercise(exercise_type, level)
+        exercise_data = exercise_object.model_dump()
+        
+        if exercise_type.startswith("listening"):
+            try:
+                audio_bytes = AudioService.generate_audio(exercise_data['text'])
+                audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+                exercise_data['audio_base64'] = audio_base64
+            except Exception as e:
+                print(f"⚠️ Error generant àudio inicial: {e}")
 
-    doc_id = DatabaseService.save_exercise(exercise_data, level, exercise_type, is_public=is_public)
-    exercise_data['id'] = doc_id
-    return exercise_data
+        doc_id = DatabaseService.save_exercise(exercise_data, level, exercise_type, is_public=is_public)
+        print(f"✅ BACKGROUND: Exercici guardat correctament! ID: {doc_id}")
+        return exercise_data
+    except Exception as e:
+        print(f"❌ BACKGROUND ERROR: No s'ha pogut generar l'exercici: {e}")
 
 # --- ENDPOINTS ---
 
 @router.post("/get_exercise/")
-def get_exercise_data(request: ExerciseRequest):
+def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTasks): # <--- 2. AFEGIT PARÀMETRE
     try:
         user_id = request.user_id
         ex_type = request.exercise_type
         
-        # --- LÒGICA DEL COMPTADOR DIARI (NOU) ---
-        # 1. Obtenim dades d'ús de l'usuari
+        # --- LÒGICA DEL COMPTADOR DIARI ---
         user_ref = db.collection("users").document(user_id)
         user_doc = user_ref.get()
         
         user_data = user_doc.to_dict() if user_doc.exists else {}
-        # Mirem si l'usuari és VIP (per saltar límits en el futur)
         is_vip = user_data.get("is_vip", False)
-        
         usage_data = user_data.get("daily_usage", {})
         
-        # 2. Comprovem data
         today_str = datetime.now().strftime("%Y-%m-%d")
         last_date = usage_data.get("date", "")
         
         if last_date != today_str:
-            # Nou dia -> Resetegem comptadors
             usage_data = {"date": today_str, "counts": {}}
             
         current_count = usage_data.get("counts", {}).get(ex_type, 0)
         
-        # 3. LÍMIT: 1 per tipus al dia (Si no ets VIP)
         LIMIT = 1
         if not is_vip and current_count >= LIMIT:
             print(f"⛔ LÍMIT DIARI ASSOLIT per {ex_type} (User: {user_id})")
@@ -138,9 +135,18 @@ def get_exercise_data(request: ExerciseRequest):
         if existing:
             print("✨ REUTILITZANT EXERCICI DB (Pool)")
             final_exercise = existing
+
+            # --- LA MÀGIA: GENERACIÓ EN SEGON PLA ---
+            # Si hem agafat un de la piscina, la piscina ha baixat.
+            # Llancem una tasca de fons per tornar-la a omplir.
+            # Això s'executa DESPRÉS de respondre a l'usuari.
+            print(f"🔄 Disparant recàrrega de stock per {ex_type}...")
+            background_tasks.add_task(generate_and_save_exercise, request.level, request.exercise_type)
+            # ---------------------------------------
+
         else:
-            # Si no n'hi ha a la pool, generem (costa diners d'API)
-            print("⚠️ POOL BUIDA. Generant on-demand...")
+            # Si no n'hi ha cap (0 total), l'usuari s'ha d'esperar (inevitable la primera vegada)
+            print("⚠️ POOL BUIDA. Generant on-demand (Blocking)...")
             final_exercise = generate_and_save_exercise(request.level, request.exercise_type, is_public=True)
 
         # 5. Si tot ha anat bé, INCREMENTEM EL COMPTADOR
@@ -198,9 +204,7 @@ def submit_result(result: UserResult):
 @router.post("/generate_full_exam/")
 def generate_full_exam(request: ExamRequest):
     try:
-        # Aquí també podries aplicar el 'daily_usage' si vols limitar exàmens sencers
-        # De moment ho deixem amb la quota simple o pots posar un límit separat
-        if not DatabaseService.check_user_quota(request.user_id, cost=5): # Examen sencer costa més
+        if not DatabaseService.check_user_quota(request.user_id, cost=5):
              raise HTTPException(status_code=429, detail="Daily limit reached. Cannot generate full exam.")
         
         return ExamGenerator.generate_full_exam(request.level)
@@ -219,7 +223,6 @@ def report_issue(report: ReportRequest):
 
 @router.post("/generate_review/{user_id}")
 def generate_review(user_id: str):
-    # Review també compta com a ús
     if not DatabaseService.check_user_quota(user_id, cost=1):
         raise HTTPException(status_code=429, detail="Daily limit reached.")
         
@@ -240,7 +243,6 @@ def get_flashcards(user_id: str):
     existing = DatabaseService.get_user_flashcards(user_id)
     if len(existing) >= 5: return {"flashcards": existing}
     
-    # Generar flashcards també té cost
     if not DatabaseService.check_user_quota(user_id, cost=1):
          return {"flashcards": existing}
 
@@ -298,7 +300,6 @@ def generate_pdf(level: str="C1", exercise_type: str="reading_and_use_of_languag
 
 @router.get("/analyze_weaknesses/{user_id}")
 def analyze_weaknesses(user_id: str):
-    # 1. Recuperem els errors
     stats = DatabaseService.get_user_stats(user_id)
     mistakes = stats.get("mistakes_pool", [])
     
@@ -308,7 +309,6 @@ def analyze_weaknesses(user_id: str):
             "tags": []
         }
 
-    # 2. Preparem el prompt pel Coach
     mistakes_text = "\n".join([f"- Type: {m['type']}, Q: {m['question']}, User said: {m['user_answer']}, Correct: {m['correct_answer']}" for m in mistakes[-10:]])
     
     prompt = f"""
@@ -325,10 +325,9 @@ def analyze_weaknesses(user_id: str):
     }}
     """
 
-    # 3. Cridem a l'IA (MODEL BO PER AL COACH)
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     response = client.chat.completions.create(
-        model="gpt-4o",  # <--- UTILITZEM EL MODEL POTENT PER AL FEEDBACK
+        model="gpt-4o", 
         messages=[{"role": "system", "content": prompt}],
         response_format={"type": "json_object"}
     )
@@ -337,7 +336,5 @@ def analyze_weaknesses(user_id: str):
 
 @router.post("/ad_reward/")
 def ad_reward(request: AdRewardRequest):
-    # En un entorn real, aquí validaries un token del proveïdor d'anuncis
-    # per assegurar que no fan trampes. Per ara, confiem en el frontend.
     DatabaseService.reward_ad_view(request.user_id)
     return {"status": "rewarded"}

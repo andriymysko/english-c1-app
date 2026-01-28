@@ -308,28 +308,65 @@ class DatabaseService:
     @staticmethod
     def get_existing_exercise(level: str, exercise_type: str, completed_ids: list):
         try:
-            docs = db.collection('exercises')\
-                .where('level', '==', level)\
-                .where('type', '==', exercise_type)\
-                .where('is_flagged', '==', False)\
-                .limit(20)\
-                .stream()
+            db = firestore.client()
+            exercises_ref = db.collection('exercises')
             
-            candidates = []
+            print(f"🔍 BUSCANT A DB: Level={level}, Type={exercise_type}")
+
+            # INTENT 1: Cerca estàndard (pel camp exercise_type)
+            query = exercises_ref.where("level", "==", level)\
+                                 .where("exercise_type", "==", exercise_type)
+            
+            docs = list(query.stream())
+            
+            # INTENT 2: Si no en troba, potser el camp es diu 'type' o 'part_id' a la teva DB antiga?
+            if not docs:
+                print("⚠️ No trobats per 'exercise_type'. Provant per 'type'...")
+                query = exercises_ref.where("level", "==", level)\
+                                     .where("type", "==", exercise_type)
+                docs = list(query.stream())
+
+            # INTENT 3: Si encara no en troba, potser falta el camp i ho hem de buscar manualment
+            if not docs:
+                print("⚠️ No trobats per 'type'. Descarregant tot el nivell per inspeccionar (Debug)...")
+                # Això és només per debug, no ho deixis en producció si tens milers d'exercicis
+                all_level_docs = exercises_ref.where("level", "==", level).limit(20).stream()
+                for d in all_level_docs:
+                    data = d.to_dict()
+                    # Comprovem si l'estructura és l'antiga (on el tipus era una clau del diccionari)
+                    if exercise_type in data: 
+                        docs.append(d)
+
+            # Filtrem els que ja ha fet l'usuari
+            available = []
+            print(f"📄 Documents trobats bruts: {len(docs)}")
+            
             for doc in docs:
-                data = doc.to_dict()
-                data['id'] = doc.id
-                if doc.id not in completed_ids:
-                    candidates.append(data)
+                # Gestionem si 'doc' ja és un objecte o una referència
+                data = doc.to_dict() if hasattr(doc, 'to_dict') else doc.to_dict()
+                doc_id = doc.id
+                
+                # Normalitzem l'ID
+                data['id'] = doc_id
+                
+                if doc_id not in completed_ids:
+                    available.append(data)
+                else:
+                    print(f"   ❌ Saltant {doc_id} (Ja completat)")
+
+            if not available:
+                print("❌ 0 disponibles després de filtrar l'historial.")
+                return None
+
+            print(f"✅ DISPONIBLES REALS: {len(available)}")
             
-            if candidates:
-                selected = random.choice(candidates)
-                print(f"🎲 Random Select: {selected['id']} from {len(candidates)} options.")
-                return selected
-            
-            return None
+            # Selecció aleatòria
+            selected = random.choice(available)
+            print(f"🎲 Random Select: {selected.get('id')} from {len(available)} options.")
+            return selected
+
         except Exception as e:
-            print(f"Error fetching existing exercise: {e}")
+            print(f"Error fetching exercise: {e}")
             return None
 
     # --- FLASHCARDS ---
