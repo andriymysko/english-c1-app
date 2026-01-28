@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "posthog-js": "^1.335.5",
     "sonner": "^2.0.7"
   }
 }
