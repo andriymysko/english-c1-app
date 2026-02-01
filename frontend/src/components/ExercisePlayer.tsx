@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, CheckCircle, Download, Eye, RefreshCw, XCircle, Send, Loader2, AlertCircle, Mic, StopCircle, Volume2, FileText, Sparkles, Image as ImageIcon, Flag, PlayCircle } from "lucide-react"; // <--- PlayCircle NOU
+import { ArrowLeft, CheckCircle, Download, Eye, RefreshCw, XCircle, Send, Loader2, AlertCircle, Mic, StopCircle, Volume2, FileText, Sparkles, Image as ImageIcon, Flag, PlayCircle, Key } from "lucide-react"; 
 import { downloadPDF, preloadExercise, submitResult, gradeWriting, gradeSpeaking, transcribeAudio, fetchAudio, reportIssue } from "../api"; 
 import { useAuth } from "../context/AuthContext";
 import confetti from 'canvas-confetti'; 
@@ -12,7 +12,11 @@ interface Question {
   answer: string;
   answer_type: string;
   explanation?: string;
-  timestamp?: string; // <--- NOU CAMP
+  timestamp?: string;
+  // --- CAMPS NOUS PER A PART 4 ---
+  original_sentence?: string;
+  second_sentence?: string;
+  keyword?: string;
 }
 
 interface ExerciseData {
@@ -36,7 +40,7 @@ export default function ExercisePlayer({ data, onBack }: Props) {
   const { user } = useAuth(); 
   
   // REFS
-  const audioRef = useRef<HTMLAudioElement | null>(null); // <--- REFERÈNCIA D'ÀUDIO
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   
@@ -65,6 +69,16 @@ export default function ExercisePlayer({ data, onBack }: Props) {
   const isListening = data.type.startsWith("listening");
   const isInteractive = !isWriting && !isSpeaking; 
 
+  // --- RESET STATE ON DATA CHANGE (Blindatge Extra) ---
+  useEffect(() => {
+    setShowAnswers(false);
+    setUserAnswers({});
+    setScore(null);
+    setFeedback(null);
+    setInputText("");
+    setShowTranscript(false);
+  }, [data.id, data.title]); 
+
   useEffect(() => {
     if (isInteractive) {
         preloadExercise(data.type, data.level || "C1");
@@ -79,11 +93,9 @@ export default function ExercisePlayer({ data, onBack }: Props) {
     }
   }, [data.type, data.level, isInteractive, isListening, data.text]);
 
-  // --- AUDIO JUMP HELPER (NOU) ---
+  // --- AUDIO JUMP HELPER ---
   const jumpToTimestamp = (timeStr: string) => {
     if (!audioRef.current) return;
-    
-    // Convertir "01:30" -> 90 segons
     const parts = timeStr.split(':');
     let seconds = 0;
     if (parts.length === 2) {
@@ -91,8 +103,6 @@ export default function ExercisePlayer({ data, onBack }: Props) {
     } else {
         seconds = parseInt(parts[0]);
     }
-    
-    // Saltar i reproduir
     audioRef.current.currentTime = seconds;
     audioRef.current.play();
   };
@@ -158,13 +168,8 @@ export default function ExercisePlayer({ data, onBack }: Props) {
         else result = await gradeSpeaking(user.uid, fullTask, inputText);
         setFeedback(result);
         
-        // FEEDBACK AUDITIU: Èxit quan reps la nota!
         playSuccessSound();
-        confetti({
-            particleCount: 100,
-            spread: 70,
-            origin: { y: 0.6 }
-        });
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
 
     } catch (e) {
         alert("Error grading submission");
@@ -196,17 +201,11 @@ export default function ExercisePlayer({ data, onBack }: Props) {
     setScore(correct);
     setShowAnswers(true);
 
-    // --- FEEDBACK AUDITIU I VISUAL ---
     if (correct > (data.questions.length / 2)) {
         playSuccessSound();
-        confetti({
-            particleCount: 150,
-            spread: 80,
-            origin: { y: 0.6 },
-            colors: ['#2563eb', '#3b82f6', '#60a5fa'] // Tons blaus
-        });
+        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#2563eb', '#3b82f6', '#60a5fa'] });
     } else {
-        playErrorSound(); // So d'ànims
+        playErrorSound();
     }
     
     if (user) {
@@ -271,21 +270,12 @@ export default function ExercisePlayer({ data, onBack }: Props) {
                 {data.image_urls.map((url: string, index: number) => (
                   <div key={index} className="rounded-xl overflow-hidden shadow-lg border border-gray-200 bg-gray-100 group hover:scale-[1.02] transition-transform">
                     <div className="aspect-square relative">
-                        <img 
-                            src={url} 
-                            alt={`Task picture ${index + 1}`} 
-                            className="w-full h-full object-cover" 
-                            loading="lazy"
-                        />
+                        <img src={url} alt={`Task picture ${index + 1}`} className="w-full h-full object-cover" loading="lazy"/>
                     </div>
                     <div className="p-3 bg-white border-t flex flex-col items-center gap-1">
-                      <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-                        Picture {String.fromCharCode(65 + index)}
-                      </span>
+                      <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">Picture {String.fromCharCode(65 + index)}</span>
                       {data.image_prompts && data.image_prompts[index] && (
-                        <p className="text-xs text-gray-500 text-center italic leading-tight px-2">
-                          "{data.image_prompts[index]}"
-                        </p>
+                        <p className="text-xs text-gray-500 text-center italic leading-tight px-2">"{data.image_prompts[index]}"</p>
                       )}
                     </div>
                   </div>
@@ -294,38 +284,24 @@ export default function ExercisePlayer({ data, onBack }: Props) {
           </div>
         )}
 
-        {/* --- LISTENING AUDIO PLAYER (AMB REF) --- */}
+        {/* LISTENING PLAYER */}
         {isListening && (
             <div className="bg-orange-50 p-6 rounded-xl border border-orange-200 shadow-sm flex flex-col items-center gap-4 sticky top-0 z-0">
                 <div className="flex items-center gap-2 text-orange-800 font-bold text-lg">
-                    <Volume2 className="w-6 h-6" />
-                    Audio Track
+                    <Volume2 className="w-6 h-6" /> Audio Track
                 </div>
-                
                 {loadingAudio ? (
-                    <div className="flex items-center gap-2 text-orange-600">
-                        <Loader2 className="animate-spin w-5 h-5" />
-                        Generating AI Voice...
-                    </div>
+                    <div className="flex items-center gap-2 text-orange-600"><Loader2 className="animate-spin w-5 h-5" /> Generating AI Voice...</div>
                 ) : audioUrl ? (
-                    // AFEGIT REF AQUÍ
-                    <audio 
-                        ref={audioRef} 
-                        controls 
-                        src={audioUrl} 
-                        className="w-full max-w-md shadow-lg rounded-full" 
-                        autoPlay 
-                    />
+                    <audio ref={audioRef} controls src={audioUrl} className="w-full max-w-md shadow-lg rounded-full" autoPlay />
                 ) : (
                     <p className="text-red-500">Error loading audio.</p>
                 )}
-
                 <button 
                     onClick={() => setShowTranscript(!showTranscript)}
                     className="text-sm text-orange-700 underline flex items-center gap-1 hover:text-orange-900 mt-2"
                 >
-                    <FileText className="w-4 h-4" />
-                    {showTranscript ? "Hide Transcript" : "Show Transcript (Cheating!)"}
+                    <FileText className="w-4 h-4" /> {showTranscript ? "Hide Transcript" : "Show Transcript (Cheating!)"}
                 </button>
             </div>
         )}
@@ -356,29 +332,21 @@ export default function ExercisePlayer({ data, onBack }: Props) {
                     <div className="flex gap-4">
                       <div className="flex-1 space-y-4">
                         
-                        {/* HEADER: Pregunta + Botó Report (VERMELL I VISIBLE) */}
+                        {/* HEADER */}
                         <div className="flex justify-between items-start">
                             <span className="font-bold text-gray-400 text-lg">{q.question}</span>
-                            
                             <div className="relative">
                                 <button 
                                     onClick={() => setReporting(reporting === idx ? null : idx)}
                                     className="flex items-center gap-1 text-xs font-bold text-red-500 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-full transition border border-red-100"
-                                    title="Report this question"
                                 >
-                                    <Flag className="w-3 h-3 fill-current" />
-                                    Report
+                                    <Flag className="w-3 h-3 fill-current" /> Report
                                 </button>
-                                
                                 {reporting === idx && (
                                     <div className="absolute right-0 top-8 bg-white shadow-xl border rounded-lg p-2 z-20 w-48 text-sm animate-in fade-in zoom-in-95">
                                         <p className="font-bold text-gray-700 mb-2 px-2 text-xs uppercase">What's wrong?</p>
                                         {["Wrong Answer", "Bad Grammar", "Confusing", "Other"].map(reason => (
-                                            <button
-                                                key={reason}
-                                                onClick={() => handleReport(idx, reason)}
-                                                className="block w-full text-left px-3 py-2 hover:bg-red-50 text-gray-600 rounded-md text-xs transition"
-                                            >
+                                            <button key={reason} onClick={() => handleReport(idx, reason)} className="block w-full text-left px-3 py-2 hover:bg-red-50 text-gray-600 rounded-md text-xs transition">
                                                 {reason}
                                             </button>
                                         ))}
@@ -387,8 +355,46 @@ export default function ExercisePlayer({ data, onBack }: Props) {
                             </div>
                         </div>
 
-                        {q.stem && <p className="font-medium text-gray-900 text-lg">{q.stem}</p>}
+                        {/* --- VISUALITZACIÓ DE LA PREGUNTA --- */}
+
+                        {/* CAS 1: PART 4 (KEY WORD TRANSFORMATION) */}
+                        {q.original_sentence && (
+                            <div className="mb-4 bg-slate-50 p-4 rounded-lg border border-slate-200 shadow-sm">
+                                <p className="text-gray-900 font-medium text-lg mb-3 leading-relaxed">
+                                    {q.original_sentence}
+                                </p>
+                                
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
+                                    <div className="bg-gray-900 text-white px-3 py-1 rounded-md font-bold text-sm tracking-wider uppercase shadow-sm w-fit">
+                                        {q.keyword}
+                                    </div>
+                                    <p className="text-sm text-gray-500 italic">
+                                        (Use 3-6 words)
+                                    </p>
+                                </div>
+
+                                <p className="text-gray-800 text-lg">
+                                    {q.second_sentence}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* CAS 2: RESTA D'EXERCICIS (AMB STEM) */}
+                        {q.stem && !q.original_sentence && (
+                            <div className="mb-2">
+                                {/* Si el stem és una sola paraula (Part 3), pinta-la com un Badge. Si és frase llarga, pinta-la normal */}
+                                {q.stem.length < 25 && q.stem === q.stem.toUpperCase() ? (
+                                    <span className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 border border-gray-300 rounded-md text-gray-700 font-mono font-bold tracking-wider shadow-sm">
+                                        <Key className="w-4 h-4 text-gray-500" />
+                                        {q.stem}
+                                    </span>
+                                ) : (
+                                    <p className="font-medium text-gray-900 text-lg">{q.stem}</p>
+                                )}
+                            </div>
+                        )}
                         
+                        {/* INPUTS / OPTIONS */}
                         {q.options && q.options.length > 0 ? (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {q.options.map((opt, i) => {
@@ -423,25 +429,27 @@ export default function ExercisePlayer({ data, onBack }: Props) {
                               type="text" 
                               value={userAnswer || ""}
                               disabled={showAnswers}
+                              autoComplete="off" 
+                              spellCheck="false" 
                               onChange={(e) => handleSelect(idx, e.target.value)}
                               placeholder="Type your answer..."
-                              className={`w-full p-3 border rounded-lg outline-none ${
+                              className={`w-full p-3 border rounded-lg outline-none font-medium ${
                                 showAnswers
                                   ? (userAnswer?.trim().toLowerCase() === q.answer.trim().toLowerCase() 
                                     ? "bg-green-100 border-green-500 text-green-900 font-bold"
                                     : "bg-red-50 border-red-300 text-red-900")
-                                  : "focus:ring-2 focus:ring-blue-500 bg-gray-50 border-gray-300"
+                                  : "focus:ring-2 focus:ring-blue-500 bg-gray-50 border-gray-300 text-gray-800"
                               }`}
                             />
                              {showAnswers && userAnswer?.trim().toLowerCase() !== q.answer.trim().toLowerCase() && (
-                                <div className="mt-2 text-sm text-green-700 font-bold flex items-center gap-1">
-                                  <CheckCircle className="w-4 h-4" /> Correct: {q.answer}
+                                <div className="mt-2 text-sm text-green-700 font-bold flex items-center gap-1 animate-in slide-in-from-top-2">
+                                  <CheckCircle className="w-4 h-4" /> Correct: <span className="uppercase">{q.answer}</span>
                                 </div>
                              )}
                           </div>
                         )}
 
-                        {/* EXPLANATION & AUDIO JUMP (NOU) */}
+                        {/* EXPLANATION & AUDIO JUMP */}
                         {showAnswers && (
                           <div className="mt-4 p-4 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 text-sm animate-in fade-in">
                             <div className="flex gap-3 items-start">
@@ -456,11 +464,10 @@ export default function ExercisePlayer({ data, onBack }: Props) {
                                   {q.explanation || "No specific explanation available."}
                                 </p>
                                 
-                                {/* BOTÓ MÀGIC: JUMP TO AUDIO */}
                                 {isListening && isWrong && q.timestamp && (
                                     <button 
-                                        onClick={() => jumpToTimestamp(q.timestamp!)}
-                                        className="mt-2 flex items-center gap-2 text-xs font-bold bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full hover:bg-orange-200 transition"
+                                            onClick={() => jumpToTimestamp(q.timestamp!)}
+                                            className="mt-2 flex items-center gap-2 text-xs font-bold bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full hover:bg-orange-200 transition"
                                     >
                                         <PlayCircle className="w-4 h-4" />
                                         Listen at {q.timestamp}
@@ -478,7 +485,7 @@ export default function ExercisePlayer({ data, onBack }: Props) {
             </div>
         )}
         
-        {/* --- CREATIVE MODE UI (WRITING & SPEAKING) --- */}
+        {/* --- CREATIVE MODE UI --- */}
         {!isInteractive && (
            <div className="space-y-6">
                {!feedback ? (
@@ -520,7 +527,6 @@ export default function ExercisePlayer({ data, onBack }: Props) {
                        </div>
                    </>
                ) : (
-                   // RESULTATS (FEEDBACK)
                    <div className="animate-in slide-in-from-bottom-10 space-y-6">
                        <div className="bg-white border rounded-2xl p-6 shadow-lg flex items-center justify-between">
                            <div>
@@ -532,49 +538,31 @@ export default function ExercisePlayer({ data, onBack }: Props) {
                                <div className="text-sm font-bold text-gray-400 uppercase tracking-wide">Score</div>
                            </div>
                        </div>
-
                        <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
                             <h4 className="font-bold text-blue-900 mb-2">Feedback</h4>
                             <p className="text-blue-800 leading-relaxed">{feedback.feedback}</p>
                        </div>
-
                        <div className="space-y-4">
                            <h4 className="font-bold text-gray-800 text-lg border-b pb-2">Key Improvements</h4>
                            {feedback.corrections?.map((corr: any, idx: number) => (
                                <div key={idx} className="bg-white border-l-4 border-red-400 p-4 shadow-sm rounded-r-lg">
                                    <div className="flex flex-col md:flex-row gap-4 mb-2">
-                                       <div className="flex-1 bg-red-50 text-red-800 p-2 rounded line-through decoration-red-400 decoration-2">
-                                           {corr.original}
-                                       </div>
-                                       <div className="flex-1 bg-green-50 text-green-800 p-2 rounded font-medium">
-                                           {corr.correction}
-                                       </div>
+                                       <div className="flex-1 bg-red-50 text-red-800 p-2 rounded line-through decoration-red-400 decoration-2">{corr.original}</div>
+                                       <div className="flex-1 bg-green-50 text-green-800 p-2 rounded font-medium">{corr.correction}</div>
                                    </div>
                                    <p className="text-sm text-gray-500 italic">💡 {corr.explanation}</p>
                                </div>
                            ))}
                        </div>
-
-                       {/* MODEL ANSWER */}
                        {feedback.model_answer && (
                          <div className="mt-8 p-6 bg-emerald-50 rounded-xl border border-emerald-100 shadow-sm">
-                           <h3 className="text-lg font-bold text-emerald-800 mb-3 flex items-center gap-2">
-                             <Sparkles className="w-5 h-5" />
-                             Model Answer (C1 Level)
-                           </h3>
-                           <div className="prose text-emerald-900 whitespace-pre-wrap font-serif leading-relaxed">
-                             {feedback.model_answer}
-                           </div>
+                           <h3 className="text-lg font-bold text-emerald-800 mb-3 flex items-center gap-2"><Sparkles className="w-5 h-5" /> Model Answer (C1 Level)</h3>
+                           <div className="prose text-emerald-900 whitespace-pre-wrap font-serif leading-relaxed">{feedback.model_answer}</div>
                          </div>
                        )}
-                       
                        <div className="flex justify-center pt-8">
-                           <button
-                               onClick={onBack}
-                               className="flex items-center gap-2 px-6 py-2 rounded-lg font-medium text-gray-600 bg-white border hover:bg-gray-100 transition"
-                           >
-                               <RefreshCw className="w-4 h-4" />
-                               Try Another Task
+                           <button onClick={onBack} className="flex items-center gap-2 px-6 py-2 rounded-lg font-medium text-gray-600 bg-white border hover:bg-gray-100 transition">
+                               <RefreshCw className="w-4 h-4" /> Try Another Task
                            </button>
                        </div>
                    </div>
@@ -592,20 +580,15 @@ export default function ExercisePlayer({ data, onBack }: Props) {
                 onClick={checkScore}
                 className="flex items-center gap-2 px-8 py-3 rounded-full font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-105 shadow-lg transition-transform"
               >
-                <Eye className="w-5 h-5" />
-                Check Answers
+                <Eye className="w-5 h-5" /> Check Answers
               </button>
             ) : (
               <div className="flex flex-col items-center gap-2">
                 <div className="text-xl font-bold text-gray-800">
                   Score: <span className={score! > (data.questions.length / 2) ? "text-green-600" : "text-orange-600"}>{score}</span> / {data.questions.length}
                 </div>
-                <button
-                  onClick={onBack}
-                  className="flex items-center gap-2 px-6 py-2 rounded-lg font-medium text-gray-600 bg-white border hover:bg-gray-100 transition"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Main Menu
+                <button onClick={onBack} className="flex items-center gap-2 px-6 py-2 rounded-lg font-medium text-gray-600 bg-white border hover:bg-gray-100 transition">
+                  <RefreshCw className="w-4 h-4" /> Main Menu
                 </button>
               </div>
             )}

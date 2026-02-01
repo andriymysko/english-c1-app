@@ -18,6 +18,7 @@ CRITICAL RULES FOR HIGH QUALITY & CONSISTENCY:
 3. **No Easy Wins**: Avoid common B2 vocabulary. Use advanced C1/C2 lexicon (e.g., "ubiquitous", "mitigate", "scrutinize").
 4. **Evil Distractors**: In multiple choice, ALL options must be plausible synonyms. The answer must depend on precise grammar or idioms.
 5. **Academic Tone**: Texts must be dense, formal, and informative (topics: sociology, science, economics).
+6. **Grammatical Logic**: Ensure the answers fit perfectly syntactically (Noun vs Adjective vs Adverb). Do not sacrifice grammar for complexity.
 """
 
 class ExerciseFactory:
@@ -48,10 +49,10 @@ class ExerciseFactory:
              type_instructions = """
             - Create a "Part 2: Open Cloze" exercise.
             - TEXT LENGTH: Strictly between 180 and 220 words.
-            - VISUAL FORMAT: You MUST mark gaps precisely as "[N] ________" (number in brackets, one space, 8 underscores).
-            - Write a coherent text with 8 gaps marked [9] to [16] (or [1]-[8] if internal logic prefers).
+            - VISUAL FORMAT: You MUST mark gaps precisely as "[N] ________".
+            - Write a coherent text with 8 gaps marked [9] to [16].
             - The student must fill each gap with ONE grammar word.
-            - Do NOT provide options.
+            - IMPORTANT JSON RULE: The 'options' field MUST be an empty list []. Do NOT provide choices.
             """
 
         elif exercise_type == "reading_and_use_of_language3":
@@ -62,7 +63,10 @@ class ExerciseFactory:
             - At the END of the line containing the gap, put the STEM word in parentheses (e.g., "...very [17] ________ (COMFORT)").
             - Write a text with 8 gaps numbered 17-24.
             - For each gap, provide a STEM word in CAPITALS in the 'keyword' field.
-            - DIFFICULTY: Use complex prefixes/suffixes (e.g., DECEPTION, UNRELIABILITY).
+            - CRITICAL GRAMMAR CHECK: Ensure the answer fits the sentence grammatically.
+            - DIFFICULTY: Force complex transformations.
+            - IMPORTANT JSON RULE 1: The 'options' field MUST be an empty list [].
+            - IMPORTANT JSON RULE 2: In the 'questions' array, the 'stem' field MUST be the STEM word in CAPITALS (e.g., "PROLIFERATE"), NOT the answer.
             """
 
         elif exercise_type == "reading_and_use_of_language4":
