@@ -369,7 +369,7 @@ def ad_reward(request: AdRewardRequest):
     return {"status": "rewarded"}
 
 # =================================================================
-# 💰 INTEGRACIÓ STRIPE (NOU)
+# 💰 INTEGRACIÓ STRIPE (ACTUALITZADA)
 # =================================================================
 
 @router.post("/create-checkout-session")
@@ -432,19 +432,25 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
                 "updated_at": datetime.now()
             })
 
-    # 2. Subscripció CANCEL·LADA o IMPAGADA
-    elif event['type'] in ['customer.subscription.deleted', 'customer.subscription.past_due']:
+    # 2. GESTIÓ DE CANCEL·LACIONS I IMPAGAMENTS (ACTUALITZAT) ⚠️
+    elif event['type'] in ['customer.subscription.deleted', 'customer.subscription.updated']:
         subscription = event['data']['object']
-        print(f"⚠️ STRIPE: Subscripció finalitzada: {subscription.get('id')}")
         
-        # Cerca l'usuari per ID de subscripció
-        users_ref = db.collection("users")
-        query = users_ref.where("subscription_id", "==", subscription.get('id')).stream()
-        for doc in query:
-            print(f"❌ Desactivant VIP per a l'usuari {doc.id}")
-            doc.reference.update({
-                "is_vip": False,
-                "subscription_status": "inactive"
-            })
+        # Obtenim l'estat per veure si és dolent (past_due, unpaid, canceled)
+        status = subscription.get('status')
+        
+        # Si s'ha esborrat directament O BÉ l'estat és d'impagament/cancel·lació
+        if event['type'] == 'customer.subscription.deleted' or status in ['past_due', 'canceled', 'unpaid']:
+            print(f"⚠️ STRIPE: Subscripció problemàtica ({status}): {subscription.get('id')}")
+            
+            # Cerca l'usuari per ID de subscripció
+            users_ref = db.collection("users")
+            query = users_ref.where("subscription_id", "==", subscription.get('id')).stream()
+            for doc in query:
+                print(f"❌ Desactivant VIP per a l'usuari {doc.id}")
+                doc.reference.update({
+                    "is_vip": False,
+                    "subscription_status": "inactive"
+                })
 
     return {"status": "success"}
