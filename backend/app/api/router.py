@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Response, UploadFile, File, BackgroundTasks # <--- 1. IMPORTAT BackgroundTasks
+from fastapi import APIRouter, HTTPException, Response, UploadFile, File, BackgroundTasks, Body
+from fastapi.responses import FileResponse
 from app.services.generators.factory import ExerciseFactory
 from app.services.pdf.generator import generate_pdf_file
 from app.services.db import DatabaseService
@@ -30,6 +31,11 @@ class ExerciseRequest(BaseModel):
     level: str = "C1"
     exercise_type: str
     completed_ids: List[str] = []
+
+# --- MODEL NOU PER AL GENERADOR GENÈRIC (GRAMMAR LAB) ---
+class GenerateRequest(BaseModel):
+    type: str
+    level: str = "C1"
 
 class WritingSubmission(BaseModel):
     user_id: str
@@ -94,8 +100,27 @@ def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool =
 
 # --- ENDPOINTS ---
 
+# 🌟 NOU ENDPOINT: GENERACIÓ DIRECTA (PER EXTRAS/GRAMMAR) 🌟
+@router.post("/generate")
+def generate_exercise_endpoint(request: GenerateRequest):
+    """
+    Endpoint per generar exercicis (inclosos els de Gramàtica/Extres)
+    fent servir la Factory directament sense passar per DB pool.
+    """
+    try:
+        # Cridem a la Factory amb el tipus que ve del frontend
+        exercise = ExerciseFactory.create_exercise(request.type, request.level)
+        
+        # Retornem les dades en format JSON
+        return exercise.model_dump() 
+        
+    except Exception as e:
+        print(f"Error generating exercise: {e}") 
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/get_exercise/")
-def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTasks): # <--- 2. AFEGIT PARÀMETRE
+def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTasks):
     try:
         user_id = request.user_id
         ex_type = request.exercise_type
@@ -137,9 +162,6 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
             final_exercise = existing
 
             # --- LA MÀGIA: GENERACIÓ EN SEGON PLA ---
-            # Si hem agafat un de la piscina, la piscina ha baixat.
-            # Llancem una tasca de fons per tornar-la a omplir.
-            # Això s'executa DESPRÉS de respondre a l'usuari.
             print(f"🔄 Disparant recàrrega de stock per {ex_type}...")
             background_tasks.add_task(generate_and_save_exercise, request.level, request.exercise_type)
             # ---------------------------------------
@@ -288,6 +310,35 @@ def generate_audio_endpoint(request: AudioRequest):
     b = AudioService.generate_audio(request.text)
     return Response(content=b, media_type="audio/mpeg")
 
+# --- NOU ENDPOINT PER DESCARREGAR EL PDF ACTUAL (POST) ---
+# Aquest rep les dades del Frontend (exactament el que veu l'usuari)
+@router.post("/download_pdf")
+async def download_pdf(exercise_data: dict = Body(...)):
+    """
+    Rep un diccionari amb les dades de l'exercici (títol, text, preguntes...)
+    i genera un PDF d'alta qualitat usant ReportLab.
+    """
+    try:
+        # Creem un fitxer temporal
+        # delete=False perquè FileResponse necessita que existeixi per llegir-lo
+        # (Idealment hauries de netejar-lo amb una BackgroundTask, però així funciona)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp_path = tmp.name
+        
+        # Generem el PDF
+        generate_pdf_file(exercise_data, tmp_path)
+        
+        # Retornem l'arxiu
+        return FileResponse(
+            tmp_path, 
+            filename="PrepAI_Exercise.pdf", 
+            media_type='application/pdf'
+        )
+    except Exception as e:
+        print(f"Error generating PDF: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- ENDPOINT ANTIC (GET) - Mantingut per compatibilitat o tests ---
 @router.get("/generate_pdf/")
 def generate_pdf(level: str="C1", exercise_type: str="reading_and_use_of_language1"):
     ex = ExerciseFactory.create_exercise(exercise_type, level).model_dump()

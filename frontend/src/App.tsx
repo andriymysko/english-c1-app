@@ -1,43 +1,58 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
-import ExerciseGenerator from './components/ExerciseGenerator'; // El teu Dashboard
+import ExerciseGenerator from './components/ExerciseGenerator'; 
 import Landing from './components/Landing';
-import Legal from './components/Legal'; // <--- Necessari per les pàgines legals
+import Legal from './components/Legal';
+import ExtrasPage from './components/ExtrasPage'; // <--- 1. IMPORTA EL NOU COMPONENT
 import { Loader2 } from 'lucide-react';
 
 function AppContent() {
   const { user, loading } = useAuth();
   
-  // Gestionem quina vista es mostra quan no estem loguejats
-  const [view, setView] = useState<'landing' | 'login' | 'privacy' | 'terms'>('landing');
+  // Estat per a la navegació PÚBLICA (No loguejat)
+  const [publicView, setPublicView] = useState<'landing' | 'login' | 'privacy' | 'terms'>('landing');
 
-  // 1. Pantalla de càrrega inicial (mentre Firebase comprova si estem loguejats)
+  // 2. Estat per a la navegació PRIVADA (Loguejat)
+  const [privateView, setPrivateView] = useState<'generator' | 'extras'>('generator');
+
+  // --- LOADING ---
   if (loading) return (
     <div className="h-screen w-full flex items-center justify-center bg-slate-50">
       <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
     </div>
   );
 
-  // 2. Si l'usuari ja està loguejat -> DASHBOARD (L'App Principal)
+  // --- USUARI LOGUEJAT (ZONA PRIVADA) ---
   if (user) {
-    return <ExerciseGenerator />;
+    // Si l'usuari ha triat anar a Extras, mostrem la pàgina d'Extras
+    if (privateView === 'extras') {
+      return <ExtrasPage onBack={() => setPrivateView('generator')} />;
+    }
+
+    // Si no, mostrem el Generador (Dashboard)
+    // Passem la funció 'onOpenExtras' perquè puguis posar el botó al menú
+    return (
+        <ExerciseGenerator 
+            onOpenExtras={() => setPrivateView('extras')} 
+        />
+    );
   }
 
-  // 3. Si vol fer Login -> FORMULARI
-  if (view === 'login') {
-    return <Login onBack={() => setView('landing')} />;
+  // --- USUARI NO LOGUEJAT (ZONA PÚBLICA) ---
+
+  if (publicView === 'login') {
+    return <Login onBack={() => setPublicView('landing')} />;
   }
 
-  // 4. Si vol veure pàgines legals (Requisit Stripe)
-  if (view === 'privacy') return <Legal type="privacy" onBack={() => setView('landing')} />;
-  if (view === 'terms') return <Legal type="terms" onBack={() => setView('landing')} />;
+  if (publicView === 'privacy') return <Legal type="privacy" onBack={() => setPublicView('landing')} />;
+  if (publicView === 'terms') return <Legal type="terms" onBack={() => setPublicView('landing')} />;
 
-  // 5. Per defecte -> LANDING PAGE
+  // Per defecte -> LANDING
   return (
     <Landing 
-      onGetStarted={() => setView('login')} 
-      onShowLegal={(type) => setView(type)} // Connectem el footer
+      onGetStarted={() => setPublicView('login')} 
+      onShowLegal={(type) => setPublicView(type)} 
     />
   );
 }

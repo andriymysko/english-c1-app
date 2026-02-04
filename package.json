@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "jspdf": "^4.1.0",
     "posthog-js": "^1.335.5",
     "sonner": "^2.0.7"
   }

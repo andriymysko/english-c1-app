@@ -76,7 +76,12 @@ const SKILLS = {
 
 type SkillKey = keyof typeof SKILLS;
 
-export default function Dashboard() {
+// --- AFEGIT: Prop onOpenExtras ---
+interface Props {
+  onOpenExtras?: () => void;
+}
+
+export default function ExerciseGenerator({ onOpenExtras }: Props) {
   const { user, logout } = useAuth();
   
   const [currentView, setCurrentView] = useState<string>('dashboard');
@@ -262,6 +267,12 @@ export default function Dashboard() {
             <button onClick={() => setCurrentView('dashboard')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${currentView === 'dashboard' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-500 hover:bg-gray-50'}`}>
               <Layout className="w-5 h-5" /> <span>Dashboard</span>
             </button>
+            
+            {/* AFEGIT: BOTÓ GRAMMAR LAB */}
+            <button onClick={onOpenExtras} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-gray-500 hover:bg-gray-50 hover:text-purple-600">
+              <GraduationCap className="w-5 h-5" /> <span>Grammar Lab</span>
+            </button>
+
             <button onClick={() => setCurrentView('profile')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${currentView === 'profile' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-500 hover:bg-gray-50'}`}>
               <BarChart2 className="w-5 h-5" /> <span>Stats & Profile</span>
             </button>
@@ -348,6 +359,10 @@ export default function Dashboard() {
       {/* MOBILE NAV */}
       <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center p-3 lg:hidden z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
          <button onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center gap-1 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-gray-400'}`}><Layout className="w-6 h-6" /><span className="text-[10px] font-bold">Home</span></button>
+         
+         {/* AFEGIT: BOTÓ GRAMMAR AL MÒBIL */}
+         <button onClick={onOpenExtras} className="flex flex-col items-center gap-1 text-gray-400 hover:text-purple-600"><GraduationCap className="w-6 h-6" /><span className="text-[10px] font-bold">Grammar</span></button>
+
          <button onClick={() => setCurrentView('pricing')} className={`flex flex-col items-center gap-1 ${currentView === 'pricing' ? 'text-yellow-600' : 'text-gray-400'}`}><Crown className="w-6 h-6" /><span className="text-[10px] font-bold">Store</span></button>
          <button onClick={() => setCurrentView('profile')} className={`flex flex-col items-center gap-1 ${currentView === 'profile' ? 'text-blue-600' : 'text-gray-400'}`}><BarChart2 className="w-6 h-6" /><span className="text-[10px] font-bold">Profile</span></button>
       </nav>
