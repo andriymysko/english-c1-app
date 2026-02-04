@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Response, UploadFile, File, BackgroundTasks, Body
+from fastapi import APIRouter, HTTPException, Response, UploadFile, File, BackgroundTasks, Body, Request, Header
 from fastapi.responses import FileResponse
 from app.services.generators.factory import ExerciseFactory
 from app.services.pdf.generator import generate_pdf_file
@@ -18,11 +18,15 @@ from openai import OpenAI
 import json
 from datetime import datetime
 from firebase_admin import firestore
+import stripe  # <--- IMPORTAT
 
 router = APIRouter()
 
 # Inicialitzem client DB localment per gestionar els comptadors
 db = firestore.client()
+
+# --- CONFIGURACIÓ STRIPE ---
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 # --- MODELS DE DADES ---
 
@@ -32,7 +36,6 @@ class ExerciseRequest(BaseModel):
     exercise_type: str
     completed_ids: List[str] = []
 
-# --- MODEL NOU PER AL GENERADOR GENÈRIC (GRAMMAR LAB) ---
 class GenerateRequest(BaseModel):
     type: str
     level: str = "C1"
@@ -76,11 +79,15 @@ class CoachAnalysis(BaseModel):
 class AdRewardRequest(BaseModel):
     user_id: str
 
+# --- MODEL PAGAMENT STRIPE ---
+class CheckoutRequest(BaseModel):
+    price_id: str
+    user_id: str
+
 # --- HELPER FUNCTION ---
 def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool = True):
     print(f"⚙️ BACKGROUND: Generant nou exercici de reserva ({exercise_type})...")
     try:
-        # Nota: ExerciseFactory ja hauria de fer servir gpt-4o-mini internament per estalviar
         exercise_object = ExerciseFactory.create_exercise(exercise_type, level)
         exercise_data = exercise_object.model_dump()
         
@@ -100,20 +107,12 @@ def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool =
 
 # --- ENDPOINTS ---
 
-# 🌟 NOU ENDPOINT: GENERACIÓ DIRECTA (PER EXTRAS/GRAMMAR) 🌟
+# 🌟 1. ENDPOINT: GENERACIÓ DIRECTA (GRAMMAR LAB) 🌟
 @router.post("/generate")
 def generate_exercise_endpoint(request: GenerateRequest):
-    """
-    Endpoint per generar exercicis (inclosos els de Gramàtica/Extres)
-    fent servir la Factory directament sense passar per DB pool.
-    """
     try:
-        # Cridem a la Factory amb el tipus que ve del frontend
         exercise = ExerciseFactory.create_exercise(request.type, request.level)
-        
-        # Retornem les dades en format JSON
         return exercise.model_dump() 
-        
     except Exception as e:
         print(f"Error generating exercise: {e}") 
         raise HTTPException(status_code=500, detail=str(e))
@@ -148,7 +147,6 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
 
         # ----------------------------------------
 
-        # 4. Busquem exercici (Primer DB, després Generar)
         existing = DatabaseService.get_existing_exercise(
             request.level, 
             request.exercise_type, 
@@ -160,18 +158,12 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
         if existing:
             print("✨ REUTILITZANT EXERCICI DB (Pool)")
             final_exercise = existing
-
-            # --- LA MÀGIA: GENERACIÓ EN SEGON PLA ---
             print(f"🔄 Disparant recàrrega de stock per {ex_type}...")
             background_tasks.add_task(generate_and_save_exercise, request.level, request.exercise_type)
-            # ---------------------------------------
-
         else:
-            # Si no n'hi ha cap (0 total), l'usuari s'ha d'esperar (inevitable la primera vegada)
             print("⚠️ POOL BUIDA. Generant on-demand (Blocking)...")
             final_exercise = generate_and_save_exercise(request.level, request.exercise_type, is_public=True)
 
-        # 5. Si tot ha anat bé, INCREMENTEM EL COMPTADOR
         if not is_vip:
             usage_data["counts"][ex_type] = current_count + 1
             user_ref.set({"daily_usage": usage_data}, merge=True)
@@ -186,7 +178,6 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
 
 @router.post("/preload_exercise/")
 def preload_exercise(request: ExerciseRequest):
-    """Genera exercicis en segon pla si no n'hi ha (BUFFERING)"""
     try:
         existing = DatabaseService.get_existing_exercise(
             request.level, 
@@ -295,7 +286,6 @@ def grade_speaking(request: WritingSubmission):
 
 @router.post("/transcribe_audio/")
 def transcribe_audio(file: UploadFile = File(...)):
-    import tempfile
     with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
         tmp.write(file.file.read())
         path = tmp.name
@@ -310,25 +300,14 @@ def generate_audio_endpoint(request: AudioRequest):
     b = AudioService.generate_audio(request.text)
     return Response(content=b, media_type="audio/mpeg")
 
-# --- NOU ENDPOINT PER DESCARREGAR EL PDF ACTUAL (POST) ---
-# Aquest rep les dades del Frontend (exactament el que veu l'usuari)
 @router.post("/download_pdf")
 async def download_pdf(exercise_data: dict = Body(...)):
-    """
-    Rep un diccionari amb les dades de l'exercici (títol, text, preguntes...)
-    i genera un PDF d'alta qualitat usant ReportLab.
-    """
     try:
-        # Creem un fitxer temporal
-        # delete=False perquè FileResponse necessita que existeixi per llegir-lo
-        # (Idealment hauries de netejar-lo amb una BackgroundTask, però així funciona)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             tmp_path = tmp.name
         
-        # Generem el PDF
         generate_pdf_file(exercise_data, tmp_path)
         
-        # Retornem l'arxiu
         return FileResponse(
             tmp_path, 
             filename="PrepAI_Exercise.pdf", 
@@ -338,7 +317,6 @@ async def download_pdf(exercise_data: dict = Body(...)):
         print(f"Error generating PDF: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# --- ENDPOINT ANTIC (GET) - Mantingut per compatibilitat o tests ---
 @router.get("/generate_pdf/")
 def generate_pdf(level: str="C1", exercise_type: str="reading_and_use_of_language1"):
     ex = ExerciseFactory.create_exercise(exercise_type, level).model_dump()
@@ -389,3 +367,81 @@ def analyze_weaknesses(user_id: str):
 def ad_reward(request: AdRewardRequest):
     DatabaseService.reward_ad_view(request.user_id)
     return {"status": "rewarded"}
+
+# =================================================================
+# 💰 INTEGRACIÓ STRIPE (NOU)
+# =================================================================
+
+@router.post("/create-checkout-session")
+def create_checkout_session(request: CheckoutRequest):
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price': request.price_id, 
+                'quantity': 1,
+            }],
+            mode='subscription',
+            
+            # ✅ ACTIVA ELS IMPOSTOS AUTOMÀTICS (Configurat a Stripe Dashboard)
+            automatic_tax={'enabled': True}, 
+            
+            # IMPORTANT: Ajusta aquests dominis a producció quan facis deploy
+            success_url='https://getaidvanced.com/profile?success=true',
+            cancel_url='https://getaidvanced.com/pricing?canceled=true',
+            client_reference_id=request.user_id,
+            metadata={
+                "user_id": request.user_id
+            }
+        )
+        return {"url": session.url}
+    except Exception as e:
+        print(f"Error Stripe Checkout: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/stripe-webhook")
+async def stripe_webhook(request: Request, stripe_signature: str = Header(None)):
+    payload = await request.body()
+    endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, stripe_signature, endpoint_secret
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    # 1. Subscripció PAGADA correctament
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        
+        user_id = session.get("client_reference_id")
+        subscription_id = session.get("subscription")
+        
+        if user_id:
+            print(f"💰 STRIPE: Pagament rebut de {user_id}. Activant VIP...")
+            db.collection("users").document(user_id).update({
+                "is_vip": True,
+                "subscription_status": "active",
+                "subscription_id": subscription_id,
+                "updated_at": datetime.now()
+            })
+
+    # 2. Subscripció CANCEL·LADA o IMPAGADA
+    elif event['type'] in ['customer.subscription.deleted', 'customer.subscription.past_due']:
+        subscription = event['data']['object']
+        print(f"⚠️ STRIPE: Subscripció finalitzada: {subscription.get('id')}")
+        
+        # Cerca l'usuari per ID de subscripció (ja que aquí no ve sempre el client_reference_id)
+        users_ref = db.collection("users")
+        query = users_ref.where("subscription_id", "==", subscription.get('id')).stream()
+        for doc in query:
+            print(f"❌ Desactivant VIP per a l'usuari {doc.id}")
+            doc.reference.update({
+                "is_vip": False,
+                "subscription_status": "inactive"
+            })
+
+    return {"status": "success"}
