@@ -17,8 +17,10 @@
     "clsx": "^2.1.0",
     "firebase": "^12.7.0",
     "lucide-react": "^0.469.0",
+    "posthog-js": "^1.339.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
