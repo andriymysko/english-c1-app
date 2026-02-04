@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, CheckCircle, Download, Eye, RefreshCw, XCircle, Send, Loader2, AlertCircle, Mic, StopCircle, Volume2, FileText, Sparkles, Image as ImageIcon, Flag, PlayCircle, Key, ChevronDown } from "lucide-react";
+import { ArrowLeft, CheckCircle, Download, Eye, RefreshCw, XCircle, Send, Loader2, AlertCircle, Mic, StopCircle, Volume2, FileText, Sparkles, Image as ImageIcon, Flag, PlayCircle, ChevronDown } from "lucide-react";
 import { preloadExercise, submitResult, gradeWriting, gradeSpeaking, transcribeAudio, fetchAudio, reportIssue } from "../api";
 import { useAuth } from "../context/AuthContext";
 import confetti from 'canvas-confetti';
 import { playSuccessSound, playErrorSound } from "../utils/audioFeedback";
-// HEM ELIMINAT jsPDF PERQUÈ FAREM SERVIR EL BACKEND
 
 interface Question {
   question: string;
@@ -47,7 +46,7 @@ export default function ExercisePlayer({ data, onBack }: Props) {
   // GENERAL STATES
   const [loadingGrade, setLoadingGrade] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false); // ESTAT PER AL LOADING DEL PDF
+  const [isDownloading, setIsDownloading] = useState(false); // STATE FOR PDF LOADING
 
   // STANDARD STATES
   const [showAnswers, setShowAnswers] = useState(false);
@@ -87,36 +86,37 @@ export default function ExercisePlayer({ data, onBack }: Props) {
     setIsDownloading(true);
 
     try {
-      // 1. Definim la URL del teu backend (ajusta el port si cal)
-      const API_URL = "http://localhost:8000"; 
+      // 1. Define your backend URL (Adjust if production URL is different)
+      // If you have a global API_URL config, use that instead.
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"; 
 
-      // 2. Enviem les dades al backend per generar el PDF amb ReportLab
+      // 2. Send data to backend to generate PDF with ReportLab
       const response = await fetch(`${API_URL}/download_pdf`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data), // Enviem tot l'objecte exercici
+        body: JSON.stringify(data), // Send the whole exercise object
       });
 
       if (!response.ok) {
         throw new Error("Server failed to generate PDF");
       }
 
-      // 3. Convertim la resposta en un Blob (arxiu)
+      // 3. Convert response to Blob (file)
       const blob = await response.blob();
       
-      // 4. Creem un enllaç invisible i forcem la descàrrega
+      // 4. Create invisible link and force download
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      // Netegem el títol per fer-lo servir de nom d'arxiu
+      // Clean title for filename
       const safeTitle = (data.title || "Exercise").replace(/[^a-z0-9]/gi, '_').toLowerCase();
       link.download = `${safeTitle}_task.pdf`;
       document.body.appendChild(link);
       link.click();
       
-      // 5. Neteja
+      // 5. Cleanup
       link.remove();
       window.URL.revokeObjectURL(url);
 
@@ -302,11 +302,6 @@ export default function ExercisePlayer({ data, onBack }: Props) {
         mistakes: mistakes
       });
     }
-  };
-
-  const getOptionText = (opt: any) => {
-    if (typeof opt === 'string') return opt;
-    return opt.text || JSON.stringify(opt);
   };
 
   // ============================================================
