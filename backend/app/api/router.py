@@ -18,7 +18,7 @@ from openai import OpenAI
 import json
 from datetime import datetime
 from firebase_admin import firestore
-import stripe  # <--- IMPORTAT
+import stripe
 
 router = APIRouter()
 
@@ -383,10 +383,13 @@ def create_checkout_session(request: CheckoutRequest):
             }],
             mode='subscription',
             
-            # ✅ ACTIVA ELS IMPOSTOS AUTOMÀTICS (Configurat a Stripe Dashboard)
-            automatic_tax={'enabled': True}, 
+            # ✅ ACTIVA ELS IMPOSTOS AUTOMÀTICS
+            automatic_tax={'enabled': True},
             
-            # IMPORTANT: Ajusta aquests dominis a producció quan facis deploy
+            # ✅ ACTIVA ELS CUPONS DE DESCOMPTE
+            allow_promotion_codes=True, 
+            
+            # Ajusta aquests dominis a producció
             success_url='https://getaidvanced.com/profile?success=true',
             cancel_url='https://getaidvanced.com/pricing?canceled=true',
             client_reference_id=request.user_id,
@@ -434,7 +437,7 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
         subscription = event['data']['object']
         print(f"⚠️ STRIPE: Subscripció finalitzada: {subscription.get('id')}")
         
-        # Cerca l'usuari per ID de subscripció (ja que aquí no ve sempre el client_reference_id)
+        # Cerca l'usuari per ID de subscripció
         users_ref = db.collection("users")
         query = users_ref.where("subscription_id", "==", subscription.get('id')).stream()
         for doc in query:
