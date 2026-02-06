@@ -83,6 +83,8 @@ export default function ExamPlayer({ examData, onExit }: ExamProps) {
                 key={currentPartIndex} 
                 data={currentPart} 
                 onBack={onExit} 
+                // AFEGIT: Funció buida ja que aquí no volem vendre res
+                onOpenPricing={() => {}}
             />
         </div>
       </div>
@@ -166,10 +168,12 @@ export default function ExamPlayer({ examData, onExit }: ExamProps) {
                 Viewing Part {currentPartIndex + 1} of {totalParts}
             </div>
             
-            <ExercisePlayer 
+            <ExercisePlayer
                 key={currentPartIndex} 
                 data={currentPart} 
                 onBack={() => {}} 
+                // AFEGIT: Funció buida per complir amb la interfície
+                onOpenPricing={() => {}}
             />
         </div>
         

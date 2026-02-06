@@ -1,10 +1,12 @@
 import { useState } from 'react';
+// 👇 1. IMPORTA BrowserRouter
+import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import ExerciseGenerator from './components/ExerciseGenerator'; 
 import Landing from './components/Landing';
 import Legal from './components/Legal';
-import ExtrasPage from './components/ExtrasPage'; // <--- 1. IMPORTA EL NOU COMPONENT
+import ExtrasPage from './components/ExtrasPage'; 
 import { Loader2 } from 'lucide-react';
 
 function AppContent() {
@@ -13,7 +15,7 @@ function AppContent() {
   // Estat per a la navegació PÚBLICA (No loguejat)
   const [publicView, setPublicView] = useState<'landing' | 'login' | 'privacy' | 'terms'>('landing');
 
-  // 2. Estat per a la navegació PRIVADA (Loguejat)
+  // Estat per a la navegació PRIVADA (Loguejat)
   const [privateView, setPrivateView] = useState<'generator' | 'extras'>('generator');
 
   // --- LOADING ---
@@ -31,7 +33,6 @@ function AppContent() {
     }
 
     // Si no, mostrem el Generador (Dashboard)
-    // Passem la funció 'onOpenExtras' perquè puguis posar el botó al menú
     return (
         <ExerciseGenerator 
             onOpenExtras={() => setPrivateView('extras')} 
@@ -59,8 +60,11 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    // 👇 2. AFEGEIX AQUEST EMBOLCALL (Router)
+    <BrowserRouter>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }

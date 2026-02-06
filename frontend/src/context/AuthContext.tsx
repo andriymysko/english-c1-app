@@ -12,7 +12,16 @@ import {
 } from "firebase/auth";
 
 // CORRECCIÓ 2: Importem el tipus User separadament
-import type { User } from "firebase/auth"; 
+export interface User {
+  uid: string;
+  email: string | null;
+  // 👇 AFEGEIX AQUESTES DUES LÍNIES:
+  is_vip?: boolean;
+  daily_usage?: {
+    date: string;
+    counts: Record<string, number>;
+  };
+}
 
 // CORRECCIÓ 3: Ajustem la ruta. Si firebase.ts està a src/, pugem un nivell (..) i llestos.
 // Si el tens a utils, canvia-ho per "../utils/firebase"
@@ -82,3 +91,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
+

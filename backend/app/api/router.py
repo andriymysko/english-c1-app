@@ -140,7 +140,7 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
             
         current_count = usage_data.get("counts", {}).get(ex_type, 0)
         
-        LIMIT = 1
+        LIMIT = 3
         if not is_vip and current_count >= LIMIT:
             print(f"⛔ LÍMIT DIARI ASSOLIT per {ex_type} (User: {user_id})")
             raise HTTPException(status_code=429, detail="DAILY_LIMIT")

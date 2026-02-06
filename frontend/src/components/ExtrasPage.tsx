@@ -2,10 +2,13 @@ import { useState } from "react";
 import { 
   BookOpen, Dumbbell, ArrowRight, Lightbulb, ArrowLeft, 
   Layers, Shuffle, AlertTriangle, MessageCircle, Settings,
-  Link, Anchor, Puzzle, Hourglass // <--- NOVA ICONA AFEGIDA
+  Link, Anchor, Puzzle, Hourglass, Lock, Zap // <--- Imports icones
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import ExercisePlayer from "./ExercisePlayer";
 import { generateExercise } from "../api";
+import { useAuth } from "../context/AuthContext"; // <--- Necessari per saber si ets VIP
+import PremiumModal from "./PremiumModal"; // <--- El modal de venda
 
 // --- IMPORTACIONS DE TEORIA ---
 import { conditionalsTheory } from "../data/conditionalsTheory";
@@ -16,92 +19,122 @@ import { passiveTheory } from "../data/passiveTheory";
 import { linkersTheory } from "../data/linkersTheory";
 import { prepositionsTheory } from "../data/prepositionsTheory";
 import { collocationsTheory } from "../data/collocationsTheory";
-import { wishesTheory } from "../data/wishesTheory"; // <--- NOU IMPORT
+import { wishesTheory } from "../data/wishesTheory";
 
-// CONFIGURACIÓ MESTRA DELS TEMES
+// CONFIGURACIÓ MESTRA DELS TEMES (ARA AMB isPremium)
 const TOPICS = {
   conditionals: {
     title: "Advanced Conditionals",
     desc: "Mixed types, inversions, and 'if' alternatives.",
-    icon: <Shuffle className="w-8 h-8 text-blue-500" />,
-    color: "bg-blue-50 border-blue-200 hover:border-blue-400",
+    icon: <Shuffle className="w-7 h-7" />, // <--- He tret els colors d'aquí per controlar-los abaix
+    color: "text-blue-600",
+    bg: "bg-blue-50",
+    border: "border-blue-200",
     theory: conditionalsTheory,
-    apiType: "grammar_conditionals"
+    apiType: "grammar_conditionals",
+    isPremium: false // GRATIS
   },
   inversion: {
     title: "Inversion & Emphasis",
     desc: "Negative adverbials, 'Little did I know', 'So/Such'.",
-    icon: <AlertTriangle className="w-8 h-8 text-orange-500" />,
-    color: "bg-orange-50 border-orange-200 hover:border-orange-400",
+    icon: <AlertTriangle className="w-7 h-7" />,
+    color: "text-orange-600",
+    bg: "bg-orange-50",
+    border: "border-orange-200",
     theory: inversionTheory,
-    apiType: "grammar_inversion"
+    apiType: "grammar_inversion",
+    isPremium: true // 🔒 PREMIUM
   },
   phrasals: {
     title: "C1 Phrasal Verbs",
     desc: "3-part verbs, abstract meanings, and collocations.",
-    icon: <Layers className="w-8 h-8 text-purple-500" />,
-    color: "bg-purple-50 border-purple-200 hover:border-purple-400",
+    icon: <Layers className="w-7 h-7" />,
+    color: "text-purple-600",
+    bg: "bg-purple-50",
+    border: "border-purple-200",
     theory: phrasalVerbsTheory,
-    apiType: "grammar_phrasal_verbs"
+    apiType: "grammar_phrasal_verbs",
+    isPremium: false // GRATIS
   },
   idioms: {
     title: "Idiomatic Expressions",
     desc: "Speak like a native: 'See eye to eye', 'Cut corners'.",
-    icon: <MessageCircle className="w-8 h-8 text-pink-500" />,
-    color: "bg-pink-50 border-pink-200 hover:border-pink-400",
+    icon: <MessageCircle className="w-7 h-7" />,
+    color: "text-pink-600",
+    bg: "bg-pink-50",
+    border: "border-pink-200",
     theory: idiomsTheory,
-    apiType: "grammar_idioms"
+    apiType: "grammar_idioms",
+    isPremium: true // 🔒 PREMIUM
   },
   passive: {
     title: "Advanced Passives",
     desc: "Causatives (Have it done) & Impersonal structures.",
-    icon: <Settings className="w-8 h-8 text-teal-500" />,
-    color: "bg-teal-50 border-teal-200 hover:border-teal-400",
+    icon: <Settings className="w-7 h-7" />,
+    color: "text-teal-600",
+    bg: "bg-teal-50",
+    border: "border-teal-200",
     theory: passiveTheory,
-    apiType: "grammar_passive"
+    apiType: "grammar_passive",
+    isPremium: true // 🔒 PREMIUM
   },
   linkers: {
     title: "Linkers & Cohesion",
     desc: "Structuring Essays: 'Nevertheless', 'Albeit', 'Thus'.",
-    icon: <Link className="w-8 h-8 text-indigo-500" />,
-    color: "bg-indigo-50 border-indigo-200 hover:border-indigo-400",
+    icon: <Link className="w-7 h-7" />,
+    color: "text-indigo-600",
+    bg: "bg-indigo-50",
+    border: "border-indigo-200",
     theory: linkersTheory,
-    apiType: "grammar_linkers"
+    apiType: "grammar_linkers",
+    isPremium: false // GRATIS
   },
   prepositions: {
     title: "Dependent Prepositions",
     desc: "The silent killer: 'Object TO', 'Capable OF', 'Insist ON'.",
-    icon: <Anchor className="w-8 h-8 text-red-500" />,
-    color: "bg-red-50 border-red-200 hover:border-red-400",
+    icon: <Anchor className="w-7 h-7" />,
+    color: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-200",
     theory: prepositionsTheory,
-    apiType: "grammar_prepositions"
+    apiType: "grammar_prepositions",
+    isPremium: true // 🔒 PREMIUM
   },
   collocations: {
     title: "Advanced Collocations",
     desc: "Word partnerships: 'Bitterly disappointed', 'Torrential rain'.",
-    icon: <Puzzle className="w-8 h-8 text-emerald-500" />,
-    color: "bg-emerald-50 border-emerald-200 hover:border-emerald-400",
+    icon: <Puzzle className="w-7 h-7" />,
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
     theory: collocationsTheory,
-    apiType: "grammar_collocations"
+    apiType: "grammar_collocations",
+    isPremium: true // 🔒 PREMIUM
   },
-  // --- NOU MÒDUL FINAL ---
   wishes: {
     title: "Wishes & Regrets",
     desc: "'I wish I had known', 'It's high time we left'.",
-    icon: <Hourglass className="w-8 h-8 text-cyan-500" />,
-    color: "bg-cyan-50 border-cyan-200 hover:border-cyan-400",
+    icon: <Hourglass className="w-7 h-7" />,
+    color: "text-cyan-600",
+    bg: "bg-cyan-50",
+    border: "border-cyan-200",
     theory: wishesTheory,
-    apiType: "grammar_wishes"
+    apiType: "grammar_wishes",
+    isPremium: false // GRATIS
   }
 };
 
 type TopicKey = keyof typeof TOPICS;
 
 export default function ExtrasPage({ onBack }: { onBack: () => void }) {
+  const { user } = useAuth(); // <--- 1. Necessitem l'usuari
+  const navigate = useNavigate();
+  
   const [selectedTopic, setSelectedTopic] = useState<TopicKey | null>(null);
   const [activeTab, setActiveTab] = useState<"theory" | "practice">("theory");
   const [practiceData, setPracticeData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false); // <--- Modal estat
 
   const loadPractice = async (topicKey: TopicKey) => {
     setLoading(true);
@@ -117,10 +150,31 @@ export default function ExtrasPage({ onBack }: { onBack: () => void }) {
     }
   };
 
-  // --- VISTA 1: MENÚ DE SELECCIÓ ---
+  const handleTopicClick = (key: TopicKey) => {
+      const topic = TOPICS[key];
+      // 🔒 LÒGICA DE BLOQUEIG
+      if (topic.isPremium && !user?.is_vip) {
+          setShowPremiumModal(true);
+      } else {
+          setSelectedTopic(key); 
+          setActiveTab("theory"); 
+          setPracticeData(null);
+      }
+  };
+
+  // --- VISTA 1: MENÚ DE SELECCIÓ (GRID) ---
   if (!selectedTopic) {
     return (
       <div className="max-w-6xl mx-auto min-h-screen bg-gray-50 p-6 animate-in fade-in">
+        
+        {/* MODAL SI CLICA UN PREMIUM */}
+        {showPremiumModal && (
+            <PremiumModal 
+                onClose={() => setShowPremiumModal(false)}
+                onGoToPricing={() => navigate('/pricing')}
+            />
+        )}
+
         <div className="flex items-center gap-4 mb-8">
           <button onClick={onBack} className="text-gray-500 hover:text-gray-900 font-bold flex items-center gap-2 transition-colors">
             <ArrowLeft className="w-5 h-5" /> Dashboard
@@ -129,31 +183,75 @@ export default function ExtrasPage({ onBack }: { onBack: () => void }) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {(Object.keys(TOPICS) as TopicKey[]).map((key) => (
-            <button
-              key={key}
-              onClick={() => { setSelectedTopic(key); setActiveTab("theory"); setPracticeData(null); }}
-              className={`p-8 rounded-2xl border-2 text-left transition-all hover:scale-[1.02] shadow-sm group ${TOPICS[key].color}`}
-            >
-              <div className="mb-4 bg-white w-14 h-14 rounded-full flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                {TOPICS[key].icon}
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">{TOPICS[key].title}</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">{TOPICS[key].desc}</p>
-            </button>
-          ))}
+          {(Object.keys(TOPICS) as TopicKey[]).map((key) => {
+            const topic = TOPICS[key];
+            const isLocked = topic.isPremium && !user?.is_vip;
+            console.log("Sóc VIP?", user?.is_vip);
+            return (
+                <button
+                key={key}
+                onClick={() => handleTopicClick(key)}
+                className={`relative p-6 rounded-2xl border-2 text-left transition-all group flex flex-col justify-between h-full overflow-hidden
+                    ${isLocked 
+                        ? 'bg-gray-50 border-gray-200'  // Estil Tancat
+                        : `bg-white ${topic.border} hover:scale-[1.02] hover:shadow-lg` // Estil Obert
+                    }
+                `}
+                >
+                <div className="flex justify-between items-start mb-4 w-full">
+                    {/* ICONA (Canvia a Candau si està tancat) */}
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-colors
+                        ${isLocked ? 'bg-gray-200 text-gray-500' : `${topic.bg} ${topic.color}`}`}>
+                        {isLocked ? <Lock className="w-7 h-7" /> : topic.icon}
+                    </div>
+
+                    {/* ETIQUETA SUPERIOR DRETA */}
+                    {isLocked ? (
+                        <span className="bg-red-100 text-red-600 text-[10px] px-2 py-1 rounded-full font-bold uppercase tracking-wider border border-red-200 flex items-center gap-1">
+                            <Lock className="w-3 h-3" /> Locked
+                        </span>
+                    ) : (
+                        topic.isPremium && (
+                            <span className="bg-yellow-100 text-yellow-800 text-[10px] px-2 py-1 rounded-full font-bold border border-yellow-200 flex items-center gap-1 shadow-sm">
+                                <Zap className="w-3 h-3 fill-yellow-800" /> PRO
+                            </span>
+                        )
+                    )}
+                </div>
+
+                <div className="w-full">
+                    <h3 className={`text-xl font-bold mb-2 transition-colors ${isLocked ? 'text-gray-500' : 'text-gray-900 group-hover:text-blue-600'}`}>
+                        {topic.title}
+                    </h3>
+                    <p className={`text-sm leading-relaxed ${isLocked ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {topic.desc}
+                    </p>
+                </div>
+
+                {/* FLETXA AL FINAL */}
+                <div className="mt-4 flex justify-end w-full">
+                    <div className={`p-2 rounded-full transition-colors ${isLocked ? 'bg-transparent' : 'bg-gray-50 group-hover:bg-blue-50'}`}>
+                        {isLocked ? (
+                            <Lock className="text-gray-300 w-5 h-5" />
+                        ) : (
+                            <ArrowRight className="text-blue-500 w-5 h-5 transform group-hover:translate-x-1 transition-transform" />
+                        )}
+                    </div>
+                </div>
+                </button>
+            );
+          })}
         </div>
       </div>
     );
   }
 
-  // --- VISTA 2: DINS DEL TEMA ---
+  // --- VISTA 2: DINS DEL TEMA (NO CANVIA GAIRE) ---
   const currentTopic = TOPICS[selectedTopic];
 
   return (
     <div className="max-w-5xl mx-auto min-h-screen bg-gray-50 p-6 animate-in slide-in-from-right-8 duration-300">
       
-      {/* HEADER */}
       <div className="flex items-center gap-4 mb-8">
         <button onClick={() => setSelectedTopic(null)} className="text-gray-500 hover:text-gray-900 font-bold flex items-center gap-2 transition-colors">
           <ArrowLeft className="w-5 h-5" /> Topics
@@ -161,7 +259,6 @@ export default function ExtrasPage({ onBack }: { onBack: () => void }) {
         <h1 className="text-3xl font-bold text-gray-800">{currentTopic.title}</h1>
       </div>
 
-      {/* TABS */}
       <div className="flex gap-4 mb-8 border-b border-gray-200">
         <button
           onClick={() => setActiveTab("theory")}
@@ -181,9 +278,7 @@ export default function ExtrasPage({ onBack }: { onBack: () => void }) {
         </button>
       </div>
 
-      {/* CONTENT */}
       <div>
-        {/* TEORIA */}
         {activeTab === "theory" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
             {currentTopic.theory.map((section, idx) => (
@@ -192,7 +287,6 @@ export default function ExtrasPage({ onBack }: { onBack: () => void }) {
                   <Lightbulb className="w-5 h-5 text-yellow-500" /> {section.title}
                 </h3>
                 <p className="text-gray-600 mb-4 leading-relaxed">{section.content}</p>
-                
                 <div className="bg-gray-50 p-4 rounded-lg space-y-3">
                   {section.examples.map((ex, i) => (
                     <div key={i} className="text-sm">
@@ -217,7 +311,6 @@ export default function ExtrasPage({ onBack }: { onBack: () => void }) {
           </div>
         )}
 
-        {/* PRÀCTICA */}
         {activeTab === "practice" && (
           <div className="w-full">
             {loading ? (
@@ -226,7 +319,11 @@ export default function ExtrasPage({ onBack }: { onBack: () => void }) {
                 <p>Generating {currentTopic.title} Challenges...</p>
               </div>
             ) : practiceData ? (
-              <ExercisePlayer data={practiceData} onBack={() => setActiveTab("theory")} />
+              <ExercisePlayer 
+                data={practiceData} 
+                onBack={() => setActiveTab("theory")} 
+                onOpenPricing={() => navigate('/pricing')} 
+              />
             ) : (
               <div className="text-center text-red-500 mt-10">
                   <p className="font-bold">Failed to load exercise.</p>

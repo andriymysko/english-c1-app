@@ -9,11 +9,12 @@ import ExamPlayer from './ExamPlayer';
 import { fetchExercise, generateFullExam, downloadOfflinePack, getOfflineExercise } from '../api';
 import Profile from './Profile';
 import Pricing from './Pricing'; 
-import AdModal from './AdModal'; 
+import AdGateModal from './AdGateModal'; 
 import PremiumModal from './PremiumModal'; 
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 
+// --- DEFINICIÓ D'HABILITATS (SKILLS) ---
 const SKILLS = {
   reading: {
     label: "Reading",
@@ -76,7 +77,6 @@ const SKILLS = {
 
 type SkillKey = keyof typeof SKILLS;
 
-// --- AFEGIT: Prop onOpenExtras ---
 interface Props {
   onOpenExtras?: () => void;
 }
@@ -94,30 +94,9 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
   const [exerciseData, setExerciseData] = useState<any>(null);
   const [examData, setExamData] = useState<any>(null);
 
-  // --- ESTATS PELS DOS TIPUS DE MODALS ---
-  const [showAdModal, setShowAdModal] = useState(false);
+  const [showAdGate, setShowAdGate] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
-
-  // --- FUNCIÓ DE DECISIÓ INTEL·LIGENT (1 Reward al dia) ---
-  const handleLimitReached = () => {
-      // 1. Comprovem si JA ha gastat la recompensa d'avui
-      const today = new Date().toISOString().split('T')[0]; // Format "2024-05-20"
-      const alreadyClaimed = localStorage.getItem(`ad_reward_claimed_${today}`);
-
-      if (alreadyClaimed) {
-          // Si ja l'ha gastat avui -> Forcem el Premium (No hi ha sort que valgui)
-          setShowPremiumModal(true);
-          return;
-      }
-
-      // 2. Si no l'ha gastat, fem el sorteig 50/50
-      const chance = Math.random(); 
-      if (chance > 0.5) {
-          setShowAdModal(true); // Li ha tocat la recompensa!
-      } else {
-          setShowPremiumModal(true); // Mala sort
-      }
-  };
+  const [pendingPartId, setPendingPartId] = useState<string | null>(null);
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
@@ -135,6 +114,43 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
       toast.info("Payment canceled");
     }
   }, []);
+
+  const handlePartClick = (partId: string) => {
+    if (user?.is_vip) {
+        handleGenerate(partId);
+        return;
+    }
+
+    if (partId === 'writing2') {
+        setShowPremiumModal(true);
+        return;
+    }
+
+    if (partId.startsWith('listening') || partId.startsWith('speaking')) {
+        handleGenerate(partId);
+        return;
+    }
+
+    const counts = user?.daily_usage?.counts || {};
+    const totalDone = Object.values(counts).reduce((a: any, b: any) => a + b, 0) as number;
+
+    if (totalDone === 0) {
+        handleGenerate(partId);
+    } else if (totalDone < 3) {
+        setPendingPartId(partId);
+        setShowAdGate(true);
+    } else {
+        setShowPremiumModal(true);
+    }
+  };
+
+  const handleAdGateComplete = () => {
+      setShowAdGate(false);
+      if (pendingPartId) {
+          handleGenerate(pendingPartId);
+          setPendingPartId(null);
+      }
+  };
 
   const handleGenerate = async (partId: string) => {
     if (!user) return;
@@ -157,7 +173,7 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
       setExerciseData(data);
     } catch (err: any) {
       if (err.message === "DAILY_LIMIT") {
-         handleLimitReached();
+         setShowPremiumModal(true);
       }
       else {
          setError("Failed to generate exercise.");
@@ -169,6 +185,12 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
 
   const handleStartExam = async () => {
     if (!user) return;
+    
+    if (!user.is_vip) {
+        setShowPremiumModal(true); 
+        return;
+    }
+
     if (!navigator.onLine) {
        setError("Mock Exams require internet.");
        return;
@@ -179,10 +201,7 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
       const data = await generateFullExam(user.uid);
       setExamData(data);
     } catch (err: any) {
-      if (err.message === "DAILY_LIMIT") {
-        handleLimitReached();
-      }
-      else setError("Failed to generate exam.");
+      setError("Failed to generate exam.");
     } finally {
       setExamLoading(false);
     }
@@ -212,10 +231,20 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
     return <Profile onBack={() => setCurrentView('dashboard')} onStartReview={(data) => { setCurrentView('dashboard'); setExerciseData(data); }} />;
   }
   if (examData) return <ExamPlayer examData={examData} onExit={() => setExamData(null)} />;
+  
+  // 👇 AQUÍ ESTÀ LA CORRECCIÓ DE L'ERROR 👇
   if (exerciseData) return (
       <div className="min-h-screen bg-slate-50 flex flex-col">
         <div className="flex-1 max-w-5xl mx-auto w-full p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-           <ExercisePlayer data={exerciseData} onBack={() => setExerciseData(null)} />
+           <ExercisePlayer 
+                data={exerciseData} 
+                onBack={() => setExerciseData(null)}
+                // AFEGIT: Funció per obrir el Pricing quan es clica el candau
+                onOpenPricing={() => {
+                    setExerciseData(null); 
+                    setCurrentView('pricing'); 
+                }} 
+           />
         </div>
       </div>
   );
@@ -223,25 +252,12 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
   return (
     <div className="flex min-h-screen font-sans text-slate-800 bg-slate-50">
       
-      {/* --- MODAL 1: L'ANUNCI BO (Dona Recompensa i marca el dia com a gastat) --- */}
-      {showAdModal && (
-        <AdModal 
-            onClose={() => setShowAdModal(false)}
-            onReward={() => {
-                setShowAdModal(false);
-                
-                // GUARDEM QUE JA HA GASTAT LA SORT D'AVUI
-                const today = new Date().toISOString().split('T')[0];
-                localStorage.setItem(`ad_reward_claimed_${today}`, 'true');
+      <AdGateModal 
+         isOpen={showAdGate}
+         onClose={() => setShowAdGate(false)}
+         onComplete={handleAdGateComplete}
+      />
 
-                toast.success("Reward Granted! 🎁", {
-                    description: "You earned 1 extra life. Enjoy!"
-                });
-            }}
-        />
-      )}
-
-      {/* --- MODAL 2: EL PAYWALL (Només ven) --- */}
       {showPremiumModal && (
         <PremiumModal 
             onClose={() => setShowPremiumModal(false)}
@@ -268,7 +284,6 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
               <Layout className="w-5 h-5" /> <span>Dashboard</span>
             </button>
             
-            {/* AFEGIT: BOTÓ GRAMMAR LAB */}
             <button onClick={onOpenExtras} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-gray-500 hover:bg-gray-50 hover:text-purple-600">
               <GraduationCap className="w-5 h-5" /> <span>Grammar Lab</span>
             </button>
@@ -292,7 +307,6 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
       </aside>
 
       <main className="flex-1 lg:ml-64 p-4 lg:p-10 pb-24 lg:pb-10 relative w-full">
-        {/* HEADER MOBIL */}
         <div className="lg:hidden flex justify-between items-center mb-6">
             <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white"><Brain className="w-4 h-4" /></div>
@@ -314,14 +328,15 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
             <>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                     <div><h1 className="text-2xl lg:text-4xl font-extrabold text-gray-900">Hello, <span className="text-blue-600">{user?.email?.split('@')[0]}</span></h1><p className="text-gray-500 mt-1">Ready to ace your Cambridge C1 Exam?</p></div>
+                    
                     <button onClick={handleStartExam} disabled={examLoading} className="w-full md:w-auto flex items-center justify-center gap-3 px-6 py-3 bg-gray-900 text-white rounded-full font-bold shadow-lg hover:scale-105 transition-all active:scale-95 disabled:opacity-70">
-                        {examLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : <GraduationCap className="w-5 h-5" />} Mock Exam
+                        {examLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : <GraduationCap className="w-5 h-5" />} 
+                        Mock Exam {user?.is_vip ? "" : "🔒"}
                     </button>
                 </div>
 
                 {error && <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-3"><Zap className="w-4 h-4"/><span className="font-medium text-sm">{error}</span></div>}
 
-                {/* SKILLS GRID */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-8">
                 {(Object.keys(SKILLS) as SkillKey[]).map((key) => {
                     const skill = SKILLS[key];
@@ -337,7 +352,6 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
                 })}
                 </div>
 
-                {/* PARTS GRID */}
                 <div className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-3xl p-4 lg:p-8 shadow-xl animate-in fade-in zoom-in-95 duration-500">
                 <div className="flex items-center gap-3 mb-6">
                     <div className={`p-2 rounded-lg ${SKILLS[activeSkill].bg}`}>{SKILLS[activeSkill].icon}</div>
@@ -345,9 +359,20 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
                     {SKILLS[activeSkill].parts.map((part) => (
-                    <button key={part.id} onClick={() => handleGenerate(part.id)} disabled={loading} className="group relative flex items-center p-4 bg-white border border-gray-100 rounded-xl hover:border-blue-400 hover:shadow-md transition-all text-left disabled:opacity-50">
-                        <div className="flex-1"><h4 className="font-bold text-gray-800 group-hover:text-blue-700 transition-colors text-sm lg:text-base">{part.name}</h4><p className="text-xs lg:text-sm text-gray-500">{part.desc}</p></div>
-                        <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">{loading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Play className="w-4 h-4 fill-current"/>}</div>
+                    
+                    <button key={part.id} onClick={() => handlePartClick(part.id)} disabled={loading} className="group relative flex items-center p-4 bg-white border border-gray-100 rounded-xl hover:border-blue-400 hover:shadow-md transition-all text-left disabled:opacity-50">
+                        <div className="flex-1">
+                            <h4 className="font-bold text-gray-800 group-hover:text-blue-700 transition-colors text-sm lg:text-base flex items-center gap-2">
+                                {part.name}
+                                {!user?.is_vip && part.id === 'writing2' && <span className="text-xs bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded flex items-center gap-1"><Zap className="w-3 h-3"/> PRO</span>}
+                            </h4>
+                            <p className="text-xs lg:text-sm text-gray-500">{part.desc}</p>
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                            {loading ? <Loader2 className="w-4 h-4 animate-spin"/> : (
+                                !user?.is_vip && part.id === 'writing2' ? <Zap className="w-4 h-4 text-gray-400"/> : <Play className="w-4 h-4 fill-current"/>
+                            )}
+                        </div>
                     </button>
                     ))}
                 </div>
@@ -356,13 +381,9 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
         )}
       </main>
 
-      {/* MOBILE NAV */}
       <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center p-3 lg:hidden z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
          <button onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center gap-1 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-gray-400'}`}><Layout className="w-6 h-6" /><span className="text-[10px] font-bold">Home</span></button>
-         
-         {/* AFEGIT: BOTÓ GRAMMAR AL MÒBIL */}
          <button onClick={onOpenExtras} className="flex flex-col items-center gap-1 text-gray-400 hover:text-purple-600"><GraduationCap className="w-6 h-6" /><span className="text-[10px] font-bold">Grammar</span></button>
-
          <button onClick={() => setCurrentView('pricing')} className={`flex flex-col items-center gap-1 ${currentView === 'pricing' ? 'text-yellow-600' : 'text-gray-400'}`}><Crown className="w-6 h-6" /><span className="text-[10px] font-bold">Store</span></button>
          <button onClick={() => setCurrentView('profile')} className={`flex flex-col items-center gap-1 ${currentView === 'profile' ? 'text-blue-600' : 'text-gray-400'}`}><BarChart2 className="w-6 h-6" /><span className="text-[10px] font-bold">Profile</span></button>
       </nav>
