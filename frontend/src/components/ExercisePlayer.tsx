@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, CheckCircle, Download, Eye, RefreshCw, XCircle, Send, Loader2, AlertCircle, Mic, StopCircle, Volume2, FileText, Sparkles, Image as ImageIcon, Flag, PlayCircle, ChevronDown, Lock } from "lucide-react";
-import { preloadExercise, submitResult, gradeWriting, gradeSpeaking, transcribeAudio, fetchAudio, reportIssue } from "../api";
+import { ArrowLeft, CheckCircle, Download, Eye, RefreshCw, XCircle, Send, Loader2, AlertCircle, Mic, StopCircle, Volume2, FileText, Sparkles, Image as ImageIcon, ChevronDown, Lock } from "lucide-react";
+import { preloadExercise, submitResult, gradeWriting, gradeSpeaking, transcribeAudio, fetchAudio } from "../api";
 import { useAuth } from "../context/AuthContext";
 import confetti from 'canvas-confetti';
 import { playSuccessSound, playErrorSound } from "../utils/audioFeedback";
@@ -31,7 +31,7 @@ interface ExerciseData {
   image_prompts?: string[];
 }
 
-// 👇 AFEGIT: onOpenPricing per poder anar a la botiga sense recarregar
+// 👇 onOpenPricing per poder anar a la botiga sense recarregar
 interface Props {
   data: ExerciseData;
   onBack: () => void;
@@ -55,7 +55,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const [showAnswers, setShowAnswers] = useState(false);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [score, setScore] = useState<number | null>(null);
-  const [reporting, setReporting] = useState<number | null>(null);
 
   // WRITING/SPEAKING STATES
   const [inputText, setInputText] = useState("");
@@ -151,31 +150,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
         .finally(() => setLoadingAudio(false));
     }
   }, [data.type, data.level, isInteractive, isListening, data.text]);
-
-  const jumpToTimestamp = (timeStr: string) => {
-    if (!audioRef.current) return;
-    const parts = timeStr.split(':');
-    let seconds = 0;
-    if (parts.length === 2) {
-      seconds = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-    } else {
-      seconds = parseInt(parts[0]);
-    }
-    audioRef.current.currentTime = seconds;
-    audioRef.current.play();
-  };
-
-  const handleReport = async (idx: number, reason: string) => {
-    if (!user) return;
-    try {
-      await reportIssue(user.uid, data, idx, reason);
-      alert("Thanks for your feedback!");
-    } catch (e) {
-      alert("Failed to send report.");
-    } finally {
-      setReporting(null);
-    }
-  };
 
   const toggleRecording = async () => {
     if (isRecording) {
@@ -614,9 +588,9 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
               <>
                 {isSpeaking && (
                   <div className="flex flex-col items-center justify-center py-4 gap-2 relative">
-                     
-                     {/* 🔒 SPEAKING OVERLAY LOCK */}
-                     {!user?.is_vip && (
+                      
+                      {/* 🔒 SPEAKING OVERLAY LOCK */}
+                      {!user?.is_vip && (
                         <div className="absolute inset-0 z-20 bg-white/70 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl text-center p-4 border border-white/50">
                             <div className="bg-purple-100 p-4 rounded-full mb-3 shadow-lg">
                                 <Lock className="w-8 h-8 text-purple-600" />
@@ -632,7 +606,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                                 Unlock Speaking
                             </button>
                         </div>
-                     )}
+                      )}
 
                     <button
                       onClick={toggleRecording}
