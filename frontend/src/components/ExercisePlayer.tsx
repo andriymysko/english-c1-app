@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, CheckCircle, Download, Eye, RefreshCw, XCircle, Send, Loader2, AlertCircle, Mic, StopCircle, Volume2, FileText, Sparkles, Image as ImageIcon, ChevronDown, Lock } from "lucide-react";
-import { preloadExercise, submitResult, gradeWriting, gradeSpeaking, transcribeAudio, fetchAudio, reportIssue } from "../api";
+// 👇 HE ELIMINAT 'reportIssue' D'AQUESTA IMPORTACIÓ PER CORREGIR L'ERROR
+import { preloadExercise, submitResult, gradeWriting, gradeSpeaking, transcribeAudio, fetchAudio } from "../api";
 import { useAuth } from "../context/AuthContext";
 import confetti from 'canvas-confetti';
 import { playSuccessSound, playErrorSound } from "../utils/audioFeedback";
@@ -41,7 +42,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const { user } = useAuth();
 
   // REFS
-  // 🗑️ HE ELIMINAT 'audioRef' PERQUÈ NO ES FEIA SERVIR I DONAVA ERROR
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
