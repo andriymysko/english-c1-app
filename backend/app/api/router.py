@@ -220,7 +220,7 @@ def generate_full_exam(request: ExamRequest):
         if not DatabaseService.check_user_quota(request.user_id, cost=5):
              raise HTTPException(status_code=429, detail="Daily limit reached. Cannot generate full exam.")
         
-        return ExamGenerator.generate_full_exam(request.level)
+        return ExamGenerator.generate_full_exam(request.user_id, request.level)
     except HTTPException as he: raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -111,17 +111,27 @@ class DatabaseService:
 
     @staticmethod
     def reward_ad_view(user_id: str):
-        """
-        L'usuari ha vist un anunci: Li restem generacions del comptador perquè pugui fer-ne més.
-        Exemple: Si portava 3/3 (bloquejat), el baixem a 2/3 i així en pot fer un altre.
-        """
         try:
             user_ref = db.collection('users').document(user_id)
-            # daily_gen_count és el total fet avui. Si el baixem, el sistema es pensa que n'ha fet menys.
-            user_ref.update({'daily_gen_count': firestore.Increment(-1)})
+            user_doc = user_ref.get()
+            data = user_doc.to_dict()
+            
+            # 1. Comprovem quants anuncis ha vist avui
+            ads_today = data.get('ads_watched_today', 0)
+            
+            # 2. POSEM EL LÍMIT AQUÍ (Exemple: Màxim 5 anuncis al dia)
+            MAX_ADS = 3
+            if ads_today >= MAX_ADS:
+                return False # Li diem que no pot veure més
+            
+            # 3. Si està dins del límit, li donem la recompensa
+            batch = db.batch()
+            batch.update(user_ref, {'daily_gen_count': firestore.Increment(-1)})
+            batch.update(user_ref, {'ads_watched_today': firestore.Increment(1)})
+            batch.commit()
+            
             return True
-        except Exception as e:
-            print(f"Error rewarding ad: {e}")
+        except Exception:
             return False
 
     # --- RATE LIMITING ---
@@ -396,3 +406,12 @@ class DatabaseService:
             new_p = max(1, curr - 10) if success else min(100, curr + 20)
             ref.update({'priority': new_p})
         except: pass
+
+    @staticmethod
+    def get_user_completed_ids(user_id: str) -> list:
+        """Retorna una llista simple amb tots els IDs d'exercicis fets per l'usuari"""
+        try:
+            docs = db.collection("users").document(user_id).collection("completed_exercises").stream()
+            return [doc.id for doc in docs]
+        except Exception:
+            return []
