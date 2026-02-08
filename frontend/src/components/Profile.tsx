@@ -57,6 +57,10 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
   // --- FUNCIÓ DE PAGAMENT (STRIPE) ---
   const handleBuyPass = async () => {
     if (!user) return;
+    console.log("🚀 INTENTANT PAGAR AMB:", { 
+        user_id: user.uid, 
+        product_type: 'season' 
+    });
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/create-checkout-session/`, {
         method: "POST",
@@ -207,7 +211,7 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
                     >
                         <div className="flex items-center gap-1">
                              <Zap className="w-4 h-4 text-yellow-400 fill-current group-hover:animate-pulse" />
-                             <span className="font-bold text-sm">UPGRADE</span>
+                             <span className="font-bold text-sm">UPGRADE NOW</span>
                         </div>
                         <span className="text-[9px] text-gray-400">Get Unlimited</span>
                     </button>
