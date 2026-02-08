@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, CheckCircle, Download, Eye, RefreshCw, XCircle, Send, Loader2, AlertCircle, Mic, StopCircle, Volume2, FileText, Sparkles, Image as ImageIcon, ChevronDown, Lock } from "lucide-react";
-import { preloadExercise, submitResult, gradeWriting, gradeSpeaking, transcribeAudio, fetchAudio } from "../api";
+import { preloadExercise, submitResult, gradeWriting, gradeSpeaking, transcribeAudio, fetchAudio, reportIssue } from "../api";
 import { useAuth } from "../context/AuthContext";
 import confetti from 'canvas-confetti';
 import { playSuccessSound, playErrorSound } from "../utils/audioFeedback";
@@ -31,7 +31,6 @@ interface ExerciseData {
   image_prompts?: string[];
 }
 
-// 👇 onOpenPricing per poder anar a la botiga sense recarregar
 interface Props {
   data: ExerciseData;
   onBack: () => void;
@@ -42,7 +41,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const { user } = useAuth();
 
   // REFS
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // 🗑️ HE ELIMINAT 'audioRef' PERQUÈ NO ES FEIA SERVIR I DONAVA ERROR
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
