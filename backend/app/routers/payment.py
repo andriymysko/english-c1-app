@@ -73,6 +73,7 @@ async def create_checkout_session(data: dict):
                 'quantity': 1,
             }],
             mode='payment', 
+            allow_promotion_codes=True,
             success_url=f'{FRONTEND_URL}/?success=true',
             cancel_url=f'{FRONTEND_URL}/?canceled=true',
             
