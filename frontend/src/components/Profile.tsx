@@ -61,14 +61,26 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
       const response = await fetch(`${import.meta.env.VITE_API_URL}/create-checkout-session/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user.uid }),
+        // 👇 AFEGIM 'product_type' AQUÍ
+        body: JSON.stringify({ 
+            user_id: user.uid,
+            product_type: 'season' // O 'weekly', 'pack5' segons correspongui
+        }),
       });
       
+      if (!response.ok) {
+          // Si el servidor ens torna un error (ex: 400), el mostrem
+          const errorData = await response.json();
+          alert(`Payment Error: ${errorData.detail || "Something went wrong"}`);
+          return;
+      }
+
       const data = await response.json();
       if (data.url) {
         window.location.href = data.url; 
       }
     } catch (error) {
+      console.error("Payment error:", error);
       alert("Error starting payment. Please try again.");
     }
   };
