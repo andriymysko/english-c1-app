@@ -219,3 +219,25 @@ export const getCoachAnalysis = async (userId: string) => {
   if (!res.ok) throw new Error("Coach failed");
   return res.json();
 };
+
+export const generateExercise = async (type: string, level: string = "C1") => {
+  try {
+    const response = await fetch(`${API_URL}/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ type, level }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to generate exercise");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("API Error generating exercise:", error);
+    throw error;
+  }
+};
