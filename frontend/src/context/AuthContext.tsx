@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-// CORRECCIÓ 1: Importem el tipus ReactNode separadament
+// Importem el tipus ReactNode explícitament
 import type { ReactNode } from "react"; 
 
 import { 
@@ -8,24 +8,24 @@ import {
   createUserWithEmailAndPassword, 
   signOut,
   signInWithPopup,      
-  GoogleAuthProvider    
+  GoogleAuthProvider,
+  // 👇 FIX: Afegim 'type' aquí perquè això és només una interfície
+  type User as FirebaseUser    
 } from "firebase/auth";
 
-// CORRECCIÓ 2: Importem el tipus User separadament
-export interface User {
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../firebase"; 
+
+// Definim el tipus d'usuari complet (Auth + Dades BD)
+export interface User extends Partial<FirebaseUser> {
   uid: string;
   email: string | null;
-  // 👇 AFEGEIX AQUESTES DUES LÍNIES:
   is_vip?: boolean;
   daily_usage?: {
     date: string;
     counts: Record<string, number>;
   };
 }
-
-// CORRECCIÓ 3: Ajustem la ruta. Si firebase.ts està a src/, pugem un nivell (..) i llestos.
-// Si el tens a utils, canvia-ho per "../utils/firebase"
-import { auth } from "../firebase"; 
 
 interface AuthContextType {
   user: User | null;
@@ -50,15 +50,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // 🔥 ELIMINEM EL RETARD (FLICKER)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          // 1. Llegim la base de dades AL MOMENT
+          const userDocRef = doc(db, "users", currentUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          let firestoreData = {};
+          if (userDoc.exists()) {
+            firestoreData = userDoc.data();
+          }
+
+          // 2. Creem l'objecte complet immediatament
+          const fullUser: User = {
+            uid: currentUser.uid,
+            email: currentUser.email,
+            ...firestoreData, // Inserim is_vip: true
+          };
+
+          setUser(fullUser);
+        } catch (error) {
+          console.error("Error carregant dades extra:", error);
+          setUser({
+            uid: currentUser.uid,
+            email: currentUser.email,
+          });
+        }
+      } else {
+        setUser(null);
+      }
+      
       setLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
-  // Funcions d'autenticació
   const login = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
   };
@@ -91,4 +121,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
-

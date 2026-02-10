@@ -1,7 +1,5 @@
-import { useState, useEffect } from 'react';
 import { Lock, ArrowRight, Zap, Shuffle, AlertTriangle, Layers, MessageCircle, Settings, Link, Anchor, Puzzle, Hourglass } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getUserStats } from '../api'; // 👈 Importa això!
 
 const TOPICS = [
     { id: 'tenses', title: 'Advanced Conditionals', desc: "Mixed types, inversions, and 'if' alternatives.", icon: Shuffle, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', isPremium: false },
@@ -23,26 +21,12 @@ interface Props {
 export default function GrammarList({ onSelectTopic, onPremiumLocked }: Props) {
     const { user } = useAuth();
     
-    // 🔥 NOUTAT: Estat local per controlar el VIP amb precisió
-    // Inicialitzem amb el valor que ja tinguem (per evitar parpelleig), o false.
-    const [isVip, setIsVip] = useState<boolean>((user as any)?.is_vip || false);
-
-    useEffect(() => {
-        if (user) {
-            // 1. Si el context ja diu que és VIP, actualitzem ràpid
-            if (user.is_vip) setIsVip(true);
-            
-            // 2. Verifiquem amb la BD per estar 100% segurs (en segon pla)
-            getUserStats(user.uid).then(data => {
-                if (data && data.is_vip) {
-                    setIsVip(true);
-                }
-            });
-        }
-    }, [user]);
+    // 🔥 EL CANVI CLAU:
+    // Ja no fem servir useState ni useEffect aquí.
+    // Llegim directament de l'objecte user, que ara ja ve "vitaminat" des de l'AuthContext.
+    const isVip = user?.is_vip || false;
 
     const handleSelect = (topic: any) => {
-        // Fem servir l'estat local 'isVip' que és més fiable
         const isLocked = topic.isPremium && !isVip;
         
         if (isLocked) {
@@ -53,9 +37,8 @@ export default function GrammarList({ onSelectTopic, onPremiumLocked }: Props) {
     };
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
             {TOPICS.map(topic => {
-                // Fem servir 'isVip' aquí també per pintar els cadenats correctament
                 const isLocked = topic.isPremium && !isVip;
 
                 const cardStyle = isLocked 
