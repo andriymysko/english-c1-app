@@ -2,6 +2,47 @@ const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 // --- EXERCISES ---
 export async function fetchExercise(type: string, userId: string, level: string = "C1") {
+  
+  // ---------------------------------------------------------
+  // ⚡ SIMULACIÓ WRITING PART 1 (ESSAY) - ESTRUCTURA C1 REAL
+  // ---------------------------------------------------------
+  // Interceptem la petició aquí per enviar l'estructura complexa
+  // sense haver de canviar el backend Python encara.
+  if (type === 'writing1') {
+    // Simulem un petit retard de xarxa perquè sembli real
+    await new Promise(resolve => setTimeout(resolve, 600));
+
+    return {
+      id: 'writing1',
+      type: 'essay',
+      title: "Technological Progress and Society",
+      instruction: "You must answer this question. Write your answer in 220-260 words in an appropriate style.",
+      content: {
+        // Text introductori
+        input_text: `Technological advancement has unprecedentedly transformed the way society functions, bringing both remarkable conveniences and significant challenges. While it bridges geographical gaps, it often exacerbates social isolation. Furthermore, as data becomes the new currency, the line between security and surveillance blurs. Society navigates these shifts, questioning whether the cost of progress is too high for the individual.`,
+        
+        // Pregunta obligatòria
+        question: "Write an essay discussing TWO of the areas in your notes. You should explain which area has been most affected by technological advancement, giving reasons in support of your answer.",
+        
+        // NOTES (Obligatori per C1)
+        notes: [
+          "Communication",
+          "Privacy",
+          "Social Equality"
+        ],
+        
+        // OPINIONS (Helper text)
+        opinions: [
+          "We are more connected than ever, yet we feel more lonely.",
+          "It feels like someone is always watching what we do online.",
+          "Only the rich can afford the newest devices, leaving others behind."
+        ]
+      }
+    };
+  }
+  // ---------------------------------------------------------
+
+  // PER A LA RESTA D'EXERCICIS, FEM LA CRIDA NORMAL AL BACKEND
   const response = await fetch(`${API_URL}/get_exercise/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -13,7 +54,6 @@ export async function fetchExercise(type: string, userId: string, level: string 
     }),
   });
 
-  // AQUI ESTÀ LA CLAU: Si el backend diu 429, llancem l'error específic
   if (response.status === 429) throw new Error("DAILY_LIMIT");
   
   if (!response.ok) throw new Error("Failed to fetch exercise");
@@ -30,7 +70,6 @@ export async function generateFullExam(userId: string, level: string = "C1") {
     }),
   });
   
-  // TAMBÉ PER EXÀMENS COMPLETS
   if (response.status === 429) throw new Error("DAILY_LIMIT");
 
   if (!response.ok) throw new Error("Failed to generate exam");
@@ -69,7 +108,6 @@ export async function getUserStats(userId: string) {
 export async function generateReview(userId: string) {
   const response = await fetch(`${API_URL}/generate_review/${userId}`, { method: "POST" });
   
-  // TAMBÉ PER REVIEWS
   if (response.status === 429) throw new Error("DAILY_LIMIT");
   
   if (response.status === 404) throw new Error("NO_MISTAKES");
@@ -158,7 +196,6 @@ export const downloadOfflinePack = async (userId: string, level: string = "C1") 
   const exercises = [];
   for (let i = 0; i < 5; i++) {
     try {
-        // Capturem errors individuals per no trencar tot el pack si un falla
         const ex = await fetchExercise("reading_and_use_of_language1", userId, level); 
         exercises.push(ex);
     } catch(e) { console.warn("Skipped offline exercise due to error/limit"); }
@@ -181,29 +218,4 @@ export const getCoachAnalysis = async (userId: string) => {
   const res = await fetch(`${API_URL}/analyze_weaknesses/${userId}`);
   if (!res.ok) throw new Error("Coach failed");
   return res.json();
-};
-
-export const generateExercise = async (type: string, level: string = "C1") => {
-  // Assegura't que API_URL apunti al teu backend (normalment http://localhost:8000)
-  const API_URL = "http://localhost:8000"; 
-  
-  try {
-    const response = await fetch(`${API_URL}/generate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ type, level }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || "Failed to generate exercise");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("API Error generating exercise:", error);
-    throw error;
-  }
 };
