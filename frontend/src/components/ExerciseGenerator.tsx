@@ -340,7 +340,6 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
         {currentView === 'pricing' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4">
                 <button onClick={() => setCurrentView('dashboard')} className="flex items-center gap-2 text-gray-600 mb-6 hover:text-gray-900"><Layout className="w-4 h-4" /> Back to Dashboard</button>
-                <div className="text-center mb-8"><h1 className="text-3xl font-bold text-gray-900">Upgrade your Plan</h1><p className="text-gray-500">Choose the best option to ace your C1 Exam.</p></div>
                 <Pricing />
             </div>
         ) : (
