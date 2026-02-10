@@ -43,11 +43,8 @@ PRODUCTS_DB = {
 
 @payment_router.post("/create-checkout-session/")
 async def create_checkout_session(data: dict):
-    """
-    Pas 1: El frontend demana pagar. Nosaltres creem la sessió a Stripe.
-    """
     user_id = data.get("user_id")
-    product_type = data.get("product_type") # ex: 'season'
+    product_type = data.get("product_type")
 
     if not user_id or not product_type:
         raise HTTPException(status_code=400, detail="Missing data")
@@ -57,27 +54,47 @@ async def create_checkout_session(data: dict):
         raise HTTPException(status_code=400, detail="Invalid product type")
 
     try:
-        print(f"🛒 Creant sessió per: {user_id} -> {product_type}")
+        # 1. DECIDIM EL MODE (Subscripció o Pagament únic)
+        # Si és el Pack de 5, és un pagament únic ('payment').
+        # Si és Weekly o Season, volem que es renovi ('subscription').
+        mode = 'payment'
+        recurring_info = {}
         
+        if product_type == 'weekly':
+            mode = 'subscription'
+            recurring_info = {'interval': 'week', 'interval_count': 1}
+        elif product_type == 'season':
+            mode = 'subscription'
+            recurring_info = {'interval': 'month', 'interval_count': 3}
+
+        # Construïm les dades del preu
+        price_data = {
+            'currency': 'eur',
+            'product_data': {
+                'name': selected_product['name'],
+                'description': selected_product['desc'],
+            },
+            'unit_amount': selected_product['amount'],
+        }
+
+        # Si és subscripció, afegim la info de recurrència
+        if mode == 'subscription':
+            price_data['recurring'] = recurring_info
+
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
-                'price_data': {
-                    'currency': 'eur',
-                    'product_data': {
-                        'name': selected_product['name'],
-                        'description': selected_product['desc'],
-                    },
-                    'unit_amount': selected_product['amount'],
-                },
+                'price_data': price_data,
                 'quantity': 1,
             }],
-            mode='payment', 
+            mode=mode, # 👈 AQUÍ ESTÀ LA MÀGIA (Ara pot ser 'subscription')
             allow_promotion_codes=True,
-            success_url=f'{FRONTEND_URL}/?success=true',
-            cancel_url=f'{FRONTEND_URL}/?canceled=true',
             
-            # ⚠️ VITAL: Aquí guardem qui compra què, perquè el Webhook ho sàpiga després
+            # 2. ARREGLEM LA REDIRECCIÓ (Landing Page)
+            # Afegim /profile al final perquè torni directament al perfil de l'usuari
+            success_url=f'{FRONTEND_URL}/profile?success=true', # 👈 Canviat
+            cancel_url=f'{FRONTEND_URL}/profile?canceled=true', # 👈 Canviat
+            
             metadata={
                 "user_id": user_id,
                 "product_type": product_type 

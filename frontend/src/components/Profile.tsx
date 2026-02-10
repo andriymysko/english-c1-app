@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import Flashcards from "./Flashcards"; 
 
-// Helper per formatar dates (si tens data de caducitat a stats)
+// Helper per formatar dates
 const formatDate = (dateString: any) => {
     if (!dateString) return 'Lifetime';
     const date = new Date(dateString);
@@ -38,15 +38,17 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
       // 2. Carreguem les dades reals de la base de dades
       getUserStats(user.uid).then(data => {
         if (isJustPurchased) {
+            // Feedback immediat visual
             setStats({ ...data, is_vip: true });
-            window.history.replaceState({}, '', '/');
+            alert("Payment Successful! Welcome to VIP 🌟");
+            window.history.replaceState({}, '', '/'); // Neteja la URL
         } else {
             setStats(data);
         }
         setLoading(false);
       });
 
-      // 3. Carreguem el Coach normalment
+      // 3. Carreguem el Coach
       getCoachAnalysis(user.uid)
         .then(data => setCoachData(data))
         .catch(err => console.error("Coach API Error:", err))
@@ -57,23 +59,25 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
   // --- FUNCIÓ DE PAGAMENT (STRIPE) ---
   const handleBuyPass = async () => {
     if (!user) return;
-    console.log("🚀 INTENTANT PAGAR AMB:", { 
+    
+    // LOG PER DEPURAR AL NAVEGADOR
+    console.log("🚀 INICIANT PAGAMENT AMB:", { 
         user_id: user.uid, 
         product_type: 'season' 
     });
+
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/create-checkout-session/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // 👇 AFEGIM 'product_type' AQUÍ
+        // 👇 AQUI ESTA LA CLAU DEL FIX
         body: JSON.stringify({ 
             user_id: user.uid,
-            product_type: 'season' // O 'weekly', 'pack5' segons correspongui
+            product_type: 'season' 
         }),
       });
       
       if (!response.ok) {
-          // Si el servidor ens torna un error (ex: 400), el mostrem
           const errorData = await response.json();
           alert(`Payment Error: ${errorData.detail || "Something went wrong"}`);
           return;
@@ -121,21 +125,16 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
         <ArrowLeft className="w-5 h-5" /> Back to Dashboard
       </button>
 
-      {/* =========================================================================
-          NOU HEADER: TARGETA D'ESTAT (VIP vs FREE)
-         ========================================================================= */}
-      
+      {/* --- HEADER VIP vs FREE --- */}
       {stats?.is_vip ? (
         // 🌟 DISSENY VIP (GOLD)
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden mb-10 border border-gray-100 relative group">
             <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-purple-900 to-violet-900 opacity-95"></div>
-            {/* Decoració de fons */}
             <div className="absolute top-0 right-0 p-4 opacity-10">
                 <Crown className="w-64 h-64 text-white -rotate-12 translate-x-20 -translate-y-20" />
             </div>
             
             <div className="relative z-10 p-8 flex flex-col md:flex-row items-center gap-8">
-                {/* Avatar VIP */}
                 <div className="relative">
                     <div className="w-28 h-28 rounded-full bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-600 p-1 shadow-lg shadow-amber-500/20">
                         <div className="w-full h-full bg-gray-900 rounded-full flex items-center justify-center text-4xl font-bold text-yellow-500">
@@ -161,7 +160,6 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
                     </div>
                 </div>
 
-                {/* Status Card dins del header */}
                 <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 min-w-[200px] text-center md:text-right">
                     <p className="text-gray-400 text-xs uppercase font-bold tracking-widest mb-1">Status</p>
                     <p className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-400">
@@ -177,7 +175,6 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
             <div className="h-32 bg-gradient-to-r from-slate-100 to-slate-200 w-full absolute top-0 left-0"></div>
             
             <div className="relative z-10 px-8 pb-8 pt-16 flex flex-col md:flex-row items-end md:items-center gap-6">
-                 {/* Avatar Free */}
                  <div className="w-24 h-24 rounded-2xl bg-white p-1 shadow-md relative">
                     <div className="w-full h-full bg-slate-50 rounded-xl flex items-center justify-center text-4xl font-bold text-slate-300">
                         {user?.email?.charAt(0).toUpperCase()}
@@ -192,7 +189,6 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
                     </p>
                 </div>
 
-                {/* Call to Action Upgrade */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center gap-4 w-full md:w-auto mt-4 md:mt-0 shadow-sm">
                     <div className="bg-white p-3 rounded-full text-slate-400 shadow-sm border border-slate-100">
                         <User className="w-6 h-6" />
@@ -211,7 +207,8 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
                     >
                         <div className="flex items-center gap-1">
                              <Zap className="w-4 h-4 text-yellow-400 fill-current group-hover:animate-pulse" />
-                             <span className="font-bold text-sm">UPGRADE NOW</span>
+                             {/* 👇 CANVI VISUAL PER CONFIRMAR DEPLOY */}
+                             <span className="font-bold text-sm">UPGRADE (VERSIÓ FINAL)</span>
                         </div>
                         <span className="text-[9px] text-gray-400">Get Unlimited</span>
                     </button>
@@ -220,9 +217,7 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
         </div>
       )}
 
-      {/* =========================================================================
-          KPI CARDS (Estadístiques)
-         ========================================================================= */}
+      {/* --- KPI CARDS --- */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 hover:shadow-md transition">
           <div className="flex items-center gap-2 mb-2 text-blue-600">
@@ -260,7 +255,7 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
         </div>
       </div>
 
-      {/* AI COACH INSIGHTS */}
+      {/* --- AI COACH INSIGHTS --- */}
       <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-purple-100 relative overflow-hidden mb-10">
         <div className="absolute top-0 right-0 p-32 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
             
@@ -282,7 +277,6 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
         ) : coachData ? (
             <div className="space-y-8 relative z-10">
                 
-                {/* WEAKNESSES */}
                 <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" /> Areas for Improvement
@@ -302,7 +296,6 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
                    )}
                 </div>
 
-                {/* ADVICE */}
                 {coachData.advice && (
                     <div className="bg-indigo-50/50 p-6 rounded-xl border border-indigo-100">
                         <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -321,9 +314,8 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
         )}
       </div>
 
-      {/* TOOLS SECTION */}
+      {/* --- TOOLS SECTION --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-         {/* FLASHCARDS CARD */}
          <button 
              onClick={() => setView("flashcards")}
              className="group relative overflow-hidden bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all text-left"
@@ -338,7 +330,6 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
              </div>
          </button>
 
-         {/* EXAM GENERATOR CARD */}
          <button 
              onClick={handleCreateReview}
              disabled={generating || stats?.mistakes_pool?.length === 0}
@@ -356,7 +347,7 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
          </button>
       </div>
 
-      {/* MISTAKES LOG */}
+      {/* --- MISTAKES LOG --- */}
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="bg-gray-50/80 p-5 border-b border-gray-200 flex justify-between items-center backdrop-blur-sm">
           <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
