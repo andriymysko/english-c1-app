@@ -99,7 +99,7 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
   const [pendingPartId, setPendingPartId] = useState<string | null>(null);
 
   // NOUTAT: Estat local per controlar el VIP en temps real
-  const [isVip, setIsVip] = useState(false);
+  const [isVip, setIsVip] = useState<boolean>((user as any)?.is_vip || false);
 
   useEffect(() => {
     // 1. Gestionar redireccions de pagament
