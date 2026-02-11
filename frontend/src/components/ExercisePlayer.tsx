@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, CheckCircle, Download, Eye, RefreshCw, XCircle, Send, Loader2, AlertCircle, Mic, StopCircle, Volume2, FileText, Sparkles, Image as ImageIcon, ChevronDown, Lock, PenTool, Clock } from "lucide-react";
+import { ArrowLeft, CheckCircle, Download, Eye, RefreshCw, XCircle, Send, Loader2, AlertCircle, Mic, StopCircle, Volume2, FileText, Sparkles, Image as ImageIcon, ChevronDown, Lock, PenTool, Clock, LayoutList } from "lucide-react";
 import { preloadExercise, submitResult, gradeWriting, gradeSpeaking, transcribeAudio, fetchAudio } from "../api";
 import { useAuth } from "../context/AuthContext";
 import confetti from 'canvas-confetti';
@@ -24,14 +24,13 @@ interface ExerciseData {
   id?: string;
   title: string;
   instructions: string;
-  text: string; // A vegades el text està aquí
+  text: string;
   type: string;
   level: string;
   questions: Question[];
   image_urls?: string[];
   image_prompts?: string[];
-  // Camps específics per al nou Writing Part 1
-  instruction?: string; // A vegades ve com instruction (singular)
+  instruction?: string;
   content?: {
     input_text?: string;
     text?: string;
@@ -39,6 +38,14 @@ interface ExerciseData {
     notes?: string[];
     opinions?: string[];
   };
+  // 👇 NOU: Opcions per al Writing Part 2
+  options?: Array<{
+    id: string;
+    type: string;
+    title: string;
+    text: string;
+    tips: string;
+  }>;
 }
 
 interface Props {
@@ -51,78 +58,55 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const { user } = useAuth();
 
   // -----------------------------------------------------------
-  // 🚀 NOU MODE: WRITING PART 1 (ESSAY) - INTERFÍCIE EXAMEN
+  // 1. GESTIÓ DE SELECCIÓ (WRITING PART 2)
+  // -----------------------------------------------------------
+  const isChoiceMode = data.type === 'writing_choice';
+  const [selectedOption, setSelectedOption] = useState<any>(null);
+
+  // -----------------------------------------------------------
+  // 2. GESTIÓ ESSAY/WRITING EXAM (PART 1 & PART 2)
   // -----------------------------------------------------------
   const isEssayExam = data.id === 'writing1' || data.type === 'essay' || (data.type === 'writing1' && data.content);
 
-  // Estats per al mode Essay
+  // Estats per a l'editor d'escriptura professional
   const [essayAnswer, setEssayAnswer] = useState("");
   const [wordCount, setWordCount] = useState(0);
 
-  const handleEssayChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const text = e.target.value;
-    setEssayAnswer(text);
-    setWordCount(text.trim().split(/\s+/).filter(w => w.length > 0).length);
-  };
-
-  const submitEssay = async () => {
-     if (wordCount < 220) {
-        toast.warning("Too short!", { description: "Aim for at least 220 words for C1 level." });
-        return;
-     }
-     
-     // Reutilitzem la lògica de correcció existent
-     setLoadingGrade(true);
-     try {
-        const fullTask = (data.instruction || data.instructions) + "\n" + (data.content?.question || "");
-        const result = await gradeWriting(user?.uid || "anon", fullTask, essayAnswer);
-        setFeedback(result);
-        playSuccessSound();
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-     } catch (e) {
-        alert("Error grading essay");
-     } finally {
-        setLoadingGrade(false);
-     }
-  };
-
   // -----------------------------------------------------------
-  // 🛠️ MODE ESTÀNDARD (Reading, Listening, Speaking, etc.)
+  // 3. ESTATS GENERALS & STANDARD MODE
   // -----------------------------------------------------------
-  
-  // REFS
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  // GENERAL STATES
   const [loadingGrade, setLoadingGrade] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false); 
 
-  // STANDARD STATES
   const [showAnswers, setShowAnswers] = useState(false);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [score, setScore] = useState<number | null>(null);
 
-  // WRITING/SPEAKING STATES (Legacy)
   const [inputText, setInputText] = useState("");
   const [feedback, setFeedback] = useState<any>(null);
   const [isRecording, setIsRecording] = useState(false);
 
-  // LISTENING STATES
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
 
   // FLAGS
-  const isWriting = data.type.startsWith("writing");
+  // Important: Si hem seleccionat una opció del Part 2, ja no estem en "choice mode" visualment, sinó en "writing"
+  const isWriting = data.type.startsWith("writing") && !isChoiceMode; 
   const isSpeaking = data.type.startsWith("speaking");
   const isListening = data.type.startsWith("listening");
   const isPart4 = data.type === "reading_and_use_of_language4";
   const isGapFill = ["reading_and_use_of_language1", "reading_and_use_of_language2", "reading_and_use_of_language3", "listening2"].includes(data.type);
-  const isInteractive = !isWriting && !isSpeaking;
+  
+  // És interactiu si NO és un examen d'escriptura (Part 1 o Part 2 triada) ni Speaking
+  const isInteractive = !isWriting && !isSpeaking && !isEssayExam && !selectedOption && !isChoiceMode;
 
-  // --- PDF DOWNLOAD ---
+  // --- HANDLERS ---
+
   const handleDownloadPDF = async () => {
     if (isDownloading) return;
     setIsDownloading(true);
@@ -150,16 +134,21 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     }
   };
 
-  // --- EFFECTS ---
   useEffect(() => {
     window.history.pushState({ page: "exercise" }, "", "");
     const handlePopState = (event: PopStateEvent) => {
       event.preventDefault();
-      onBack();
+      // Si estem en una opció seleccionada, tornem a la llista d'opcions
+      if (selectedOption) {
+          setSelectedOption(null);
+          setEssayAnswer("");
+      } else {
+          onBack();
+      }
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [onBack]);
+  }, [onBack, selectedOption]);
 
   useEffect(() => {
     setShowAnswers(false);
@@ -167,8 +156,9 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     setScore(null);
     setFeedback(null);
     setInputText("");
-    setEssayAnswer(""); // Reset essay
+    setEssayAnswer("");
     setShowTranscript(false);
+    setSelectedOption(null); // Reset choice logic
   }, [data.id, data.title]);
 
   useEffect(() => {
@@ -179,7 +169,39 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     }
   }, [data.type, data.level, isInteractive, isListening, data.text]);
 
-  // --- RECORDING ---
+  // --- WRITING EXAM HANDLERS ---
+  const handleEssayChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setEssayAnswer(text);
+    setWordCount(text.trim().split(/\s+/).filter(w => w.length > 0).length);
+  };
+
+  const submitWritingTask = async () => {
+     if (wordCount < 220) {
+        toast.warning("Too short!", { description: "Aim for at least 220 words for C1 level." });
+        return;
+     }
+     setLoadingGrade(true);
+     try {
+        // Determinem quin enunciat enviar a l'AI:
+        // Opció A: Tasca seleccionada (Part 2)
+        // Opció B: Enunciat general (Part 1 Essay)
+        const taskPrompt = selectedOption 
+            ? `TASK: ${selectedOption.title}\nINSTRUCTION: ${selectedOption.text}\nTIP: ${selectedOption.tips}`
+            : (data.instruction + "\n" + (data.content?.question || data.text));
+        
+        const result = await gradeWriting(user?.uid || "anon", taskPrompt, essayAnswer);
+        setFeedback(result);
+        playSuccessSound();
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+     } catch (e) {
+        alert("Error grading essay");
+     } finally {
+        setLoadingGrade(false);
+     }
+  };
+
+  // --- STANDARD HANDLERS ---
   const toggleRecording = async () => {
     if (isRecording) {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
@@ -300,11 +322,59 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   };
 
   // ==========================================================
-  // 🎨 RENDER: WRITING PART 1 (ESSAY) - MODE PROFESSIONAL
+  // 🌟 RENDER 1: SELECCIÓ DE TASCA (WRITING PART 2 CHOICE)
   // ==========================================================
-  if (isEssayExam && data.content) {
+  if (isChoiceMode && !selectedOption) {
     return (
-      <div className="bg-white min-h-screen pb-20">
+        <div className="bg-slate-50 min-h-screen pb-20 animate-in fade-in">
+             <div className="bg-white border-b border-gray-200 sticky top-0 z-10 px-4 py-3 flex items-center justify-between shadow-sm">
+                <button onClick={onBack} className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition"><ArrowLeft className="w-5 h-5" /> Back</button>
+                <h2 className="font-bold text-gray-800">{data.title}</h2>
+                <div className="w-8"></div>
+             </div>
+
+             <div className="max-w-4xl mx-auto p-8">
+                <div className="text-center mb-8">
+                    <h1 className="text-3xl font-black text-gray-900 mb-2">Choose Your Task</h1>
+                    <p className="text-gray-500">Select one of the options below to start Writing Part 2.</p>
+                </div>
+
+                <div className="grid gap-6">
+                    {data.options?.map((opt) => (
+                        <button 
+                            key={opt.id}
+                            onClick={() => setSelectedOption(opt)}
+                            className="bg-white p-6 rounded-2xl border-2 border-gray-200 hover:border-blue-500 hover:shadow-xl transition-all text-left group relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 p-3 bg-gray-100 text-xs font-bold uppercase text-gray-500 rounded-bl-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                {opt.type}
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-blue-600">{opt.title}</h3>
+                            <p className="text-gray-600 leading-relaxed mb-4">{opt.text}</p>
+                            <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
+                                <LayoutList className="w-4 h-4" />
+                                <span>Tip: {opt.tips}</span>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+             </div>
+        </div>
+    );
+  }
+
+  // ==========================================================
+  // 🌟 RENDER 2: EDITOR D'ESCRIPTURA (PART 1 O PART 2 SELECCIONADA)
+  // ==========================================================
+  if (isEssayExam || selectedOption) {
+    const taskTitle = selectedOption ? selectedOption.title : data.title;
+    const taskContent = selectedOption ? selectedOption.text : (data.content?.input_text || data.text);
+    
+    // Si és Part 1 té notes, si és Part 2 no en té (només text)
+    const hasNotes = !selectedOption && data.content?.notes; 
+
+    return (
+      <div className="bg-white min-h-screen pb-20 animate-in fade-in">
         {/* FEEDBACK OVERLAY */}
         {feedback && (
             <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -336,10 +406,9 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
             </div>
         )}
 
-        {/* HEADER */}
         <div className="bg-white border-b border-gray-200 sticky top-0 z-10 px-4 py-3 flex items-center justify-between shadow-sm">
-          <button onClick={onBack} className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition"><ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">Back</span></button>
-          <h2 className="font-bold text-gray-800 text-lg truncate max-w-[200px] sm:max-w-none">{data.title}</h2>
+          <button onClick={() => selectedOption ? setSelectedOption(null) : onBack()} className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition"><ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">Back</span></button>
+          <h2 className="font-bold text-gray-800 text-lg truncate max-w-[200px] sm:max-w-none">{taskTitle}</h2>
           <div className="flex items-center gap-2 text-sm font-mono bg-gray-100 px-3 py-1 rounded-full text-gray-600"><Clock className="w-4 h-4" /> 45:00</div>
         </div>
 
@@ -348,39 +417,36 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
           <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-100px)] custom-scrollbar pr-2">
             <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3 items-start">
               <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div><h3 className="font-bold text-blue-900 text-sm uppercase tracking-wide mb-1">Instructions</h3><p className="text-blue-800 text-sm leading-relaxed">{data.instruction}</p></div>
+              <div><h3 className="font-bold text-blue-900 text-sm uppercase tracking-wide mb-1">Instructions</h3><p className="text-blue-800 text-sm leading-relaxed">{data.instruction || "Write your answer below."}</p></div>
             </div>
 
             <div className="bg-white border-2 border-gray-200 rounded-xl p-6 shadow-sm">
-              <h3 className="font-bold text-gray-900 text-xl mb-4 font-serif">Topic</h3>
-              <p className="text-gray-700 leading-relaxed text-lg mb-8 font-serif border-l-4 border-gray-300 pl-4 italic">{data.content.input_text || data.content.text}</p>
+              <h3 className="font-bold text-gray-900 text-xl mb-4 font-serif">Task</h3>
               
-              <div className="font-bold text-gray-900 mb-6 text-base">{data.content.question}</div>
-
-              {/* NOTES BOX */}
-              {data.content.notes && (
-                <div className="border-2 border-gray-800 rounded-lg p-5 bg-white mb-6">
-                  <h4 className="font-black text-gray-800 uppercase tracking-widest border-b-2 border-gray-200 pb-2 mb-3 text-sm">Notes</h4>
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-500 font-medium mb-2">Write about:</p>
-                    <ol className="list-decimal list-inside space-y-2 font-bold text-gray-800 ml-2">
-                      {data.content.notes.map((note: string, i: number) => (<li key={i} className="pl-2">{note}</li>))}
-                    </ol>
-                    <p className="text-sm text-gray-400 mt-4 italic border-t border-gray-100 pt-2">(Remember: You must select only two)</p>
-                  </div>
-                </div>
-              )}
-
-              {/* OPINIONS */}
-              {data.content.opinions && (
-                <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
-                   <h4 className="font-bold text-gray-500 uppercase text-xs mb-3">Some opinions expressed in the discussion:</h4>
-                   <ul className="space-y-3">
-                      {data.content.opinions.map((op: string, i: number) => (
-                          <li key={i} className="flex gap-3 text-gray-600 text-sm italic items-start"><span className="text-gray-300">"</span>{op}<span className="text-gray-300">"</span></li>
-                      ))}
-                   </ul>
-                </div>
+              {/* Si és Essay (Part 1), mostrem l'estructura complexa. Si és Part 2, el text pla de la tasca */}
+              {hasNotes ? (
+                  <>
+                    <p className="text-gray-700 leading-relaxed text-lg mb-8 font-serif border-l-4 border-gray-300 pl-4 italic">{data.content?.input_text}</p>
+                    <div className="font-bold text-gray-900 mb-6 text-base">{data.content?.question}</div>
+                    <div className="border-2 border-gray-800 rounded-lg p-5 bg-white mb-6">
+                        <h4 className="font-black text-gray-800 uppercase tracking-widest border-b-2 border-gray-200 pb-2 mb-3 text-sm">Notes</h4>
+                        <ol className="list-decimal list-inside space-y-2 font-bold text-gray-800 ml-2">
+                            {data.content?.notes?.map((note: string, i: number) => (<li key={i} className="pl-2">{note}</li>))}
+                        </ol>
+                    </div>
+                    {data.content?.opinions && (
+                        <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                           <h4 className="font-bold text-gray-500 uppercase text-xs mb-3">Some opinions expressed in the discussion:</h4>
+                           <ul className="space-y-3">
+                              {data.content?.opinions.map((op: string, i: number) => (
+                                  <li key={i} className="flex gap-3 text-gray-600 text-sm italic items-start"><span className="text-gray-300">"</span>{op}<span className="text-gray-300">"</span></li>
+                              ))}
+                           </ul>
+                        </div>
+                    )}
+                  </>
+              ) : (
+                  <p className="text-gray-800 leading-relaxed text-lg font-serif whitespace-pre-line">{taskContent}</p>
               )}
             </div>
           </div>
@@ -388,13 +454,13 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
           {/* COLUMNA DRETA: EDITOR */}
           <div className="flex flex-col h-[calc(100vh-140px)] bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden sticky top-24">
             <div className="bg-gray-50 p-3 border-b border-gray-200 flex justify-between items-center">
-              <div className="flex items-center gap-2 text-gray-600"><PenTool className="w-4 h-4" /> <span className="text-xs font-bold uppercase">Your Essay</span></div>
+              <div className="flex items-center gap-2 text-gray-600"><PenTool className="w-4 h-4" /> <span className="text-xs font-bold uppercase">Your {selectedOption?.type || "Essay"}</span></div>
               <div className={`text-xs font-mono px-2 py-1 rounded ${wordCount >= 220 && wordCount <= 260 ? 'bg-green-100 text-green-700' : wordCount > 260 ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-600'}`}>{wordCount} words</div>
             </div>
             
             <textarea
               className="flex-1 w-full p-6 resize-none focus:outline-none font-serif text-lg leading-relaxed text-gray-800"
-              placeholder="Start typing your essay here..."
+              placeholder={`Start writing your ${selectedOption?.type || "essay"} here...`}
               value={essayAnswer}
               onChange={handleEssayChange}
               spellCheck={false} 
@@ -402,7 +468,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
             
             <div className="p-4 bg-gray-50 border-t border-gray-200">
               <button 
-                  onClick={submitEssay}
+                  onClick={submitWritingTask}
                   disabled={loadingGrade}
                   className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
@@ -416,7 +482,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   }
 
   // ==========================================================
-  // 🎨 RENDER: MODE ESTÀNDARD (Reading, Listening, Speaking)
+  // 🌟 RENDER 3: MODE ESTÀNDARD (Reading, Listening, Speaking)
   // ==========================================================
   return (
     <div className="max-w-4xl mx-auto bg-white min-h-screen shadow-2xl rounded-xl overflow-hidden flex flex-col animate-in fade-in duration-500">
@@ -550,7 +616,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
         </div>
 
         {/* CREATIVE MODE UI (OLD WRITING & SPEAKING) */}
-        {!isInteractive && !isEssayExam && (
+        {!isInteractive && !isEssayExam && !isChoiceMode && (
             <div className="space-y-6">
                 {!feedback ? (
                     <>

@@ -4,34 +4,19 @@ const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 export async function fetchExercise(type: string, userId: string, level: string = "C1") {
   
   // ---------------------------------------------------------
-  // ⚡ SIMULACIÓ WRITING PART 1 (ESSAY) - ESTRUCTURA C1 REAL
+  // ⚡ SIMULACIÓ WRITING PART 1 (ESSAY)
   // ---------------------------------------------------------
-  // Interceptem la petició aquí per enviar l'estructura complexa
-  // sense haver de canviar el backend Python encara.
   if (type === 'writing1') {
-    // Simulem un petit retard de xarxa perquè sembli real
     await new Promise(resolve => setTimeout(resolve, 600));
-
     return {
       id: 'writing1',
       type: 'essay',
-      title: "Technological Progress and Society",
+      title: "Part 1: The Essay",
       instruction: "You must answer this question. Write your answer in 220-260 words in an appropriate style.",
       content: {
-        // Text introductori
-        input_text: `Technological advancement has unprecedentedly transformed the way society functions, bringing both remarkable conveniences and significant challenges. While it bridges geographical gaps, it often exacerbates social isolation. Furthermore, as data becomes the new currency, the line between security and surveillance blurs. Society navigates these shifts, questioning whether the cost of progress is too high for the individual.`,
-        
-        // Pregunta obligatòria
-        question: "Write an essay discussing TWO of the areas in your notes. You should explain which area has been most affected by technological advancement, giving reasons in support of your answer.",
-        
-        // NOTES (Obligatori per C1)
-        notes: [
-          "Communication",
-          "Privacy",
-          "Social Equality"
-        ],
-        
-        // OPINIONS (Helper text)
+        input_text: `Technological advancement has unprecedentedly transformed the way society functions...`,
+        question: "Write an essay discussing TWO of the areas in your notes...",
+        notes: ["Communication", "Privacy", "Social Equality"],
         opinions: [
           "We are more connected than ever, yet we feel more lonely.",
           "It feels like someone is always watching what we do online.",
@@ -40,9 +25,44 @@ export async function fetchExercise(type: string, userId: string, level: string 
       }
     };
   }
-  // ---------------------------------------------------------
 
-  // PER A LA RESTA D'EXERCICIS, FEM LA CRIDA NORMAL AL BACKEND
+  // ---------------------------------------------------------
+  // ⚡ SIMULACIÓ WRITING PART 2 (CHOICE) - NOU!
+  // ---------------------------------------------------------
+  if (type === 'writing2') {
+    await new Promise(resolve => setTimeout(resolve, 600));
+    return {
+      id: 'writing2',
+      type: 'writing_choice', // Nou tipus per gestionar l'elecció
+      title: "Part 2: Choose Your Task",
+      instruction: "Choose one of the tasks below. Write your answer in 220-260 words in an appropriate style.",
+      options: [
+        {
+            id: 'proposal_health',
+            type: 'Proposal',
+            title: "Task 1: Proposal",
+            text: "You work for an international company that wants to improve the health and wellbeing of its staff. Your manager has asked you to write a proposal outlining current issues regarding employee health, suggesting specific improvements to the office environment or routine, and explaining how these changes would benefit the company’s productivity.",
+            tips: "Remember to use headings and formal language."
+        },
+        {
+            id: 'review_app',
+            type: 'Review',
+            title: "Task 2: Review",
+            text: "You see this announcement on an English-language website: 'App of the Year? We are looking for reviews of mobile applications that have helped you learn a new skill or improve your daily routine. Describe the app and its features, explain why it is effective, and say whether you would recommend it to people of all ages.'",
+            tips: "Use a catchy title and engage the reader."
+        },
+        {
+            id: 'report_internship',
+            type: 'Report',
+            title: "Task 3: Report",
+            text: "You have just completed a six-month internship at a large marketing firm. The Human Resources director has asked you to write a report on your experience. You should describe the training you received, explain which skills you developed most, and suggest how the internship program could be improved for future students.",
+            tips: "Use passive voice and neutral tone. Headings are mandatory."
+        }
+      ]
+    };
+  }
+
+  // PER A LA RESTA D'EXERCICIS
   const response = await fetch(`${API_URL}/get_exercise/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -55,23 +75,19 @@ export async function fetchExercise(type: string, userId: string, level: string 
   });
 
   if (response.status === 429) throw new Error("DAILY_LIMIT");
-  
   if (!response.ok) throw new Error("Failed to fetch exercise");
   return response.json();
 }
+
+// ... (Les altres funcions: generateFullExam, submitResult, etc. es mantenen igual) ...
 
 export async function generateFullExam(userId: string, level: string = "C1") {
   const response = await fetch(`${API_URL}/generate_full_exam/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ 
-        user_id: userId,
-        level: level 
-    }),
+    body: JSON.stringify({ user_id: userId, level: level }),
   });
-  
   if (response.status === 429) throw new Error("DAILY_LIMIT");
-
   if (!response.ok) throw new Error("Failed to generate exam");
   return response.json();
 }
@@ -85,20 +101,6 @@ export async function submitResult(data: any) {
   return response.json();
 }
 
-export async function reportIssue(userId: string, exerciseData: any, questionIndex: number, reason: string) {
-  await fetch(`${API_URL}/report_issue/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      user_id: userId,
-      exercise_id: exerciseData.id || null,
-      question_index: questionIndex,
-      reason: reason,
-      exercise_data: exerciseData
-    }),
-  });
-}
-
 export async function getUserStats(userId: string) {
   const response = await fetch(`${API_URL}/user_stats/${userId}`);
   if (!response.ok) throw new Error("Failed to load stats");
@@ -107,9 +109,7 @@ export async function getUserStats(userId: string) {
 
 export async function generateReview(userId: string) {
   const response = await fetch(`${API_URL}/generate_review/${userId}`, { method: "POST" });
-  
   if (response.status === 429) throw new Error("DAILY_LIMIT");
-  
   if (response.status === 404) throw new Error("NO_MISTAKES");
   if (!response.ok) throw new Error("Failed");
   return response.json();
@@ -129,7 +129,6 @@ export async function updateFlashcardStatus(userId: string, cardId: string, succ
   });
 }
 
-// Audio functions
 export async function transcribeAudio(audioBlob: Blob) {
   const formData = new FormData();
   formData.append("file", audioBlob, "recording.webm");
@@ -147,29 +146,6 @@ export async function fetchAudio(text: string) {
   if (!response.ok) throw new Error("Failed");
   const blob = await response.blob();
   return URL.createObjectURL(blob);
-}
-
-export async function downloadPDF(exerciseData: any) {
-    const response = await fetch(`${API_URL}/generate_pdf/?level=${exerciseData.level || 'C1'}&exercise_type=${exerciseData.type}`);
-    if (!response.ok) throw new Error("Error generating PDF");
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${exerciseData.type}_C1.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-}
-
-export async function preloadExercise(type: string, level: string = "C1") {
-    try {
-        fetch(`${API_URL}/preload_exercise/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ level: level, exercise_type: type, completed_ids: [], user_id: "background" }),
-        });
-    } catch (err) { console.warn(err); }
 }
 
 export async function gradeWriting(userId: string, task: string, text: string) {
@@ -220,9 +196,25 @@ export const getCoachAnalysis = async (userId: string) => {
   return res.json();
 };
 
+export async function reportIssue(userId: string, exerciseData: any, questionIndex: number, reason: string) {
+  await fetch(`${API_URL}/report_issue/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: userId,
+      exercise_id: exerciseData.id || null,
+      question_index: questionIndex,
+      reason: reason,
+      exercise_data: exerciseData
+    }),
+  });
+}
+
+// 👇 AQUESTA ÉS LA FUNCIÓ QUE FALTAVA I ARREGLA EL BUILD
 export const generateExercise = async (type: string, level: string = "C1") => {
   try {
-    const response = await fetch(`${API_URL}/generate`, {
+    const API_URL_GEN = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+    const response = await fetch(`${API_URL_GEN}/generate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -241,3 +233,25 @@ export const generateExercise = async (type: string, level: string = "C1") => {
     throw error;
   }
 };
+
+export async function preloadExercise(type: string, level: string = "C1") {
+  try {
+    // Si la variable API_URL no està a l'abast, la tornem a definir o la fem servir directament
+    const API_URL_PRELOAD = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+    
+    // Fem una petició "fire and forget" (no esperem la resposta amb await)
+    // per carregar el següent exercici en memòria cau del servidor
+    fetch(`${API_URL_PRELOAD}/preload_exercise/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            level: level, 
+            exercise_type: type, 
+            completed_ids: [], 
+            user_id: "background" 
+        }),
+    });
+  } catch (err) { 
+      console.warn("Preload warning:", err); 
+  }
+}
