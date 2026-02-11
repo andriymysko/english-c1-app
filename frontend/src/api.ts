@@ -14,9 +14,13 @@ export async function fetchExercise(type: string, userId: string, level: string 
       title: "Part 1: The Essay",
       instruction: "You must answer this question. Write your answer in 220-260 words in an appropriate style.",
       content: {
-        input_text: `Technological advancement has unprecedentedly transformed the way society functions...`,
-        question: "Write an essay discussing TWO of the areas in your notes...",
-        notes: ["Communication", "Privacy", "Social Equality"],
+        input_text: `Technological advancement has unprecedentedly transformed the way society functions, bringing both remarkable conveniences and significant challenges. While it bridges geographical gaps, it often exacerbates social isolation. Furthermore, as data becomes the new currency, the line between security and surveillance blurs. Society navigates these shifts, questioning whether the cost of progress is too high for the individual.`,
+        question: "Write an essay discussing TWO of the areas in your notes. You should explain which area has been most affected by technological advancement, giving reasons in support of your answer.",
+        notes: [
+          "Communication",
+          "Privacy",
+          "Social Equality"
+        ],
         opinions: [
           "We are more connected than ever, yet we feel more lonely.",
           "It feels like someone is always watching what we do online.",
@@ -27,13 +31,13 @@ export async function fetchExercise(type: string, userId: string, level: string 
   }
 
   // ---------------------------------------------------------
-  // ⚡ SIMULACIÓ WRITING PART 2 (CHOICE) - NOU!
+  // ⚡ SIMULACIÓ WRITING PART 2 (CHOICE)
   // ---------------------------------------------------------
   if (type === 'writing2') {
     await new Promise(resolve => setTimeout(resolve, 600));
     return {
       id: 'writing2',
-      type: 'writing_choice', // Nou tipus per gestionar l'elecció
+      type: 'writing_choice',
       title: "Part 2: Choose Your Task",
       instruction: "Choose one of the tasks below. Write your answer in 220-260 words in an appropriate style.",
       options: [
@@ -78,8 +82,6 @@ export async function fetchExercise(type: string, userId: string, level: string 
   if (!response.ok) throw new Error("Failed to fetch exercise");
   return response.json();
 }
-
-// ... (Les altres funcions: generateFullExam, submitResult, etc. es mantenen igual) ...
 
 export async function generateFullExam(userId: string, level: string = "C1") {
   const response = await fetch(`${API_URL}/generate_full_exam/`, {
@@ -210,15 +212,13 @@ export async function reportIssue(userId: string, exerciseData: any, questionInd
   });
 }
 
-// 👇 AQUESTA ÉS LA FUNCIÓ QUE FALTAVA I ARREGLA EL BUILD
+// 👇 EXPORTS QUE FALTAVEN I SÓN NECESSARIS 👇
+
 export const generateExercise = async (type: string, level: string = "C1") => {
   try {
-    const API_URL_GEN = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
-    const response = await fetch(`${API_URL_GEN}/generate`, {
+    const response = await fetch(`${API_URL}/generate`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, level }),
     });
 
@@ -236,12 +236,7 @@ export const generateExercise = async (type: string, level: string = "C1") => {
 
 export async function preloadExercise(type: string, level: string = "C1") {
   try {
-    // Si la variable API_URL no està a l'abast, la tornem a definir o la fem servir directament
-    const API_URL_PRELOAD = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
-    
-    // Fem una petició "fire and forget" (no esperem la resposta amb await)
-    // per carregar el següent exercici en memòria cau del servidor
-    fetch(`${API_URL_PRELOAD}/preload_exercise/`, {
+    fetch(`${API_URL}/preload_exercise/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
