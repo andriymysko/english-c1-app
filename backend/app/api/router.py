@@ -119,32 +119,39 @@ def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool =
 def generate_exercise_endpoint(request: GenerateRequest):
     
     # =================================================================
-    # 🧠 LÒGICA PERSONALITZADA PER A SPEAKING PART 1 (AMB IA REAL)
+    # 🧠 LÒGICA CORREGIDA: SPEAKING PART 1 (PERSONAL, NO ABSTRACTE)
     # =================================================================
     if request.type == "speaking1":
         try:
             client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
             
-            # Construïm el context basat en el que ens envia el Frontend
-            topic_context = f"The topic is: '{request.topic}'." if request.topic else "Choose a random topic suitable for C1 (e.g., Technology, Society, Work)."
-            extra_instructions = f"Note: {request.instructions}" if request.instructions else ""
+            topic_str = request.topic if request.topic else "General Life"
+            extra_instr = f"Note: {request.instructions}" if request.instructions else ""
 
+            # 👇 PROMPT OPTIMITZAT PER A PART 1 (PERSONAL) 👇
             prompt = f"""
-            Generate 3 distinct Speaking Part 1 interview questions for a Cambridge C1 Advanced exam.
-            {topic_context}
-            
-            Constraints:
-            - Questions must encourage speculation, opinion, or comparison.
-            - Avoid simple 'Yes/No' questions.
-            - Use advanced vocabulary appropriate for C1 level.
-            - Output ONLY the 3 questions, numbered 1., 2., and 3. Do not include any intro text.
-            {extra_instructions}
+            Generate 3 distinct Speaking Part 1 interview questions for a Cambridge C1 Advanced exam based on the topic: '{topic_str}'.
+
+            CRITICAL INSTRUCTIONS FOR PART 1:
+            1. Questions must be PERSONAL and addressed directly to the candidate ("you", "your life", "your preferences").
+            2. Focus on: habits, personal opinions, past experiences, or future plans.
+            3. DO NOT ask about society, global issues, abstract concepts, or "people in general" (that is Part 4).
+            4. Questions must be answerable in 20-30 seconds.
+
+            Examples of conversion (Topic: Health):
+            - BAD (Part 4): "How does modern lifestyle affect mental health?"
+            - GOOD (Part 1): "Do YOU think you have a healthy lifestyle?" or "What do YOU do to relax?"
+
+            Output ONLY the 3 questions, numbered 1., 2., and 3. Do not include intro text.
+            {extra_instr}
             """
 
             response = client.chat.completions.create(
-                model="gpt-4o",  # O el model que facis servir
-                messages=[{"role": "system", "content": "You are a Cambridge C1 exam expert."}, 
-                          {"role": "user", "content": prompt}]
+                model="gpt-4o", 
+                messages=[
+                    {"role": "system", "content": "You are a Cambridge C1 exam expert. You create strictly personal interview questions."}, 
+                    {"role": "user", "content": prompt}
+                ]
             )
             
             ai_text = response.choices[0].message.content.strip()
@@ -153,8 +160,8 @@ def generate_exercise_endpoint(request: GenerateRequest):
             return {
                 "id": f"speaking1_{int(time.time())}",
                 "type": "speaking",
-                "title": f"Speaking Part 1: {request.topic}" if request.topic else "Speaking Part 1",
-                "instruction": "Answer the questions briefly but fully (20-30 seconds per answer). Avoid simple 'Yes/No' responses.",
+                "title": f"Speaking Part 1: {topic_str}",
+                "instruction": "Answer the questions briefly but fully about YOURSELF (20-30 seconds per answer). Avoid long speeches.",
                 "text": ai_text,
                 "level": request.level
             }
