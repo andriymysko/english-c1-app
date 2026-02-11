@@ -19,6 +19,7 @@ import json
 from datetime import datetime
 from firebase_admin import firestore
 import stripe
+import time
 
 router = APIRouter()
 
@@ -35,10 +36,16 @@ class ExerciseRequest(BaseModel):
     level: str = "C1"
     exercise_type: str
     completed_ids: List[str] = []
+    # 👇 CAMPS NOUS PER A LA PERSONALITZACIÓ DEL TOPIC
+    topic: Optional[str] = None
+    instructions: Optional[str] = None
 
 class GenerateRequest(BaseModel):
     type: str
     level: str = "C1"
+    # 👇 CAMPS NOUS PER A LA PERSONALITZACIÓ DEL TOPIC
+    topic: Optional[str] = None
+    instructions: Optional[str] = None
 
 class WritingSubmission(BaseModel):
     user_id: str
@@ -107,9 +114,58 @@ def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool =
 
 # --- ENDPOINTS ---
 
-# 🌟 1. ENDPOINT: GENERACIÓ DIRECTA (GRAMMAR LAB) 🌟
+# 🌟 1. ENDPOINT: GENERACIÓ DIRECTA (SPEAKING & GRAMMAR LAB) 🌟
 @router.post("/generate")
 def generate_exercise_endpoint(request: GenerateRequest):
+    
+    # =================================================================
+    # 🧠 LÒGICA PERSONALITZADA PER A SPEAKING PART 1 (AMB IA REAL)
+    # =================================================================
+    if request.type == "speaking1":
+        try:
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            
+            # Construïm el context basat en el que ens envia el Frontend
+            topic_context = f"The topic is: '{request.topic}'." if request.topic else "Choose a random topic suitable for C1 (e.g., Technology, Society, Work)."
+            extra_instructions = f"Note: {request.instructions}" if request.instructions else ""
+
+            prompt = f"""
+            Generate 3 distinct Speaking Part 1 interview questions for a Cambridge C1 Advanced exam.
+            {topic_context}
+            
+            Constraints:
+            - Questions must encourage speculation, opinion, or comparison.
+            - Avoid simple 'Yes/No' questions.
+            - Use advanced vocabulary appropriate for C1 level.
+            - Output ONLY the 3 questions, numbered 1., 2., and 3. Do not include any intro text.
+            {extra_instructions}
+            """
+
+            response = client.chat.completions.create(
+                model="gpt-4o",  # O el model que facis servir
+                messages=[{"role": "system", "content": "You are a Cambridge C1 exam expert."}, 
+                          {"role": "user", "content": prompt}]
+            )
+            
+            ai_text = response.choices[0].message.content.strip()
+
+            # Retornem l'estructura que espera el Frontend
+            return {
+                "id": f"speaking1_{int(time.time())}",
+                "type": "speaking",
+                "title": f"Speaking Part 1: {request.topic}" if request.topic else "Speaking Part 1",
+                "instruction": "Answer the questions briefly but fully (20-30 seconds per answer). Avoid simple 'Yes/No' responses.",
+                "text": ai_text,
+                "level": request.level
+            }
+
+        except Exception as e:
+            print(f"Error generating speaking task: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # =================================================================
+    # 🔄 GENERACIÓ STANDARD (REST D'EXERCICIS) VIA FACTORY
+    # =================================================================
     try:
         exercise = ExerciseFactory.create_exercise(request.type, request.level)
         return exercise.model_dump() 
@@ -369,7 +425,7 @@ def ad_reward(request: AdRewardRequest):
     return {"status": "rewarded"}
 
 # =================================================================
-# 💰 INTEGRACIÓ STRIPE (ACTUALITZADA)
+# 💰 INTEGRACIÓ STRIPE
 # =================================================================
 
 @router.post("/create-checkout-session")
@@ -382,14 +438,8 @@ def create_checkout_session(request: CheckoutRequest):
                 'quantity': 1,
             }],
             mode='subscription',
-            
-            # ✅ ACTIVA ELS IMPOSTOS AUTOMÀTICS
             automatic_tax={'enabled': True},
-            
-            # ✅ ACTIVA ELS CUPONS DE DESCOMPTE
             allow_promotion_codes=True, 
-            
-            # Ajusta aquests dominis a producció
             success_url='https://getaidvanced.com/profile?success=true',
             cancel_url='https://getaidvanced.com/pricing?canceled=true',
             client_reference_id=request.user_id,
@@ -416,10 +466,8 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
     except stripe.error.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    # 1. Subscripció PAGADA correctament
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        
         user_id = session.get("client_reference_id")
         subscription_id = session.get("subscription")
         
@@ -432,18 +480,12 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
                 "updated_at": datetime.now()
             })
 
-    # 2. GESTIÓ DE CANCEL·LACIONS I IMPAGAMENTS (ACTUALITZAT) ⚠️
     elif event['type'] in ['customer.subscription.deleted', 'customer.subscription.updated']:
         subscription = event['data']['object']
-        
-        # Obtenim l'estat per veure si és dolent (past_due, unpaid, canceled)
         status = subscription.get('status')
         
-        # Si s'ha esborrat directament O BÉ l'estat és d'impagament/cancel·lació
         if event['type'] == 'customer.subscription.deleted' or status in ['past_due', 'canceled', 'unpaid']:
             print(f"⚠️ STRIPE: Subscripció problemàtica ({status}): {subscription.get('id')}")
-            
-            # Cerca l'usuari per ID de subscripció
             users_ref = db.collection("users")
             query = users_ref.where("subscription_id", "==", subscription.get('id')).stream()
             for doc in query:

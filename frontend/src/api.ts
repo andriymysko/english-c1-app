@@ -1,70 +1,68 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
+// --- LLISTA DE TEMES C1 PER FORÇAR VARIETAT ---
+const C1_TOPICS = [
+  "Globalization & Cultural Identity",
+  "The Impact of Artificial Intelligence",
+  "Work-Life Balance & Remote Work",
+  "Environmental Responsibility & Sustainability",
+  "The Role of Arts in Society",
+  "Education Systems & Future Skills",
+  "Mass Tourism & Local Communities",
+  "Privacy in the Digital Age",
+  "Mental Health & Modern Lifestyle",
+  "Consumerism & Ethics",
+  "The Evolution of Communication",
+  "Urban Planning & City Living"
+];
+
 // --- EXERCISES ---
 export async function fetchExercise(type: string, userId: string, level: string = "C1") {
   
   // ---------------------------------------------------------
-  // 🗣️ SIMULACIÓ SPEAKING PART 1 (INTERVIEW) - VERSIÓ AMPLIADA
+  // 🗣️ SPEAKING PART 1: IA GENERATION + RANDOM TOPIC INJECTION
   // ---------------------------------------------------------
   if (type === 'speaking1') {
-    await new Promise(resolve => setTimeout(resolve, 600));
+    // 1. Triem un tema aleatori de la llista C1
+    const randomTopic = C1_TOPICS[Math.floor(Math.random() * C1_TOPICS.length)];
     
-    // BASE DE DADES DE 10 SETS DIFERENTS PER EVITAR REPETICIONS
-    const sets = [
-      {
-        topic: "Work & Future",
-        questions: `1. What do you find most stimulating about your current field of study or work?\n2. How do you think your career might evolve in the next five years?\n3. Would you prefer to work in a team or independently? Why?`
-      },
-      {
-        topic: "Free Time & Creativity",
-        questions: `1. How important is it for people to have a creative outlet outside of work?\n2. Do you prefer watching films at the cinema or streaming them at home?\n3. Is there a particular skill or hobby you would like to master in the future?`
-      },
-      {
-        topic: "Travel & Lifestyle",
-        questions: `1. If you could spend a year living anywhere in the world, where would it be?\n2. To what extent do you think tourism has changed your local area?\n3. Do you think you have a healthy work-life balance?`
-      },
-      {
-        topic: "Communication & Technology",
-        questions: `1. Do you prefer communicating with friends via text messages or voice calls?\n2. How has social media changed the way we form relationships?\n3. Do you think technology brings people closer together or drives them apart?`
-      },
-      {
-        topic: "Environment & Society",
-        questions: `1. How easy is it to lead an environmentally friendly lifestyle in your country?\n2. What more could be done to encourage people to recycle?\n3. Do you think individuals can make a real difference to the environment?`
-      },
-      {
-        topic: "Learning & Languages",
-        questions: `1. What has been the most challenging aspect of learning English for you?\n2. Do you think it is better to learn a language in a classroom or by living in the country?\n3. How important is it to learn about the culture of the language you are studying?`
-      },
-      {
-        topic: "Health & Well-being",
-        questions: `1. Do you think people today are more health-conscious than in the past?\n2. How important is physical exercise for mental health?\n3. Should governments do more to encourage healthy eating habits?`
-      },
-      {
-        topic: "Media & News",
-        questions: `1. How do you usually keep up with current events?\n2. Do you trust the news you read on social media?\n3. Is it important to follow international news, or should we focus on local issues?`
-      },
-      {
-        topic: "Money & Shopping",
-        questions: `1. Do you prefer shopping online or in physical stores? Why?\n2. How important is it for young people to learn how to manage money?\n3. Do you think society has become too consumerist?`
-      },
-      {
-        topic: "Friendship & Relations",
-        questions: `1. What qualities do you value most in a close friend?\n2. Do you think it is possible to maintain a lifelong friendship?\n3. Is it better to have a wide circle of acquaintances or a few close friends?`
-      }
-    ];
+    // 2. Fem la petició al Backend (/generate) forçant aquest tema
+    // Així la IA genera preguntes úniques però sobre el tema que volem
+    try {
+        const response = await fetch(`${API_URL}/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                type: "speaking1", 
+                level: level,
+                // 👇 ENVIEM EL TEMA AL BACKEND PERQUÈ LA IA S'ADAPTI
+                topic: randomTopic, 
+                instructions: "Generate 3 distinct C1-level interview questions about this topic. Questions should encourage speculation, opinion, or comparison. Do NOT ask simple Yes/No questions."
+            }),
+        });
 
-    // L'ALGORITME TRIA UN D'AQUESTS 10 A L'ATZAR
-    const selectedSet = sets[Math.floor(Math.random() * sets.length)];
+        if (!response.ok) throw new Error("Failed to generate speaking task");
+        
+        const data = await response.json();
+        
+        // 3. Retornem les dades enriquides amb el títol del tema
+        return {
+            ...data,
+            title: `Speaking Part 1: ${randomTopic}`, // Mostrem el tema al títol
+            instruction: "Answer the questions briefly but fully (20-30 seconds per answer). Avoid simple 'Yes/No' responses."
+        };
 
-    return {
-      id: 'speaking1',
-      type: 'speaking',
-      title: `Speaking Part 1: ${selectedSet.topic}`,
-      // Instrucció correcta per a C1 (evitem "in detail")
-      instruction: "Answer the questions briefly but fully (2-3 sentences per question). Avoid short 'Yes/No' answers, but do not give long speeches. Aim for 20-30 seconds per answer.",
-      text: selectedSet.questions, // Això es mostrarà a la pantalla
-      level: level
-    };
+    } catch (error) {
+        console.error("Error generating speaking:", error);
+        // Fallback d'emergència per si el servidor falla
+        return {
+            id: 'speaking1_fallback',
+            type: 'speaking',
+            title: "Speaking Part 1: General Interview",
+            instruction: "Answer the questions briefly but fully.",
+            text: "1. What do you find most challenging about learning English?\n2. How do you think technology has changed the way we communicate?\n3. Would you prefer to live in a city or the countryside? Why?"
+        };
+    }
   }
 
   // ---------------------------------------------------------
@@ -80,11 +78,7 @@ export async function fetchExercise(type: string, userId: string, level: string 
       content: {
         input_text: `Technological advancement has unprecedentedly transformed the way society functions, bringing both remarkable conveniences and significant challenges. While it bridges geographical gaps, it often exacerbates social isolation. Furthermore, as data becomes the new currency, the line between security and surveillance blurs. Society navigates these shifts, questioning whether the cost of progress is too high for the individual.`,
         question: "Write an essay discussing TWO of the areas in your notes. You should explain which area has been most affected by technological advancement, giving reasons in support of your answer.",
-        notes: [
-          "Communication",
-          "Privacy",
-          "Social Equality"
-        ],
+        notes: ["Communication", "Privacy", "Social Equality"],
         opinions: [
           "We are more connected than ever, yet we feel more lonely.",
           "It feels like someone is always watching what we do online.",
@@ -146,6 +140,8 @@ export async function fetchExercise(type: string, userId: string, level: string 
   if (!response.ok) throw new Error("Failed to fetch exercise");
   return response.json();
 }
+
+// --- RESTA DE FUNCIONS IGUALS ---
 
 export async function generateFullExam(userId: string, level: string = "C1") {
   const response = await fetch(`${API_URL}/generate_full_exam/`, {
@@ -275,8 +271,6 @@ export async function reportIssue(userId: string, exerciseData: any, questionInd
     }),
   });
 }
-
-// 👇 EXPORTS QUE FALTAVEN I SÓN NECESSARIS 👇
 
 export const generateExercise = async (type: string, level: string = "C1") => {
   try {
