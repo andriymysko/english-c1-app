@@ -4,6 +4,70 @@ const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 export async function fetchExercise(type: string, userId: string, level: string = "C1") {
   
   // ---------------------------------------------------------
+  // 🗣️ SIMULACIÓ SPEAKING PART 1 (INTERVIEW) - VERSIÓ AMPLIADA
+  // ---------------------------------------------------------
+  if (type === 'speaking1') {
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
+    // BASE DE DADES DE 10 SETS DIFERENTS PER EVITAR REPETICIONS
+    const sets = [
+      {
+        topic: "Work & Future",
+        questions: `1. What do you find most stimulating about your current field of study or work?\n2. How do you think your career might evolve in the next five years?\n3. Would you prefer to work in a team or independently? Why?`
+      },
+      {
+        topic: "Free Time & Creativity",
+        questions: `1. How important is it for people to have a creative outlet outside of work?\n2. Do you prefer watching films at the cinema or streaming them at home?\n3. Is there a particular skill or hobby you would like to master in the future?`
+      },
+      {
+        topic: "Travel & Lifestyle",
+        questions: `1. If you could spend a year living anywhere in the world, where would it be?\n2. To what extent do you think tourism has changed your local area?\n3. Do you think you have a healthy work-life balance?`
+      },
+      {
+        topic: "Communication & Technology",
+        questions: `1. Do you prefer communicating with friends via text messages or voice calls?\n2. How has social media changed the way we form relationships?\n3. Do you think technology brings people closer together or drives them apart?`
+      },
+      {
+        topic: "Environment & Society",
+        questions: `1. How easy is it to lead an environmentally friendly lifestyle in your country?\n2. What more could be done to encourage people to recycle?\n3. Do you think individuals can make a real difference to the environment?`
+      },
+      {
+        topic: "Learning & Languages",
+        questions: `1. What has been the most challenging aspect of learning English for you?\n2. Do you think it is better to learn a language in a classroom or by living in the country?\n3. How important is it to learn about the culture of the language you are studying?`
+      },
+      {
+        topic: "Health & Well-being",
+        questions: `1. Do you think people today are more health-conscious than in the past?\n2. How important is physical exercise for mental health?\n3. Should governments do more to encourage healthy eating habits?`
+      },
+      {
+        topic: "Media & News",
+        questions: `1. How do you usually keep up with current events?\n2. Do you trust the news you read on social media?\n3. Is it important to follow international news, or should we focus on local issues?`
+      },
+      {
+        topic: "Money & Shopping",
+        questions: `1. Do you prefer shopping online or in physical stores? Why?\n2. How important is it for young people to learn how to manage money?\n3. Do you think society has become too consumerist?`
+      },
+      {
+        topic: "Friendship & Relations",
+        questions: `1. What qualities do you value most in a close friend?\n2. Do you think it is possible to maintain a lifelong friendship?\n3. Is it better to have a wide circle of acquaintances or a few close friends?`
+      }
+    ];
+
+    // L'ALGORITME TRIA UN D'AQUESTS 10 A L'ATZAR
+    const selectedSet = sets[Math.floor(Math.random() * sets.length)];
+
+    return {
+      id: 'speaking1',
+      type: 'speaking',
+      title: `Speaking Part 1: ${selectedSet.topic}`,
+      // Instrucció correcta per a C1 (evitem "in detail")
+      instruction: "Answer the questions briefly but fully (2-3 sentences per question). Avoid short 'Yes/No' answers, but do not give long speeches. Aim for 20-30 seconds per answer.",
+      text: selectedSet.questions, // Això es mostrarà a la pantalla
+      level: level
+    };
+  }
+
+  // ---------------------------------------------------------
   // ⚡ SIMULACIÓ WRITING PART 1 (ESSAY)
   // ---------------------------------------------------------
   if (type === 'writing1') {
