@@ -369,7 +369,12 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   if (isEssayExam || selectedOption) {
     const taskTitle = selectedOption ? selectedOption.title : data.title;
     const taskContent = selectedOption ? selectedOption.text : (data.content?.input_text || data.text);
-    
+    useEffect(() => {
+        // Només pre-carreguem si ja tenim una opció triada o és un Essay directe
+        // i evitem fer-ho múltiples vegades si el component es renderitza de nou
+        const typeToPreload = selectedOption ? 'writing2' : data.type;
+        preloadExercise(typeToPreload, data.level || "C1");
+    }, [data.id, selectedOption]);
     // Si és Part 1 té notes, si és Part 2 no en té (només text)
     const hasNotes = !selectedOption && data.content?.notes; 
 
