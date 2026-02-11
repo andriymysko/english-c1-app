@@ -36,14 +36,12 @@ class ExerciseRequest(BaseModel):
     level: str = "C1"
     exercise_type: str
     completed_ids: List[str] = []
-    # 👇 CAMPS NOUS PER A LA PERSONALITZACIÓ DEL TOPIC
     topic: Optional[str] = None
     instructions: Optional[str] = None
 
 class GenerateRequest(BaseModel):
     type: str
     level: str = "C1"
-    # 👇 CAMPS NOUS PER A LA PERSONALITZACIÓ DEL TOPIC
     topic: Optional[str] = None
     instructions: Optional[str] = None
 
@@ -86,7 +84,6 @@ class CoachAnalysis(BaseModel):
 class AdRewardRequest(BaseModel):
     user_id: str
 
-# --- MODEL PAGAMENT STRIPE ---
 class CheckoutRequest(BaseModel):
     price_id: str
     user_id: str
@@ -114,12 +111,11 @@ def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool =
 
 # --- ENDPOINTS ---
 
-# 🌟 1. ENDPOINT: GENERACIÓ DIRECTA (SPEAKING & GRAMMAR LAB) 🌟
 @router.post("/generate")
 def generate_exercise_endpoint(request: GenerateRequest):
     
     # =================================================================
-    # 🧠 LÒGICA CORREGIDA: SPEAKING PART 1 (PERSONAL, NO ABSTRACTE)
+    # 🧠 SPEAKING PART 1: INTERVIEW (PERSONAL)
     # =================================================================
     if request.type == "speaking1":
         try:
@@ -128,7 +124,6 @@ def generate_exercise_endpoint(request: GenerateRequest):
             topic_str = request.topic if request.topic else "General Life"
             extra_instr = f"Note: {request.instructions}" if request.instructions else ""
 
-            # 👇 PROMPT OPTIMITZAT PER A PART 1 (PERSONAL) 👇
             prompt = f"""
             Generate 3 distinct Speaking Part 1 interview questions for a Cambridge C1 Advanced exam based on the topic: '{topic_str}'.
 
@@ -156,7 +151,6 @@ def generate_exercise_endpoint(request: GenerateRequest):
             
             ai_text = response.choices[0].message.content.strip()
 
-            # Retornem l'estructura que espera el Frontend
             return {
                 "id": f"speaking1_{int(time.time())}",
                 "type": "speaking",
@@ -169,6 +163,64 @@ def generate_exercise_endpoint(request: GenerateRequest):
         except Exception as e:
             print(f"Error generating speaking task: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    # =================================================================
+    # 🧠 SPEAKING PART 2: LONG TURN (IMAGES + COMPARE 2)
+    # =================================================================
+    elif request.type == "speaking2":
+        try:
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            
+            topic_str = request.topic if request.topic else "Risk & Achievement"
+            
+            # 👇 PROMPT ESPECÍFIC PER CORREGIR ELS ERRORS DEL C1 👇
+            prompt = f"""
+            Generate a valid Cambridge C1 Advanced Speaking Part 2 (Long Turn) task based on the topic: '{topic_str}'.
+
+            STRICT STRUCTURE REQUIRED:
+            1. **Image Descriptions**: Create 3 distinct visual situations related to the topic (e.g., if topic is 'Stress', img1: exam, img2: traffic, img3: job interview).
+            2. **Candidate A Instructions**: Must explicitly say "Compare TWO of the pictures".
+            3. **The Two Questions**: Must include TWO distinct questions joined by AND (e.g., "Why might the people be doing this? AND How might they be feeling?"). One speculative, one emotional/consequential.
+            4. **Candidate B Question**: A short "Which..." question (e.g., "Which situation do you think is the most difficult?").
+
+            OUTPUT FORMAT:
+            Provide the content in this exact plain text format:
+            
+            [IMAGES]
+            1. [Description of Image 1]
+            2. [Description of Image 2]
+            3. [Description of Image 3]
+
+            [CANDIDATE A - INSTRUCTION]
+            Look at the pictures. They show people [context]. I’d like you to compare TWO of the pictures and say [Question 1], and [Question 2].
+
+            [CANDIDATE B - SHORT RESPONSE]
+            [Question for Candidate B starting with 'Which...']
+            """
+
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a Cambridge C1 exam expert."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            
+            ai_text = response.choices[0].message.content.strip()
+
+            return {
+                "id": f"speaking2_{int(time.time())}",
+                "type": "speaking",
+                "title": f"Speaking Part 2: {topic_str}",
+                "instruction": "Speak for 1 minute. Compare TWO pictures and answer both questions. Then, answer the short question for Candidate B.",
+                "text": ai_text, # Conté les descripcions d'imatges i les instruccions correctes
+                "level": request.level
+            }
+
+        except Exception as e:
+            print(f"Error generating speaking part 2: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
 
     # =================================================================
     # 🔄 GENERACIÓ STANDARD (REST D'EXERCICIS) VIA FACTORY
