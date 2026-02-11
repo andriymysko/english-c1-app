@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import ExercisePlayer from './ExercisePlayer';
 import ExamPlayer from './ExamPlayer';
-import { fetchExercise, generateFullExam, downloadOfflinePack, getOfflineExercise, getUserStats } from '../api'; // Assegura't d'importar getUserStats
+import { fetchExercise, generateFullExam, downloadOfflinePack, getOfflineExercise, getUserStats } from '../api'; 
 import Profile from './Profile';
 import Pricing from './Pricing'; 
 import AdGateModal from './AdGateModal'; 
@@ -43,7 +43,7 @@ const SKILLS = {
     bg: "bg-emerald-50 text-emerald-700",
     parts: [
       { id: "writing1", name: "Part 1", desc: "Essay (Compulsory)" },
-      { id: "writing2", name: "Part 2", desc: "Proposal, Report or Review", isPremium: true }, // Marcat com premium explícitament
+      { id: "writing2", name: "Part 2", desc: "Proposal, Report or Review", isPremium: true },
     ]
   },
   speaking: {
@@ -83,11 +83,13 @@ interface Props {
 
 export default function ExerciseGenerator({ onOpenExtras }: Props) {
   const { user, logout } = useAuth();
-  
+   
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [activeSkill, setActiveSkill] = useState<SkillKey>('reading');
+   
+  // ⚡ MILLORA: loadingPartId en lloc de loading genèric
+  const [loadingPartId, setLoadingPartId] = useState<string | null>(null);
   
-  const [loading, setLoading] = useState(false);
   const [examLoading, setExamLoading] = useState(false);
   const [downloadingPack, setDownloadingPack] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,11 +100,9 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [pendingPartId, setPendingPartId] = useState<string | null>(null);
 
-  // NOUTAT: Estat local per controlar el VIP en temps real
   const [isVip, setIsVip] = useState<boolean>((user as any)?.is_vip || false);
 
   useEffect(() => {
-    // 1. Gestionar redireccions de pagament
     const query = new URLSearchParams(window.location.search);
     if (query.get('success') === 'true') {
       setCurrentView('profile'); 
@@ -118,12 +118,8 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
       toast.info("Payment canceled");
     }
 
-    // 2. Sincronitzar estat VIP des de la BD (per si el Context va amb retard)
     if (user) {
-        // Primer confiem en el context si ja ho té
         if (user.is_vip) setIsVip(true);
-        
-        // Però verifiquem amb la BD per estar segurs
         getUserStats(user.uid).then(data => {
             if (data && data.is_vip) {
                 setIsVip(true);
@@ -133,33 +129,25 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
   }, [user]);
 
   const handlePartClick = (partId: string, isPremiumPart: boolean = false) => {
-    // 1. Si l'usuari és VIP, accés total immediat
     if (isVip) {
         handleGenerate(partId);
         return;
     }
 
-    // 2. Si la part és explícitament Premium (ex: Writing Part 2) i NO és VIP
     if (isPremiumPart) {
         setShowPremiumModal(true);
         return;
     }
-
-    // 3. Lògica per usuaris Free (AdGate / Limite diari)
-    // Listening i Speaking a vegades tenen lògica diferent, però aquí apliquem la general
-    
+   
     const counts = user?.daily_usage?.counts || {};
     const totalDone = Object.values(counts).reduce((a: any, b: any) => a + b, 0) as number;
 
     if (totalDone === 0) {
-        // El primer del dia és gratis directe
         handleGenerate(partId);
     } else if (totalDone < 3) {
-        // Fins a 3, han de veure un anunci
         setPendingPartId(partId);
         setShowAdGate(true);
     } else {
-        // Més de 3, bloquejat (Premium)
         setShowPremiumModal(true);
     }
   };
@@ -186,7 +174,8 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
         return;
     }
 
-    setLoading(true);
+    // ⚡ MILLORA: Activem spinner només per aquesta part
+    setLoadingPartId(partId);
     setError(null);
     try {
       const data = await fetchExercise(partId, user.uid);
@@ -199,14 +188,13 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
          setError("Failed to generate exercise.");
       }
     } finally {
-      setLoading(false);
+      setLoadingPartId(null);
     }
   };
 
   const handleStartExam = async () => {
     if (!user) return;
     
-    // El Mock Exam és exclusiu per a VIPs
     if (!isVip) {
         setShowPremiumModal(true); 
         return;
@@ -252,7 +240,7 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
     return <Profile onBack={() => setCurrentView('dashboard')} onStartReview={(data) => { setCurrentView('dashboard'); setExerciseData(data); }} />;
   }
   if (examData) return <ExamPlayer examData={examData} onExit={() => setExamData(null)} />;
-  
+   
   if (exerciseData) return (
       <div className="min-h-screen bg-slate-50 flex flex-col">
         <div className="flex-1 max-w-5xl mx-auto w-full p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -270,11 +258,11 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
 
   return (
     <div className="flex min-h-screen font-sans text-slate-800 bg-slate-50">
-      
+       
       <AdGateModal 
-         isOpen={showAdGate}
-         onClose={() => setShowAdGate(false)}
-         onComplete={handleAdGateComplete}
+          isOpen={showAdGate}
+          onClose={() => setShowAdGate(false)}
+          onComplete={handleAdGateComplete}
       />
 
       {showPremiumModal && (
@@ -389,7 +377,7 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
                     <button 
                         key={part.id} 
                         onClick={() => handlePartClick(part.id, part.isPremium)} 
-                        disabled={loading} 
+                        disabled={loadingPartId !== null} // Bloquegem si n'hi ha algun carregant
                         className="group relative flex items-center p-4 bg-white border border-gray-100 rounded-xl hover:border-blue-400 hover:shadow-md transition-all text-left disabled:opacity-50"
                     >
                         <div className="flex-1">
@@ -401,7 +389,8 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
                             <p className="text-xs lg:text-sm text-gray-500">{part.desc}</p>
                         </div>
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${!isVip && part.isPremium ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin"/> : (
+                            {/* ⚡ MILLORA: Spinner només si aquest ID coincideix */}
+                            {loadingPartId === part.id ? <Loader2 className="w-4 h-4 animate-spin"/> : (
                                 !isVip && part.isPremium ? <Lock className="w-4 h-4"/> : <Play className="w-4 h-4 fill-current"/>
                             )}
                         </div>
