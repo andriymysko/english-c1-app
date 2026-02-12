@@ -337,31 +337,31 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
         {/* PHASE INDICATOR */}
         <div className="flex justify-center mb-6">
-            <div className="bg-gray-100 p-1 rounded-full flex text-sm font-medium">
-                <button onClick={() => setPart3Phase('discussion')} className={`px-4 py-2 rounded-full transition-all ${part3Phase === 'discussion' ? 'bg-white shadow-md text-blue-700' : 'text-gray-500 hover:text-gray-900'}`}>1. Discussion (2')</button>
-                <button onClick={() => setPart3Phase('decision')} className={`px-4 py-2 rounded-full transition-all flex items-center gap-2 ${part3Phase === 'decision' ? 'bg-white shadow-md text-purple-700' : 'text-gray-500 hover:text-gray-900'}`}>2. Decision (1') {part3Phase === 'discussion' && <Lock className="w-3 h-3"/>}</button>
-                <button onClick={() => setPart3Phase('part4')} className={`px-4 py-2 rounded-full transition-all flex items-center gap-2 ${part3Phase === 'part4' ? 'bg-white shadow-md text-emerald-700' : 'text-gray-500 hover:text-gray-900'}`}>3. Part 4 {part3Phase !== 'part4' && <Lock className="w-3 h-3"/>}</button>
+            <div className="bg-gray-100 p-1 rounded-full flex text-sm font-medium overflow-x-auto max-w-full">
+                <button onClick={() => setPart3Phase('discussion')} className={`px-3 sm:px-4 py-2 rounded-full transition-all whitespace-nowrap ${part3Phase === 'discussion' ? 'bg-white shadow-md text-blue-700' : 'text-gray-500 hover:text-gray-900'}`}>1. Discussion (2')</button>
+                <button onClick={() => setPart3Phase('decision')} className={`px-3 sm:px-4 py-2 rounded-full transition-all flex items-center gap-2 whitespace-nowrap ${part3Phase === 'decision' ? 'bg-white shadow-md text-purple-700' : 'text-gray-500 hover:text-gray-900'}`}>2. Decision (1') {part3Phase === 'discussion' && <Lock className="w-3 h-3"/>}</button>
+                <button onClick={() => setPart3Phase('part4')} className={`px-3 sm:px-4 py-2 rounded-full transition-all flex items-center gap-2 whitespace-nowrap ${part3Phase === 'part4' ? 'bg-white shadow-md text-emerald-700' : 'text-gray-500 hover:text-gray-900'}`}>3. Part 4 {part3Phase !== 'part4' && <Lock className="w-3 h-3"/>}</button>
             </div>
         </div>
 
         {part3Phase === 'discussion' && (
-            <div className="bg-white p-8 rounded-2xl border-2 border-blue-100 shadow-xl relative overflow-hidden">
-                <div className="absolute top-4 right-4 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold font-mono flex items-center gap-2">
+            <div className="bg-white p-4 sm:p-8 rounded-2xl border-2 border-blue-100 shadow-xl relative overflow-hidden">
+                <div className="absolute top-4 right-4 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold font-mono flex items-center gap-2 z-20">
                     <Clock className="w-4 h-4" /> 02:00
                 </div>
-                <h3 className="text-center text-gray-500 text-sm font-bold uppercase tracking-widest mb-8">Collaborative Task</h3>
+                <h3 className="text-center text-gray-500 text-sm font-bold uppercase tracking-widest mb-4 sm:mb-8 mt-8 sm:mt-0">Collaborative Task</h3>
                 
-                {/* SPIDERGRAM VISUAL */}
-                <div className="relative max-w-lg mx-auto aspect-square flex items-center justify-center">
+                {/* SPIDERGRAM VISUAL (AMB ESCALAT AUTOMÀTIC PER MÒBIL) */}
+                {/* 👇 AQUI ESTÀ EL TRUC: scale-[0.60] al mòbil */}
+                <div className="relative max-w-lg mx-auto aspect-square flex items-center justify-center scale-[0.60] sm:scale-100 origin-center -my-24 sm:my-0">
                     {/* Central Bubble */}
                     <div className="absolute inset-0 flex items-center justify-center z-10">
                         <div className="w-48 h-48 bg-blue-600 rounded-full flex items-center justify-center p-4 text-center shadow-xl border-4 border-white ring-4 ring-blue-100 z-20">
-                            <p className="text-white font-bold text-lg leading-tight">{data.part3_central_question || "Central Question"}</p>
+                            <p className="text-white font-bold text-lg leading-tight drop-shadow-md">{data.part3_central_question || "Central Question"}</p>
                         </div>
                     </div>
                     {/* Outer Bubbles */}
                     {data.part3_prompts?.map((prompt, i) => {
-                        // Calculate position in circle
                         const angle = (i * (360 / data.part3_prompts!.length)) - 90; 
                         const radius = 140; // px
                         const x = Math.cos((angle * Math.PI) / 180) * radius;
@@ -370,10 +370,10 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                         return (
                             <div key={i} className="absolute w-32 h-32 flex items-center justify-center" 
                                  style={{ transform: `translate(${x}px, ${y}px)` }}>
-                                <div className="bg-white border-2 border-gray-200 rounded-2xl p-3 w-full h-full flex items-center justify-center text-center shadow-lg hover:border-blue-400 hover:shadow-xl transition-all cursor-default z-10">
-                                    <p className="text-gray-800 font-semibold text-sm">{prompt}</p>
+                                <div className="bg-white border-2 border-gray-200 rounded-2xl p-2 w-full h-full flex items-center justify-center text-center shadow-lg z-10">
+                                    <p className="text-gray-800 font-semibold text-sm leading-tight">{prompt}</p>
                                 </div>
-                                {/* Connector Line (Visual Hack using absolute div behind) */}
+                                {/* Connector Line */}
                                 <div className="absolute top-1/2 left-1/2 w-[140px] h-[2px] bg-gray-300 -z-10 origin-left"
                                      style={{ 
                                          transform: `rotate(${angle + 180}deg) translate(0, -50%)`,
@@ -384,8 +384,8 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                     })}
                 </div>
 
-                <div className="mt-8 flex justify-center">
-                    <button onClick={() => setPart3Phase('decision')} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-full font-bold hover:bg-blue-700 transition shadow-lg animate-bounce">
+                <div className="mt-4 sm:mt-8 flex justify-center pb-4">
+                    <button onClick={() => setPart3Phase('decision')} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-full font-bold hover:bg-blue-700 transition shadow-lg animate-bounce z-30 relative">
                         Next Phase: Decision <ArrowRight className="w-5 h-5" />
                     </button>
                 </div>
@@ -393,18 +393,18 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
         )}
 
         {part3Phase === 'decision' && (
-            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-8 rounded-2xl border-2 border-purple-100 shadow-xl text-center">
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-6 sm:p-8 rounded-2xl border-2 border-purple-100 shadow-xl text-center">
                 <div className="inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold font-mono mb-6">
                     <Clock className="w-4 h-4 inline mr-1" /> 01:00
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-6">Time to Decide</h3>
-                <p className="text-xl text-gray-700 leading-relaxed font-serif mb-8">"{data.part3_decision_question}"</p>
+                <p className="text-lg sm:text-xl text-gray-700 leading-relaxed font-serif mb-8 px-2">"{data.part3_decision_question}"</p>
                 
-                <div className="bg-white p-6 rounded-xl border border-gray-200 mx-auto max-w-lg shadow-inner">
+                <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 mx-auto max-w-lg shadow-inner">
                     <p className="text-gray-500 text-sm mb-4">Discuss with your partner (or AI) and reach a conclusion.</p>
                     <div className="flex flex-wrap gap-2 justify-center">
                         {data.part3_prompts?.map((p, i) => (
-                            <span key={i} className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-sm">{p}</span>
+                            <span key={i} className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs sm:text-sm">{p}</span>
                         ))}
                     </div>
                 </div>
@@ -416,7 +416,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
         )}
 
         {part3Phase === 'part4' && (
-            <div className="bg-white p-8 rounded-2xl border-2 border-emerald-100 shadow-xl">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border-2 border-emerald-100 shadow-xl">
                 <div className="flex items-center gap-3 mb-6 border-b border-emerald-100 pb-4">
                     <div className="bg-emerald-100 p-2 rounded-lg"><Users className="w-6 h-6 text-emerald-700" /></div>
                     <div>
@@ -429,7 +429,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                     {data.part4_questions?.map((q, i) => (
                         <li key={i} className="flex gap-4 p-4 bg-emerald-50/50 rounded-xl hover:bg-emerald-50 transition border border-transparent hover:border-emerald-200">
                             <div className="bg-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-emerald-600 shadow-sm flex-shrink-0">{i + 1}</div>
-                            <p className="text-gray-800 font-medium text-lg">{q}</p>
+                            <p className="text-gray-800 font-medium text-base sm:text-lg">{q}</p>
                         </li>
                     ))}
                 </ul>
