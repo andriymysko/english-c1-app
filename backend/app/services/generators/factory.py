@@ -2,7 +2,7 @@ from openai import OpenAI
 import os
 import json
 from dotenv import load_dotenv
-# from app.services.image import ImageService # 👈 Comentem això per no usar-lo i estalviar
+# from app.services.image import ImageService 
 
 # Carreguem variables d'entorn
 load_dotenv()
@@ -93,7 +93,6 @@ class ExerciseFactory:
             """
 
         elif exercise_type == "reading_and_use_of_language4":
-             # --- CONFIGURACIÓ ESPECIAL PER A PART 4 ---
              type_instructions = """
             - Create a "Part 4: Key Word Transformation" exercise.
             - Create 6 items numbered 25-30.
@@ -105,7 +104,6 @@ class ExerciseFactory:
             - TARGET GRAMMAR: Inversion (e.g., "Had I known..."), Cleft Sentences ("What I did was..."), Passive Reporting ("It is believed to be..."), Fixed Phrases ("It comes as no surprise").
             - CRITICAL RULE (IMMUTABILITY): The 'keyword' MUST appear in the 'answer' EXACTLY as written. Do NOT change tense or form.
             """
-             # Sobreescrivim l'exemple JSON específicament per a aquest tipus
              json_fields_example = """
                     "original_sentence": "He never suspected that the money had been stolen.",
                     "keyword": "AT",
@@ -266,7 +264,6 @@ class ExerciseFactory:
             """
 
         elif exercise_type == "speaking3":
-             # 👇 AQUEST ÉS EL CANVI CRÍTIC PER PART 3 & 4 👇
              type_instructions = """
             - Create a comprehensive **Speaking Part 3 (Collaborative Task)** AND **Part 4 (Discussion)**.
             - TOPIC: Choose a sophisticated, debatable social issue (e.g., "The impact of globalization", "Modern educational priorities", "Work-life balance").
@@ -286,7 +283,6 @@ class ExerciseFactory:
               - You MUST return a specific JSON structure for this task type.
               - Use fields: 'part3_central_question', 'part3_prompts' (list of 5), 'part3_decision_question', and 'part4_questions' (list of 5).
             """
-             # Sobreescrivim l'exemple JSON per assegurar que el factory no es lia amb el format standard
              json_fields_example = """
                     "part3_central_question": "How do these factors influence student success?",
                     "part3_prompts": ["Teacher quality", "Technology", "Parental support", "Curriculum", "Peer pressure"],
@@ -580,14 +576,24 @@ class ExerciseFactory:
         try:
             data = json.loads(content)
             
-            # --- IMATGES (Speaking 2) - DESACTIVAT PER ESTALVI ---
-            # Ara aquesta lògica la gestiona el Router per fer-ho més eficient
-            # (Codis antics d'imatges comentats...)
-
-            # 🚑 SEGURETAT DE TIPUS: Forcem el tipus correcte per evitar "zombis" al frontend
+            # 🚑 FIX CRÍTIC PER A SPEAKING 3: Moure dades de 'questions' a l'arrel
+            # Això soluciona que surtin les bombolles buides
             if exercise_type == "speaking3":
                 data["type"] = "speaking3"
-                # Netejem el text per defecte que confon al frontend si encara és "Full text content..."
+                if "questions" in data and len(data["questions"]) > 0:
+                    # La IA sovint posa els camps nous dins de la primera "pregunta"
+                    # Els hem de rescatar i posar-los a dalt de tot del JSON
+                    q_data = data["questions"][0]
+                    if "part3_central_question" in q_data:
+                        data["part3_central_question"] = q_data["part3_central_question"]
+                    if "part3_prompts" in q_data:
+                        data["part3_prompts"] = q_data["part3_prompts"]
+                    if "part3_decision_question" in q_data:
+                        data["part3_decision_question"] = q_data["part3_decision_question"]
+                    if "part4_questions" in q_data:
+                        data["part4_questions"] = q_data["part4_questions"]
+                
+                # Eliminem el text per defecte que confon
                 if data.get("text") == "Full text content...":
                     data["text"] = ""
 
