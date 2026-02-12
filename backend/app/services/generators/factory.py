@@ -93,6 +93,7 @@ class ExerciseFactory:
             """
 
         elif exercise_type == "reading_and_use_of_language4":
+             # --- CONFIGURACIÓ ESPECIAL PER A PART 4 ---
              type_instructions = """
             - Create a "Part 4: Key Word Transformation" exercise.
             - Create 6 items numbered 25-30.
@@ -182,14 +183,27 @@ class ExerciseFactory:
         # ==========================================
         
         elif exercise_type == "listening1":
+             # 🚨 CORRECCIÓ MAJESTUOSA PER A C1 REAL 🚨
              type_instructions = """
             - Create a "Listening Part 1" exercise.
-            - STRUCTURE: 3 UNRELATED extracts (dialogues or monologues).
-            - TEXT LENGTH: Each extract must be ~130-150 words (Total ~450 words).
-            - FORMAT: Label them "Extract One", "Extract Two", "Extract Three".
-            - Create 2 Multiple Choice questions (A, B, C) for EACH extract (Total 6 questions).
-            - DIFFICULTY: The answer should not be explicitly stated but implied. Distractors should be mentioned in the audio but negated or modified.
-            - CRITICAL JSON RULE: Options must NOT start with "A.", "B.". Answer must be the EXACT TEXT.
+            - **STRUCTURE**: 3 UNRELATED extracts. 
+            - **CRITICAL RULE**: ALL extracts must be **DIALOGUES** between two interacting speakers. **NO MONOLOGUES ALLOWED**.
+            - **TEXT LENGTH**: Each extract must be ~130-150 words (Total ~450 words).
+            - **FORMAT**: Label them "Extract One", "Extract Two", "Extract Three".
+            
+            - **CONTENT RULES (C1 LEVEL)**:
+              - **Extract 1**: Professional context (e.g., two architects discussing a design flaw, scientists analyzing data).
+              - **Extract 2**: Academic/Social context (e.g., two friends debating a complex social trend or article).
+              - **Extract 3**: Cultural/Arts context (e.g., two critics reviewing a controversial film or exhibition).
+              - **BANNED TOPICS**: No shop returns, no restaurant orders, no asking for directions (Too B1/B2).
+            
+            - **QUESTION TYPES (2 per extract = 6 total)**:
+              - Do NOT ask for basic facts.
+              - Focus on **AGREEMENT** ("What do they both agree on?").
+              - Focus on **ATTITUDE/FEELING** ("How does the woman feel about the man's suggestion?").
+              - Focus on **PURPOSE** ("Why does the man mention X?").
+            
+            - **CRITICAL JSON RULE**: Options must NOT start with "A.", "B.". Answer must be the EXACT TEXT.
             - TIMESTAMPS: Required "MM:SS".
             """
 
