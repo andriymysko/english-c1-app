@@ -266,11 +266,33 @@ class ExerciseFactory:
             """
 
         elif exercise_type == "speaking3":
+             # 👇 AQUEST ÉS EL CANVI CRÍTIC PER PART 3 & 4 👇
              type_instructions = """
-            - Create a "Speaking Parts 3 & 4" script.
-            - Part 3: A Spidergram/Mindmap topic with 5 sub-prompts.
-            - Part 4: 6 Discussion questions deepening the topic. High-level philosophical questions.
+            - Create a comprehensive **Speaking Part 3 (Collaborative Task)** AND **Part 4 (Discussion)**.
+            - TOPIC: Choose a sophisticated, debatable social issue (e.g., "The impact of globalization", "Modern educational priorities", "Work-life balance").
+            
+            - **STRUCTURE FOR PART 3 (TWO PHASES)**:
+              1. **CENTRAL QUESTION**: A question (NOT a title) that connects 5 distinct areas. E.g., "How does technology affect these areas of life?".
+              2. **5 SUB-PROMPTS**: 5 Short noun phrases (e.g., "Communication", "Privacy").
+              3. **DECISION QUESTION**: A separate question for the 2nd phase (1 minute) where candidates must negotiate. E.g., "Which of these areas has changed the most?".
+            
+            - **STRUCTURE FOR PART 4**:
+              - Generate 5 distinct Discussion Questions extending the topic from Part 3.
+              - **RULE**: Questions must be ABSTRACT and societal, NOT personal.
+              - BAD: "Do you like computers?"
+              - GOOD: "To what extent has digital communication eroded face-to-face interaction?"
+            
+            - **CRITICAL JSON OUPUT**:
+              - You MUST return a specific JSON structure for this task type.
+              - Use fields: 'part3_central_question', 'part3_prompts' (list of 5), 'part3_decision_question', and 'part4_questions' (list of 5).
             """
+             # Sobreescrivim l'exemple JSON per assegurar que el factory no es lia amb el format standard
+             json_fields_example = """
+                    "part3_central_question": "How do these factors influence student success?",
+                    "part3_prompts": ["Teacher quality", "Technology", "Parental support", "Curriculum", "Peer pressure"],
+                    "part3_decision_question": "Which factor do you think is the most critical for long-term success?",
+                    "part4_questions": ["Do you think schools today focus too much on exams?", "Is technology in the classroom a distraction or a tool?"],
+             """
 
         elif exercise_type == "grammar_conditionals":
             type_instructions = """
