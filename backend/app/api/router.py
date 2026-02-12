@@ -8,6 +8,7 @@ from app.services.generators.vocabulary import VocabularyGenerator
 from app.services.generators.exam import ExamGenerator
 from app.services.grader import Grader
 from app.services.audio import AudioService
+from app.services.storage import StorageService # 👈 NOUS IMPORT (PAS 3)
 from pydantic import BaseModel
 from typing import Optional, List, Any
 from collections import Counter
@@ -103,6 +104,15 @@ def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool =
             except Exception as e:
                 print(f"⚠️ Error generant àudio inicial: {e}")
 
+        # -----------------------------------------------------------
+        # ⚠️ INTEGRACIÓ STORAGE PER A EXERCICIS BACKGROUND
+        # Si la Factory genera una imatge (URL temporal), la guardem a Firebase aquí
+        # -----------------------------------------------------------
+        if 'image_url' in exercise_data and exercise_data['image_url'] and "oai-b" in exercise_data['image_url']:
+             print("🖼️ Detectada imatge temporal al background. Guardant a Firebase...")
+             perm_url = StorageService.save_image_from_url(exercise_data['image_url'], folder=exercise_type)
+             exercise_data['image_url'] = perm_url
+
         doc_id = DatabaseService.save_exercise(exercise_data, level, exercise_type, is_public=is_public)
         print(f"✅ BACKGROUND: Exercici guardat correctament! ID: {doc_id}")
         return exercise_data
@@ -170,50 +180,61 @@ def generate_exercise_endpoint(request: GenerateRequest):
     elif request.type == "speaking2":
         try:
             client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-            
             topic_str = request.topic if request.topic else "Risk & Achievement"
             
-            # 👇 PROMPT ESPECÍFIC PER CORREGIR ELS ERRORS DEL C1 👇
+            # 1. GENERAR TEXT (PREGUNTES)
             prompt = f"""
             Generate a valid Cambridge C1 Advanced Speaking Part 2 (Long Turn) task based on the topic: '{topic_str}'.
 
             STRICT STRUCTURE REQUIRED:
-            1. **Image Descriptions**: Create 3 distinct visual situations related to the topic (e.g., if topic is 'Stress', img1: exam, img2: traffic, img3: job interview).
+            1. **Image Descriptions**: Create 3 distinct visual situations related to the topic.
             2. **Candidate A Instructions**: Must explicitly say "Compare TWO of the pictures".
             3. **The Two Questions**: Must include TWO distinct questions joined by AND (e.g., "Why might the people be doing this? AND How might they be feeling?"). One speculative, one emotional/consequential.
             4. **Candidate B Question**: A short "Which..." question (e.g., "Which situation do you think is the most difficult?").
 
             OUTPUT FORMAT:
-            Provide the content in this exact plain text format:
-            
             [IMAGES]
-            1. [Description of Image 1]
-            2. [Description of Image 2]
-            3. [Description of Image 3]
+            1. ...
+            2. ...
+            3. ...
 
             [CANDIDATE A - INSTRUCTION]
-            Look at the pictures. They show people [context]. I’d like you to compare TWO of the pictures and say [Question 1], and [Question 2].
+            ...
 
             [CANDIDATE B - SHORT RESPONSE]
-            [Question for Candidate B starting with 'Which...']
+            ...
             """
 
             response = client.chat.completions.create(
                 model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "You are a Cambridge C1 exam expert."},
-                    {"role": "user", "content": prompt}
-                ]
+                messages=[{"role": "system", "content": "You are a Cambridge C1 exam expert."}, {"role": "user", "content": prompt}]
             )
-            
             ai_text = response.choices[0].message.content.strip()
+
+            # 2. GENERAR IMATGE (DALL-E 3)
+            # Generem una imatge composta (collage) per estalviar temps i costos, representant les 3 situacions.
+            image_prompt = f"A photorealistic educational collage showing three split scenes related to '{topic_str}'. Scene 1, 2 and 3 showing people in different situations regarding {topic_str}. High quality."
+            
+            print("🎨 Generant imatges amb DALL-E 3...")
+            img_response = client.images.generate(
+                model="dall-e-3",
+                prompt=image_prompt,
+                n=1,
+                size="1024x1024"
+            )
+            temp_url = img_response.data[0].url
+
+            # 3. GUARDAR A FIREBASE (EL PAS CLAU PER EVITAR ERROR 403)
+            print("💾 Guardant imatge a Firebase Storage...")
+            permanent_url = StorageService.save_image_from_url(temp_url, folder="speaking_part2")
 
             return {
                 "id": f"speaking2_{int(time.time())}",
                 "type": "speaking",
                 "title": f"Speaking Part 2: {topic_str}",
                 "instruction": "Speak for 1 minute. Compare TWO pictures and answer both questions. Then, answer the short question for Candidate B.",
-                "text": ai_text, # Conté les descripcions d'imatges i les instruccions correctes
+                "text": ai_text,
+                "image_url": permanent_url, # 👈 Retornem la URL segura de Firebase
                 "level": request.level
             }
 
