@@ -8,7 +8,7 @@ from app.services.generators.vocabulary import VocabularyGenerator
 from app.services.generators.exam import ExamGenerator
 from app.services.grader import Grader
 from app.services.audio import AudioService
-from app.services.storage import StorageService # 👈 IMPORT DEL SERVEI D'EMMAGATZEMATGE
+from app.services.storage import StorageService 
 from pydantic import BaseModel
 from typing import Optional, List, Any
 from collections import Counter
@@ -21,6 +21,7 @@ from datetime import datetime
 from firebase_admin import firestore
 import stripe
 import time
+import random
 
 router = APIRouter()
 
@@ -89,19 +90,18 @@ class CheckoutRequest(BaseModel):
     price_id: str
     user_id: str
 
-# --- FALLBACK DATA ---
-FALLBACK_SPEAKING_1 = {
-    "text": "1. What do you think is the key to a happy life?\n2. Do you prefer planning your future or living in the moment?\n3. How important is it to have a creative hobby?",
-    "topic": "Life & Happiness (Backup Mode)"
-}
-
+# --- FALLBACK DATA (PER SI TOT FALLA) ---
 FALLBACK_SPEAKING_2 = {
     "text": "[IMAGES]\n1. A busy open-plan office\n2. A person working alone in a quiet library\n3. A construction site team\n\n[CANDIDATE A - INSTRUCTION]\nLook at the pictures. They show people working in different environments. I’d like you to compare two of the pictures and say why people might choose to work in these places, and what challenges they might face.\n\n[CANDIDATE B - SHORT RESPONSE]\nWhich of these places would you prefer to work in?",
-    "image_url": "https://firebasestorage.googleapis.com/v0/b/english-c1-app.firebasestorage.app/o/speaking_part2%2Ffallback_office.png?alt=media",
+    "image_urls": [
+        "https://firebasestorage.googleapis.com/v0/b/english-c1-app.firebasestorage.app/o/fallback%2Foffice1.png?alt=media",
+        "https://firebasestorage.googleapis.com/v0/b/english-c1-app.firebasestorage.app/o/fallback%2Foffice2.png?alt=media",
+        "https://firebasestorage.googleapis.com/v0/b/english-c1-app.firebasestorage.app/o/fallback%2Foffice3.png?alt=media"
+    ],
     "topic": "Work Environments (Backup Mode)"
 }
 
-# --- HELPER FUNCTION (AMB LÒGICA D'IMATGES ROBUSTA) ---
+# --- HELPER FUNCTION (AMB GENERACIÓ DE 3 IMATGES) ---
 def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool = True):
     print(f"⚙️ BACKGROUND: Iniciant generació per {exercise_type}...")
     try:
@@ -118,40 +118,59 @@ def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool =
             except Exception as e:
                 print(f"⚠️ Error generant àudio inicial: {e}")
 
-        # 3. 🔴 GESTIÓ D'IMATGES FORÇADA (Speaking Part 2)
-        # Si és Speaking 2, ens assegurem que tingui imatge sí o sí.
+        # 3. 🔴 GESTIÓ D'IMATGES FORÇADA (Speaking Part 2 - 3 IMATGES)
+        # Si és Speaking 2, generem 3 imatges d'alta qualitat.
         if exercise_type == "speaking2":
             client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            topic = exercise_data.get('title', 'General Topic').replace("Speaking Part 2: ", "")
             
-            # A. Si l'exercici NO té imatge (perquè la factory no l'ha fet), la fem ara
-            if not exercise_data.get('image_url'):
-                print("🎨 BACKGROUND: L'exercici no portava imatge. Generant-ne una amb DALL-E ara mateix...")
-                try:
-                    # Traiem el prefix del títol per tenir un prompt net
-                    topic = exercise_data.get('title', 'General Topic').replace("Speaking Part 2: ", "")
-                    
-                    # Utilitzem el prompt "Wide" per obtenir els 3 panells
-                    image_prompt = f"Wide image split into 3 distinct vertical panels side-by-side. Panel 1: A scene showing {topic} situation A. Panel 2: A scene showing {topic} situation B. Panel 3: A scene showing {topic} situation C. Photorealistic style, educational."
-                    
-                    # Nota: DALL-E 3 standard sempre és 1024x1024, però el prompt ajuda a l'estructura.
-                    # Si vols format wide real, caldria size="1792x1024" (costa igual), però comprovem que funcioni primer.
-                    img_resp = client.images.generate(model="dall-e-3", prompt=image_prompt, n=1, size="1024x1024")
-                    
-                    # Assignem la URL temporal a les dades
-                    exercise_data['image_url'] = img_resp.data[0].url
-                except Exception as e:
-                    print(f"⚠️ Error generant imatge DALL-E al background: {e}")
+            # Assegurem que tenim una llista per guardar les URLs
+            if 'image_urls' not in exercise_data or not exercise_data['image_urls']:
+                exercise_data['image_urls'] = []
 
-            # B. Si ara JA tenim URL (sigui nova o vella), la pujem a Firebase
-            # Comprovem que no sigui ja de firebase per no pujar-la dos cops
-            if exercise_data.get('image_url') and "firebasestorage" not in exercise_data['image_url']:
-                print(f"💾 BACKGROUND: Convertint URL temporal a Permanent a Firebase...")
-                try:
-                    perm_url = StorageService.save_image_from_url(exercise_data['image_url'], folder="speaking_part2")
-                    exercise_data['image_url'] = perm_url
-                    print(f"✅ Imatge guardada permanentment a l'objecte: {perm_url}")
-                except Exception as e:
-                    print(f"⚠️ Error pujant a Storage: {e}")
+            # A. Generar les 3 imatges si no n'hi ha
+            if len(exercise_data['image_urls']) < 3:
+                print(f"🎨 BACKGROUND: Generant 3 imatges separades d'alta qualitat per al tema '{topic}'...")
+                temp_urls = []
+                
+                # Variacions per als prompts per assegurar que les 3 fotos siguin diferents
+                variations = ["focusing on an individual scenario", "showing a group interaction", "depicting a contrasting situation or outcome"]
+                
+                for i in range(3):
+                    try:
+                        variation = variations[i] if i < len(variations) else "different perspective"
+                        image_prompt = f"A photorealistic, candid photograph showing a scene related to '{topic}', {variation}. Educational context, high detail. Image {i+1} of 3."
+                        
+                        print(f"   ▶️ Generant imatge {i+1}/3...")
+                        img_resp = client.images.generate(model="dall-e-3", prompt=image_prompt, n=1, size="1024x1024")
+                        temp_urls.append(img_resp.data[0].url)
+                    except Exception as e:
+                         print(f"⚠️ Error generant la imatge {i+1}: {e}")
+                
+                # Afegim les temporals a la llista
+                exercise_data['image_urls'].extend(temp_urls)
+
+            # B. Pujar les URLs temporals a Firebase Storage
+            final_urls = []
+            print("💾 BACKGROUND: Pujant imatges a Firebase Storage...")
+            for i, url in enumerate(exercise_data.get('image_urls', [])):
+                if "firebasestorage" not in url and "oai" in url: # Si és d'OpenAI
+                     try:
+                         print(f"   ▶️ Pujant imatge {i+1}...")
+                         perm_url = StorageService.save_image_from_url(url, folder="speaking_part2")
+                         final_urls.append(perm_url)
+                     except Exception as e:
+                         print(f"   ⚠️ Error pujant imatge {i+1}: {e}")
+                         # Si falla, intentem mantenir la temporal encara que caduqui
+                         final_urls.append(url)
+                else:
+                    # Ja és permanent o no és vàlida
+                    final_urls.append(url)
+            
+            # Actualitzem la llista definitiva
+            exercise_data['image_urls'] = final_urls
+            # Eliminem el camp singular antic per evitar confusions
+            if 'image_url' in exercise_data: del exercise_data['image_url']
 
         # 4. Guardar a Firestore
         doc_id = DatabaseService.save_exercise(exercise_data, level, exercise_type, is_public=is_public)
@@ -168,9 +187,10 @@ def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool =
 def generate_exercise_endpoint(request: GenerateRequest):
     
     # =================================================================
-    # 🧠 SPEAKING PART 1: INTERVIEW
+    # 🧠 SPEAKING PART 1
     # =================================================================
     if request.type == "speaking1":
+        # ... (Codi de Speaking 1 igual que abans) ...
         try:
             client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
             topic_str = request.topic if request.topic else "General Life"
@@ -197,26 +217,20 @@ def generate_exercise_endpoint(request: GenerateRequest):
                 "text": ai_text,
                 "level": request.level
             }
-
         except Exception as e:
-            print(f"⚠️ OPENAI ERROR (SP1): {e}")
-            return {
-                "id": f"speaking1_fallback_{int(time.time())}",
-                "type": "speaking",
-                "title": f"Speaking Part 1: {FALLBACK_SPEAKING_1['topic']}",
-                "instruction": "Answer the questions briefly but fully.",
-                "text": FALLBACK_SPEAKING_1["text"],
-                "level": request.level
-            }
+             print(f"⚠️ Error SP1: {e}")
+             raise HTTPException(status_code=500, detail=str(e))
+
 
     # =================================================================
-    # 🧠 SPEAKING PART 2 (AMB ESTRUCTURA RIGIDA)
+    # 🧠 SPEAKING PART 2 (GENERACIÓ SÍNCRONA - 3 IMATGES)
     # =================================================================
     elif request.type == "speaking2":
         try:
             client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
             topic_str = request.topic if request.topic else "Risk & Achievement"
             
+            # 1. GENERAR TEXT
             prompt = f"""
             Generate a Cambridge C1 Advanced Speaking Part 2 task based on the topic: '{topic_str}'.
 
@@ -224,13 +238,8 @@ def generate_exercise_endpoint(request: GenerateRequest):
             1. **Candidate A Instructions**: 
                - MUST explicitly state: "I’d like you to compare **two** of the pictures".
                - MUST contain TWO questions linked by "and". 
-               - Structure: "...say [Question 1 (speculative)], and [Question 2 (emotional/consequential)]."
-            
             2. **Candidate B Question**:
                - MUST be a short "Which..." question.
-               - Example: "Which situation do you think is the most difficult?"
-
-            3. **Images**: Describe 3 distinct visual situations.
 
             OUTPUT FORMAT (Plain Text Only):
             [IMAGES]
@@ -251,25 +260,29 @@ def generate_exercise_endpoint(request: GenerateRequest):
             )
             ai_text = response.choices[0].message.content.strip()
 
-            # Imatge
-            # Utilitzem el prompt "Wide" i size="1792x1024" per millorar la composició
-            image_prompt = f"Wide image split into 3 distinct vertical panels side-by-side. Panel 1: A scene showing {topic_str} situation A. Panel 2: A scene showing {topic_str} situation B. Panel 3: A scene showing {topic_str} situation C. Photorealistic style, educational."
-            print("🎨 Generant imatges amb DALL-E 3 (Wide)...")
+            # 2. GENERAR 3 IMATGES (Qualitat C1)
+            print(f"🎨 FOREGROUND: Generant 3 imatges d'alta qualitat per '{topic_str}'...")
+            final_urls = []
+            variations = ["individual focus", "group interaction", "contrasting perspective"]
             
-            img_response = client.images.generate(
-                model="dall-e-3",
-                prompt=image_prompt,
-                n=1,
-                size="1792x1024" # Format panoràmic
-            )
-            temp_url = img_response.data[0].url
+            for i in range(3):
+                try:
+                    variation = variations[i]
+                    image_prompt = f"A photorealistic, candid photograph showing a scene related to '{topic_str}', {variation}. Educational context. Image {i+1}/3."
+                    print(f"   ▶️ Generant imatge {i+1}/3...")
+                    img_resp = client.images.generate(model="dall-e-3", prompt=image_prompt, n=1, size="1024x1024")
+                    temp_url = img_resp.data[0].url
+                    
+                    # Guardar a Storage immediatament
+                    print(f"   💾 Pujant imatge {i+1} a Storage...")
+                    perm_url = StorageService.save_image_from_url(temp_url, folder="speaking_part2")
+                    final_urls.append(perm_url)
+                except Exception as e:
+                    print(f"⚠️ Error en imatge {i+1}: {e}")
+                    # Si falla una, intentem seguir. Si no n'hi ha cap, saltarà l'error general.
 
-            # Guardar (Safe Mode)
-            try:
-                permanent_url = StorageService.save_image_from_url(temp_url, folder="speaking_part2")
-            except Exception as img_err:
-                print(f"⚠️ Storage Error: {img_err}")
-                permanent_url = temp_url 
+            if not final_urls:
+                 raise Exception("Failed to generate any images.")
 
             return {
                 "id": f"speaking2_{int(time.time())}",
@@ -277,21 +290,17 @@ def generate_exercise_endpoint(request: GenerateRequest):
                 "title": f"Speaking Part 2: {topic_str}",
                 "instruction": "Compare TWO pictures and answer both questions.",
                 "text": ai_text,
-                "image_url": permanent_url,
+                "image_urls": final_urls, # 👈 Retornem la llista de 3 URLs
                 "level": request.level
             }
 
         except Exception as e:
-            print(f"⚠️ OPENAI ERROR (SP2): {e}")
-            return {
-                "id": f"speaking2_fallback_{int(time.time())}",
-                "type": "speaking",
-                "title": f"Speaking Part 2: {FALLBACK_SPEAKING_2['topic']}",
-                "instruction": "Compare TWO pictures and answer both questions.",
-                "text": FALLBACK_SPEAKING_2["text"],
-                "image_url": "", 
-                "level": request.level
-            }
+            print(f"⚠️ ERROR CRÍTIC (SP2): {e}")
+            # Retornem fallback si falla tot
+            fallback = FALLBACK_SPEAKING_2.copy()
+            fallback["id"] = f"speaking2_fallback_{int(time.time())}"
+            fallback["level"] = request.level
+            return fallback
 
     # =================================================================
     # 🔄 GENERACIÓ STANDARD
@@ -329,12 +338,21 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
         existing = DatabaseService.get_existing_exercise(request.level, request.exercise_type, request.completed_ids)
         
         if existing:
+            print("✨ REUTILITZANT EXERCICI DB")
+            # Disparem la generació en background (que ara farà 3 fotos si cal)
             background_tasks.add_task(generate_and_save_exercise, request.level, request.exercise_type)
             final_exercise = existing
         else:
+            print("⚠️ POOL BUIDA. Generant on-demand (Blocking, 3 fotos)...")
+            # Generació bloquejant (trigarà uns 30-40 segons per les 3 fotos)
             final_exercise = generate_and_save_exercise(request.level, request.exercise_type, is_public=True)
             if not final_exercise:
-                raise HTTPException(status_code=503, detail="Service currently unavailable.")
+                 # Si falla, retornem fallback
+                 if request.exercise_type == "speaking2":
+                     final_exercise = FALLBACK_SPEAKING_2
+                     final_exercise["id"] = "fallback_on_demand"
+                 else:
+                    raise HTTPException(status_code=503, detail="Service currently unavailable.")
 
         if not is_vip:
             usage_data["counts"][ex_type] = current_count + 1
@@ -347,6 +365,7 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
         print(f"ERROR CRÍTIC: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ... (LA RESTA D'ENDPOINTS: preload, submit, stripe, etc. ES MANTENEN IGUAL) ...
 @router.post("/preload_exercise/")
 def preload_exercise(request: ExerciseRequest):
     try:
