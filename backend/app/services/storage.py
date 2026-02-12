@@ -2,6 +2,9 @@ import requests
 from firebase_admin import storage
 import uuid
 
+# 👇 DEFINEIX EL TEU BUCKET AQUÍ DIRECTAMENT
+BUCKET_NAME = "english-c1-app.firebasestorage.app"
+
 class StorageService:
     @staticmethod
     def save_image_from_url(temp_url: str, folder: str = "generated_exercises") -> str:
@@ -12,7 +15,7 @@ class StorageService:
         
         try:
             # 1. Descarregar
-            response = requests.get(temp_url, timeout=30) # Afegim timeout
+            response = requests.get(temp_url, timeout=30)
             if response.status_code != 200:
                 print(f"❌ STORAGE ERROR: No s'ha pogut descarregar ({response.status_code})")
                 return temp_url
@@ -23,8 +26,9 @@ class StorageService:
             # 2. Nom únic
             filename = f"{folder}/{uuid.uuid4()}.png"
             
-            # 3. Pujar
-            bucket = storage.bucket()
+            # 3. Pujar a Firebase (AMB EL NOM EXPLÍCIT DEL BUCKET)
+            # 👇 AQUI ESTÀ LA CLAU DE LA SOLUCIÓ
+            bucket = storage.bucket(name=BUCKET_NAME) 
             blob = bucket.blob(filename)
             blob.upload_from_string(image_data, content_type="image/png")
             
@@ -37,5 +41,4 @@ class StorageService:
 
         except Exception as e:
             print(f"❌ CRITICAL STORAGE FAILURE: {str(e)}")
-            # Retornem la temporal perquè almenys l'usuari vegi alguna cosa, encara que caduqui
             return temp_url
