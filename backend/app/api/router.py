@@ -89,13 +89,15 @@ class CheckoutRequest(BaseModel):
     price_id: str
     user_id: str
 
-# --- HELPER FUNCTION ---
+# --- HELPER FUNCTION (ARREGLADA PAS 2) ---
 def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool = True):
-    print(f"⚙️ BACKGROUND: Generant nou exercici de reserva ({exercise_type})...")
+    print(f"⚙️ BACKGROUND: Iniciant generació per {exercise_type}...")
     try:
+        # 1. Generem el text base (Factory)
         exercise_object = ExerciseFactory.create_exercise(exercise_type, level)
         exercise_data = exercise_object.model_dump()
         
+        # 2. Gestió d'Àudio (Listening)
         if exercise_type.startswith("listening"):
             try:
                 audio_bytes = AudioService.generate_audio(exercise_data['text'])
@@ -104,20 +106,40 @@ def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool =
             except Exception as e:
                 print(f"⚠️ Error generant àudio inicial: {e}")
 
-        # -----------------------------------------------------------
-        # ⚠️ INTEGRACIÓ STORAGE PER A EXERCICIS BACKGROUND
-        # Si la Factory genera una imatge (URL temporal), la guardem a Firebase aquí
-        # -----------------------------------------------------------
-        if 'image_url' in exercise_data and exercise_data['image_url'] and "oai-b" in exercise_data['image_url']:
-             print("🖼️ Detectada imatge temporal al background. Guardant a Firebase...")
-             perm_url = StorageService.save_image_from_url(exercise_data['image_url'], folder=exercise_type)
-             exercise_data['image_url'] = perm_url
+        # 3. 🔴 CORRECCIÓ CLAU: Gestió d'Imatges (Speaking Part 2)
+        # Si és Speaking 2 i NO té imatge (o és temporal), la generem i la guardem ARA.
+        if exercise_type == "speaking2":
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            
+            # A. Si no tenim URL, la generem de zero amb DALL-E
+            if not exercise_data.get('image_url'):
+                print("🎨 BACKGROUND: L'exercici no tenia imatge. Generant-ne una amb DALL-E...")
+                try:
+                    topic = exercise_data.get('title', 'General Topic').replace("Speaking Part 2: ", "")
+                    image_prompt = f"A photorealistic educational collage of 3 scenes about '{topic}'. Educational style."
+                    
+                    img_resp = client.images.generate(model="dall-e-3", prompt=image_prompt, n=1, size="1024x1024")
+                    exercise_data['image_url'] = img_resp.data[0].url
+                except Exception as e:
+                    print(f"⚠️ Error generant imatge DALL-E al background: {e}")
 
+            # B. Si tenim URL (nova o vella), la pujem a Firebase
+            if exercise_data.get('image_url') and "firebasestorage" not in exercise_data['image_url']:
+                print(f"💾 BACKGROUND: Convertint URL temporal a Permanent...")
+                try:
+                    perm_url = StorageService.save_image_from_url(exercise_data['image_url'], folder="speaking_part2")
+                    exercise_data['image_url'] = perm_url
+                except Exception as e:
+                    print(f"⚠️ Error pujant a Storage: {e}")
+
+        # 4. Guardar a Firestore
         doc_id = DatabaseService.save_exercise(exercise_data, level, exercise_type, is_public=is_public)
         print(f"✅ BACKGROUND: Exercici guardat correctament! ID: {doc_id}")
         return exercise_data
+
     except Exception as e:
-        print(f"❌ BACKGROUND ERROR: No s'ha pogut generar l'exercici: {e}")
+        print(f"❌ BACKGROUND ERROR CRÍTIC: {e}")
+        return None
 
 # --- ENDPOINTS ---
 
