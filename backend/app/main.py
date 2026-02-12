@@ -26,7 +26,7 @@ if not firebase_admin._apps:
         'storageBucket': 'english-c1-app.firebasestorage.app'  # 👈 EL TEU BUCKET AQUÍ
     })
 
-# --- 2. CONFIGURACIÓ CORS ---
+# --- 2. CONFIGURACIÓ CORS (ACTUALITZADA) ---
 origins = [
     "http://localhost:5173",          # Per quan treballes en local
     "http://localhost:3000",
@@ -36,7 +36,8 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins,            # Llista d'orígens fixos
+    allow_origin_regex="https://.*\.vercel\.app", # 👈 AQUESTA LÍNIA ÉS LA CLAU PER A VERCEL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
