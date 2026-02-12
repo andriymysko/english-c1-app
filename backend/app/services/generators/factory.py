@@ -2,7 +2,7 @@ from openai import OpenAI
 import os
 import json
 from dotenv import load_dotenv
-from app.services.image import ImageService
+# from app.services.image import ImageService # 👈 Comentem això per no usar-lo
 
 # Carreguem variables d'entorn
 load_dotenv()
@@ -32,14 +32,13 @@ class ExerciseFactory:
         type_instructions = ""
         
         # --- JSON DINÀMIC: Definim l'estructura per defecte ---
-        # Això es fa servir per a la majoria d'exercicis (Stem + Opcions)
         json_fields_example = """
                     "stem": "Question text",
                     "options": [ {"text": "Option text WITHOUT A/B label"}, {"text": "Option text WITHOUT A/B label"} ],
         """
         
         # ==========================================
-        #       READING & USE OF ENGLISH
+        #      READING & USE OF ENGLISH
         # ==========================================
         
         if exercise_type == "reading_and_use_of_language1":
@@ -181,7 +180,7 @@ class ExerciseFactory:
             """
 
         # ==========================================
-        #               LISTENING
+        #             LISTENING
         # ==========================================
         
         elif exercise_type == "listening1":
@@ -324,29 +323,6 @@ class ExerciseFactory:
                  - Use "So [adjective]... that" or "Such [noun]... that".
             
             - JSON RULE: Options must be A, B, C, D. Explain specifically why the distractors are wrong (e.g., "Hardly requires 'when', not 'than'").
-            """
-
-        elif exercise_type == "grammar_phrasal_verbs":
-            type_instructions = """
-            - Create a "C1/C2 Phrasal Verbs" exercise.
-            - LEVEL: Hardcore Cambridge C1 Advanced / C2 Proficiency.
-            - FORMAT: Multiple Choice Cloze (Stem + 4 Options).
-            - CONTENT: 8 sentences.
-            
-            - TARGETS (MUST INCLUDE):
-              1. **Three-part Phrasal Verbs**: e.g., "come up against", "put down to", "check up on".
-              2. **Abstract/Metaphorical Meanings**: e.g., "bring off" (succeed), "sink in" (realize), "fall through" (fail).
-              
-            - QUALITY CONTROL & BANNED LIST (STRICT):
-              1. **NO B1/B2 Verbs**: Do NOT use "deal with", "look for", "get up", or "give up". They are too easy.
-                 - **REPLACEMENT**: Instead of "deal with", use "**face up to**" (confront) or "**iron out**" (resolve details).
-              
-              2. **Idiomatic Precision (The "Chalk/Write" Rule)**:
-                 - If using "chalk up", the structure MUST be "chalk it up **TO** experience" (attribution).
-                 - If the meaning is "dismiss/consider as a loss", use "**write off AS**" (e.g., "write the incident off as a learning experience").
-                 - DO NOT generate "chalk up as".
-            
-            - DISTRACTOR LOGIC: Distractors must be real phrasal verbs that fit the grammar but make no sense in context (Semantic distractors).
             """
 
         elif exercise_type == "grammar_phrasal_verbs":
@@ -582,17 +558,20 @@ class ExerciseFactory:
         try:
             data = json.loads(content)
             
-            # --- IMATGES (Speaking 2) ---
-            if exercise_type == "speaking2" and "image_prompts" in data:
-                print("🖼️ Detectats prompts d'imatge. Generant amb DALL·E 3...")
-                data["image_urls"] = []
-                try:
-                    for prompt_text in data["image_prompts"]:
-                        url = ImageService.generate_image(prompt_text)
-                        data["image_urls"].append(url)
-                except Exception as e:
-                    print(f"⚠️ Error generant imatges: {e}")
-            # ---------------------------
+            # --- IMATGES (Speaking 2) - DESACTIVAT PER ESTALVI ---
+            # Ara aquesta lògica la gestiona el Router per fer-ho més eficient (Collage Panoràmic)
+            # if exercise_type == "speaking2" and "image_prompts" in data:
+            #     print("🖼️ Detectats prompts d'imatge. SALTANT GENERACIÓ AQUI (Router ho farà)...")
+            #     data["image_urls"] = [] # Deixem buit perquè el router ho detecti
+            
+            # --- CODI ANTIC DE GENERACIÓ INDIVIDUAL (COMENTAT) ---
+            #     try:
+            #         for prompt_text in data["image_prompts"]:
+            #             url = ImageService.generate_image(prompt_text)
+            #             data["image_urls"].append(url)
+            #     except Exception as e:
+            #         print(f"⚠️ Error generant imatges: {e}")
+            # -----------------------------------------------------
 
             class GenericExercise:
                 def __init__(self, data):
