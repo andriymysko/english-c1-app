@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, CheckCircle, Download, Eye, RefreshCw, XCircle, Send, Loader2, AlertCircle, Mic, StopCircle, Volume2, FileText, Sparkles, Image as ImageIcon, ChevronDown, Lock, PenTool, Clock, LayoutList } from "lucide-react";
+import { ArrowLeft, CheckCircle, Download, Eye, RefreshCw, XCircle, Send, Loader2, AlertCircle, Mic, StopCircle, Volume2, FileText, Sparkles, Image as ImageIcon, ChevronDown, Lock, PenTool, Clock, LayoutList, MessageCircle, Users, ArrowRight } from "lucide-react";
 import { preloadExercise, submitResult, gradeWriting, gradeSpeaking, transcribeAudio, fetchAudio } from "../api";
 import { useAuth } from "../context/AuthContext";
 import confetti from 'canvas-confetti';
@@ -28,7 +28,7 @@ interface ExerciseData {
   type: string;
   level: string;
   questions: Question[];
-  image_urls?: string[];
+  image_urls?: string[]; // 👈 Ara suporta llista d'imatges (Part 2)
   image_prompts?: string[];
   instruction?: string;
   content?: {
@@ -46,6 +46,11 @@ interface ExerciseData {
     text: string;
     tips: string;
   }>;
+  // 👇 NOU: Camps específics per Speaking Part 3 & 4
+  part3_central_question?: string;
+  part3_prompts?: string[];
+  part3_decision_question?: string;
+  part4_questions?: string[];
 }
 
 interface Props {
@@ -67,8 +72,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   // 2. GESTIÓ ESSAY/WRITING EXAM (PART 1 & PART 2)
   // -----------------------------------------------------------
   const isEssayExam = data.id === 'writing1' || data.type === 'essay' || (data.type === 'writing1' && data.content);
-
-  // Estats per a l'editor d'escriptura professional
   const [essayAnswer, setEssayAnswer] = useState("");
   const [wordCount, setWordCount] = useState(0);
 
@@ -94,15 +97,19 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
 
+  // -----------------------------------------------------------
+  // 4. ESTAT NOU: SPEAKING PART 3 (FASES)
+  // -----------------------------------------------------------
+  const [part3Phase, setPart3Phase] = useState<'discussion' | 'decision' | 'part4'>('discussion');
+
   // FLAGS
-  // Important: Si hem seleccionat una opció del Part 2, ja no estem en "choice mode" visualment, sinó en "writing"
   const isWriting = data.type.startsWith("writing") && !isChoiceMode; 
   const isSpeaking = data.type.startsWith("speaking");
+  const isSpeakingPart3 = data.type === "speaking3";
   const isListening = data.type.startsWith("listening");
   const isPart4 = data.type === "reading_and_use_of_language4";
   const isGapFill = ["reading_and_use_of_language1", "reading_and_use_of_language2", "reading_and_use_of_language3", "listening2"].includes(data.type);
   
-  // És interactiu si NO és un examen d'escriptura (Part 1 o Part 2 triada) ni Speaking
   const isInteractive = !isWriting && !isSpeaking && !isEssayExam && !selectedOption && !isChoiceMode;
 
   // --- HANDLERS ---
@@ -138,7 +145,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     window.history.pushState({ page: "exercise" }, "", "");
     const handlePopState = (event: PopStateEvent) => {
       event.preventDefault();
-      // Si estem en una opció seleccionada, tornem a la llista d'opcions
       if (selectedOption) {
           setSelectedOption(null);
           setEssayAnswer("");
@@ -158,7 +164,8 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     setInputText("");
     setEssayAnswer("");
     setShowTranscript(false);
-    setSelectedOption(null); // Reset choice logic
+    setSelectedOption(null);
+    setPart3Phase('discussion'); // Reset speaking phase
   }, [data.id, data.title]);
 
   useEffect(() => {
@@ -178,26 +185,23 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
 
   const submitWritingTask = async () => {
      if (wordCount < 220) {
-        toast.warning("Too short!", { description: "Aim for at least 220 words for C1 level." });
-        return;
+       toast.warning("Too short!", { description: "Aim for at least 220 words for C1 level." });
+       return;
      }
      setLoadingGrade(true);
      try {
-        // Determinem quin enunciat enviar a l'AI:
-        // Opció A: Tasca seleccionada (Part 2)
-        // Opció B: Enunciat general (Part 1 Essay)
-        const taskPrompt = selectedOption 
-            ? `TASK: ${selectedOption.title}\nINSTRUCTION: ${selectedOption.text}\nTIP: ${selectedOption.tips}`
-            : (data.instruction + "\n" + (data.content?.question || data.text));
-        
-        const result = await gradeWriting(user?.uid || "anon", taskPrompt, essayAnswer);
-        setFeedback(result);
-        playSuccessSound();
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+       const taskPrompt = selectedOption 
+           ? `TASK: ${selectedOption.title}\nINSTRUCTION: ${selectedOption.text}\nTIP: ${selectedOption.tips}`
+           : (data.instruction + "\n" + (data.content?.question || data.text));
+       
+       const result = await gradeWriting(user?.uid || "anon", taskPrompt, essayAnswer);
+       setFeedback(result);
+       playSuccessSound();
+       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
      } catch (e) {
-        alert("Error grading essay");
+       alert("Error grading essay");
      } finally {
-        setLoadingGrade(false);
+       setLoadingGrade(false);
      }
   };
 
@@ -234,10 +238,14 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     if (!user || !inputText) return;
     setLoadingGrade(true);
     try {
-      const fullTask = data.instructions + " " + (data.text || "");
+      const fullTask = isSpeakingPart3 
+        ? JSON.stringify({ q: data.part3_central_question, d: data.part3_decision_question, p4: data.part4_questions }) 
+        : (data.instructions + " " + (data.text || ""));
+        
       let result;
       if (isWriting) result = await gradeWriting(user.uid, fullTask, inputText);
       else result = await gradeSpeaking(user.uid, fullTask, inputText);
+      
       setFeedback(result);
       playSuccessSound();
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
@@ -321,6 +329,117 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     );
   };
 
+  // ------------------------------------------------------------
+  // 🆕 VISUALITZADOR PER A SPEAKING PART 3 (DIAGRAMA)
+  // ------------------------------------------------------------
+  const renderSpeakingPart3 = () => {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+        {/* PHASE INDICATOR */}
+        <div className="flex justify-center mb-6">
+            <div className="bg-gray-100 p-1 rounded-full flex text-sm font-medium">
+                <button onClick={() => setPart3Phase('discussion')} className={`px-4 py-2 rounded-full transition-all ${part3Phase === 'discussion' ? 'bg-white shadow-md text-blue-700' : 'text-gray-500 hover:text-gray-900'}`}>1. Discussion (2')</button>
+                <button onClick={() => setPart3Phase('decision')} className={`px-4 py-2 rounded-full transition-all flex items-center gap-2 ${part3Phase === 'decision' ? 'bg-white shadow-md text-purple-700' : 'text-gray-500 hover:text-gray-900'}`}>2. Decision (1') {part3Phase === 'discussion' && <Lock className="w-3 h-3"/>}</button>
+                <button onClick={() => setPart3Phase('part4')} className={`px-4 py-2 rounded-full transition-all flex items-center gap-2 ${part3Phase === 'part4' ? 'bg-white shadow-md text-emerald-700' : 'text-gray-500 hover:text-gray-900'}`}>3. Part 4 {part3Phase !== 'part4' && <Lock className="w-3 h-3"/>}</button>
+            </div>
+        </div>
+
+        {part3Phase === 'discussion' && (
+            <div className="bg-white p-8 rounded-2xl border-2 border-blue-100 shadow-xl relative overflow-hidden">
+                <div className="absolute top-4 right-4 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold font-mono flex items-center gap-2">
+                    <Clock className="w-4 h-4" /> 02:00
+                </div>
+                <h3 className="text-center text-gray-500 text-sm font-bold uppercase tracking-widest mb-8">Collaborative Task</h3>
+                
+                {/* SPIDERGRAM VISUAL */}
+                <div className="relative max-w-lg mx-auto aspect-square flex items-center justify-center">
+                    {/* Central Bubble */}
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                        <div className="w-48 h-48 bg-blue-600 rounded-full flex items-center justify-center p-4 text-center shadow-xl border-4 border-white ring-4 ring-blue-100 z-20">
+                            <p className="text-white font-bold text-lg leading-tight">{data.part3_central_question || "Central Question"}</p>
+                        </div>
+                    </div>
+                    {/* Outer Bubbles */}
+                    {data.part3_prompts?.map((prompt, i) => {
+                        // Calculate position in circle
+                        const angle = (i * (360 / data.part3_prompts!.length)) - 90; 
+                        const radius = 140; // px
+                        const x = Math.cos((angle * Math.PI) / 180) * radius;
+                        const y = Math.sin((angle * Math.PI) / 180) * radius;
+                        
+                        return (
+                            <div key={i} className="absolute w-32 h-32 flex items-center justify-center" 
+                                 style={{ transform: `translate(${x}px, ${y}px)` }}>
+                                <div className="bg-white border-2 border-gray-200 rounded-2xl p-3 w-full h-full flex items-center justify-center text-center shadow-lg hover:border-blue-400 hover:shadow-xl transition-all cursor-default z-10">
+                                    <p className="text-gray-800 font-semibold text-sm">{prompt}</p>
+                                </div>
+                                {/* Connector Line (Visual Hack using absolute div behind) */}
+                                <div className="absolute top-1/2 left-1/2 w-[140px] h-[2px] bg-gray-300 -z-10 origin-left"
+                                     style={{ 
+                                         transform: `rotate(${angle + 180}deg) translate(0, -50%)`,
+                                         width: '140px' 
+                                     }}></div>
+                            </div>
+                        )
+                    })}
+                </div>
+
+                <div className="mt-8 flex justify-center">
+                    <button onClick={() => setPart3Phase('decision')} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-full font-bold hover:bg-blue-700 transition shadow-lg animate-bounce">
+                        Next Phase: Decision <ArrowRight className="w-5 h-5" />
+                    </button>
+                </div>
+            </div>
+        )}
+
+        {part3Phase === 'decision' && (
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-8 rounded-2xl border-2 border-purple-100 shadow-xl text-center">
+                <div className="inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold font-mono mb-6">
+                    <Clock className="w-4 h-4 inline mr-1" /> 01:00
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 mb-6">Time to Decide</h3>
+                <p className="text-xl text-gray-700 leading-relaxed font-serif mb-8">"{data.part3_decision_question}"</p>
+                
+                <div className="bg-white p-6 rounded-xl border border-gray-200 mx-auto max-w-lg shadow-inner">
+                    <p className="text-gray-500 text-sm mb-4">Discuss with your partner (or AI) and reach a conclusion.</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                        {data.part3_prompts?.map((p, i) => (
+                            <span key={i} className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-sm">{p}</span>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mt-8">
+                    <button onClick={() => setPart3Phase('part4')} className="text-purple-600 font-bold hover:underline">Proceed to Part 4 &rarr;</button>
+                </div>
+            </div>
+        )}
+
+        {part3Phase === 'part4' && (
+            <div className="bg-white p-8 rounded-2xl border-2 border-emerald-100 shadow-xl">
+                <div className="flex items-center gap-3 mb-6 border-b border-emerald-100 pb-4">
+                    <div className="bg-emerald-100 p-2 rounded-lg"><Users className="w-6 h-6 text-emerald-700" /></div>
+                    <div>
+                        <h3 className="text-xl font-bold text-gray-900">Part 4: Discussion</h3>
+                        <p className="text-emerald-600 text-sm font-medium">Broadening the topic (5 mins)</p>
+                    </div>
+                </div>
+                
+                <ul className="space-y-4">
+                    {data.part4_questions?.map((q, i) => (
+                        <li key={i} className="flex gap-4 p-4 bg-emerald-50/50 rounded-xl hover:bg-emerald-50 transition border border-transparent hover:border-emerald-200">
+                            <div className="bg-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-emerald-600 shadow-sm flex-shrink-0">{i + 1}</div>
+                            <p className="text-gray-800 font-medium text-lg">{q}</p>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        )}
+      </div>
+    );
+  };
+
+
   // ==========================================================
   // 🌟 RENDER 1: SELECCIÓ DE TASCA (WRITING PART 2 CHOICE)
   // ==========================================================
@@ -370,12 +489,9 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     const taskTitle = selectedOption ? selectedOption.title : data.title;
     const taskContent = selectedOption ? selectedOption.text : (data.content?.input_text || data.text);
     useEffect(() => {
-        // Només pre-carreguem si ja tenim una opció triada o és un Essay directe
-        // i evitem fer-ho múltiples vegades si el component es renderitza de nou
         const typeToPreload = selectedOption ? 'writing2' : data.type;
         preloadExercise(typeToPreload, data.level || "C1");
     }, [data.id, selectedOption]);
-    // Si és Part 1 té notes, si és Part 2 no en té (només text)
     const hasNotes = !selectedOption && data.content?.notes; 
 
     return (
@@ -386,15 +502,15 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] overflow-y-auto relative animate-in zoom-in-95 duration-300">
                     <button onClick={() => setFeedback(null)} className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-gray-200"><XCircle className="w-6 h-6"/></button>
                     <div className="p-8">
-                         <div className="flex items-center justify-between mb-6">
+                          <div className="flex items-center justify-between mb-6">
                             <h2 className="text-2xl font-bold text-gray-900">Assessment Result</h2>
                             <div className="text-4xl font-black text-blue-600">{feedback.score}/20</div>
-                         </div>
-                         <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 mb-6">
+                          </div>
+                          <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 mb-6">
                             <h4 className="font-bold text-blue-900 mb-2">Feedback</h4>
                             <p className="text-blue-800 leading-relaxed">{feedback.feedback}</p>
-                         </div>
-                         <div className="space-y-4">
+                          </div>
+                          <div className="space-y-4">
                             <h4 className="font-bold text-gray-800 text-lg border-b pb-2">Corrections</h4>
                             {feedback.corrections?.map((corr: any, idx: number) => (
                                 <div key={idx} className="bg-white border-l-4 border-red-400 p-4 shadow-sm rounded-r-lg">
@@ -405,7 +521,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                                     <p className="text-sm text-gray-500 italic">💡 {corr.explanation}</p>
                                 </div>
                             ))}
-                         </div>
+                          </div>
                     </div>
                 </div>
             </div>
@@ -428,7 +544,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
             <div className="bg-white border-2 border-gray-200 rounded-xl p-6 shadow-sm">
               <h3 className="font-bold text-gray-900 text-xl mb-4 font-serif">Task</h3>
               
-              {/* Si és Essay (Part 1), mostrem l'estructura complexa. Si és Part 2, el text pla de la tasca */}
               {hasNotes ? (
                   <>
                     <p className="text-gray-700 leading-relaxed text-lg mb-8 font-serif border-l-4 border-gray-300 pl-4 italic">{data.content?.input_text}</p>
@@ -512,6 +627,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
           {data.instructions}
         </div>
 
+        {/* IMATGES (Part 2) */}
         {data.image_urls && data.image_urls.length > 0 && (
           <div className="space-y-2">
             <h3 className="font-bold text-gray-700 flex items-center gap-2"><ImageIcon className="w-5 h-5" /> Visual Materials</h3>
@@ -548,15 +664,20 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
            )}
 
            <div className={!user?.is_vip && isListening ? "filter blur-sm pointer-events-none select-none opacity-50 transition-all duration-500" : ""}>
-              {isGapFill ? (
+              
+              {/* LOGICA DE RENDERITZAT */}
+              {isSpeakingPart3 ? (
+                  // 👉 NOU RENDERITZADOR DE PART 3
+                  renderSpeakingPart3()
+              ) : isGapFill ? (
                 <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">{renderInteractiveText()}</div>
               ) : (
                 data.text && (!isListening || showTranscript || (isListening && !isWriting && !isSpeaking)) && (
-                   <div className={`prose max-w-none bg-gray-50 p-6 rounded-xl border border-gray-200 leading-relaxed whitespace-pre-line font-serif text-lg text-gray-800 ${isListening && !showTranscript ? 'hidden' : ''}`}>{data.text}</div>
+                    <div className={`prose max-w-none bg-gray-50 p-6 rounded-xl border border-gray-200 leading-relaxed whitespace-pre-line font-serif text-lg text-gray-800 ${isListening && !showTranscript ? 'hidden' : ''}`}>{data.text}</div>
                 )
               )}
 
-              {isInteractive && !isGapFill && (
+              {isInteractive && !isGapFill && !isSpeakingPart3 && (
                 <div className="space-y-8 mt-8">
                   {data.questions.map((q, idx) => {
                     const key = q.question || idx.toString();
