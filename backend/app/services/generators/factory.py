@@ -2,7 +2,7 @@ from openai import OpenAI
 import os
 import json
 from dotenv import load_dotenv
-# from app.services.image import ImageService # 👈 Comentem això per no usar-lo
+# from app.services.image import ImageService # 👈 Comentem això per no usar-lo i estalviar
 
 # Carreguem variables d'entorn
 load_dotenv()
@@ -581,19 +581,15 @@ class ExerciseFactory:
             data = json.loads(content)
             
             # --- IMATGES (Speaking 2) - DESACTIVAT PER ESTALVI ---
-            # Ara aquesta lògica la gestiona el Router per fer-ho més eficient (Collage Panoràmic)
-            # if exercise_type == "speaking2" and "image_prompts" in data:
-            #     print("🖼️ Detectats prompts d'imatge. SALTANT GENERACIÓ AQUI (Router ho farà)...")
-            #     data["image_urls"] = [] # Deixem buit perquè el router ho detecti
-            
-            # --- CODI ANTIC DE GENERACIÓ INDIVIDUAL (COMENTAT) ---
-            #     try:
-            #         for prompt_text in data["image_prompts"]:
-            #             url = ImageService.generate_image(prompt_text)
-            #             data["image_urls"].append(url)
-            #     except Exception as e:
-            #         print(f"⚠️ Error generant imatges: {e}")
-            # -----------------------------------------------------
+            # Ara aquesta lògica la gestiona el Router per fer-ho més eficient
+            # (Codis antics d'imatges comentats...)
+
+            # 🚑 SEGURETAT DE TIPUS: Forcem el tipus correcte per evitar "zombis" al frontend
+            if exercise_type == "speaking3":
+                data["type"] = "speaking3"
+                # Netejem el text per defecte que confon al frontend si encara és "Full text content..."
+                if data.get("text") == "Full text content...":
+                    data["text"] = ""
 
             class GenericExercise:
                 def __init__(self, data):
