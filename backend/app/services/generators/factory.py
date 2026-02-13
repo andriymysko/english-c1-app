@@ -183,29 +183,39 @@ class ExerciseFactory:
         # ==========================================
         
         elif exercise_type == "listening1":
-             # 🚨 CORRECCIÓ MAJESTUOSA PER A C1 REAL 🚨
              type_instructions = """
             - Create a "Listening Part 1" exercise.
             - **STRUCTURE**: 3 UNRELATED extracts. 
-            - **CRITICAL RULE**: ALL extracts must be **DIALOGUES** between two interacting speakers. **NO MONOLOGUES ALLOWED**.
+            - **CRITICAL RULE 1**: ALL extracts must be **DIALOGUES** between two interacting speakers. **NO MONOLOGUES ALLOWED**.
+            - **CRITICAL RULE 2**: You MUST provide **3 OPTIONS (A, B, C)** for every question. Never just 2.
+            
             - **TEXT LENGTH**: Each extract must be ~130-150 words (Total ~450 words).
-            - **FORMAT**: Label them "Extract One", "Extract Two", "Extract Three".
+            - **SCRIPT STYLE**: Scripts must sound NATURAL for C1 level. Use hesitations ("erm...", "well..."), interruptions, idioms, and indirect agreement ("I see your point, but...", "I wouldn't go that far"). Avoid robotic Q&A.
             
             - **CONTENT RULES (C1 LEVEL)**:
-              - **Extract 1**: Professional context (e.g., two architects discussing a design flaw, scientists analyzing data).
-              - **Extract 2**: Academic/Social context (e.g., two friends debating a complex social trend or article).
-              - **Extract 3**: Cultural/Arts context (e.g., two critics reviewing a controversial film or exhibition).
-              - **BANNED TOPICS**: No shop returns, no restaurant orders, no asking for directions (Too B1/B2).
+              - **Extract 1**: Professional context (e.g., architects, scientists, engineers discussing a complex problem).
+              - **Extract 2**: Academic/Social context (e.g., friends debating a sociological trend, article, or lecture).
+              - **Extract 3**: Cultural/Arts context (e.g., critics reviewing a film, book, or exhibition).
+              - **BANNED**: No shop returns, no restaurant orders, no basic travel directions.
             
             - **QUESTION TYPES (2 per extract = 6 total)**:
-              - Do NOT ask for basic facts.
               - Focus on **AGREEMENT** ("What do they both agree on?").
-              - Focus on **ATTITUDE/FEELING** ("How does the woman feel about the man's suggestion?").
-              - Focus on **PURPOSE** ("Why does the man mention X?").
+              - Focus on **ATTITUDE/FEELING** ("How does the woman feel about...?").
+              - Focus on **PURPOSE/OPINION**.
+              
+            - **DISTRACTOR LOGIC**: The incorrect options must be mentioned in the text but must be wrong due to a specific detail (e.g., only one person agrees, or it refers to the past, not the present).
             
-            - **CRITICAL JSON RULE**: Options must NOT start with "A.", "B.". Answer must be the EXACT TEXT.
-            - TIMESTAMPS: Required "MM:SS".
+            - **JSON FORMAT**: Ensure the 'options' list has exactly 3 items.
             """
+             # Sobreescrivim l'exemple JSON per assegurar que en fa 3
+             json_fields_example = """
+                    "stem": "What do both speakers agree about the new building design?",
+                    "options": [
+                        {"text": "It fails to meet the environmental standards."}, 
+                        {"text": "The costs involved are likely to be prohibitive."}, 
+                        {"text": "The aesthetic appeal is its strongest feature."}
+                    ],
+             """
 
         elif exercise_type == "listening2":
              type_instructions = """
