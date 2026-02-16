@@ -708,12 +708,22 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
 
            <div className={!user?.is_vip && isListening ? "filter blur-sm pointer-events-none select-none opacity-50 transition-all duration-500" : ""}>
               
-              {/* LOGICA DE RENDERITZAT (ARA SÍ CORRECTA) */}
+              {/* LOGICA DE RENDERITZAT */}
               {isSpeakingPart3 ? (
+                  // 👉 NOU RENDERITZADOR DE PART 3
                   renderSpeakingPart3()
               ) : isListeningPart2 ? (
                   // 👉 NOU: Renderitzador específic per Listening Part 2
-                  renderListeningPart2()
+                  <>
+                    {renderListeningPart2()}
+                    {/* AQUI ESTÀ EL FIX DEL TRANSCRIPT */}
+                    {data.text && showTranscript && (
+                        <div className="mt-8 prose max-w-none bg-gray-50 p-6 rounded-xl border border-gray-200 leading-relaxed whitespace-pre-line font-serif text-lg text-gray-800 animate-in fade-in">
+                            <h4 className="font-bold text-gray-500 mb-2 uppercase text-sm border-b pb-2">Transcript</h4>
+                            {data.text}
+                        </div>
+                    )}
+                  </>
               ) : isGapFill ? (
                 <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">{renderInteractiveText()}</div>
               ) : (
