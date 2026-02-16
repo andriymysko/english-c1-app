@@ -107,10 +107,10 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const isListening = data.type.startsWith("listening");
   const isPart4 = data.type === "reading_and_use_of_language4";
   
-  // ⚠️ FIX: Identifiquem Listening Part 2
+  // ⚠️ FIX: Identifiquem específicament Listening Part 2
   const isListeningPart2 = data.type === "listening2";
   
-  // ⚠️ FIX: TREIEM 'listening2' d'aquí perquè no entri en conflicte
+  // ⚠️ FIX: TREIEM 'listening2' d'aquesta llista perquè tingui el seu propi renderitzador
   const isGapFill = ["reading_and_use_of_language1", "reading_and_use_of_language2", "reading_and_use_of_language3"].includes(data.type);
   
   const isInteractive = !isWriting && !isSpeaking && !isEssayExam && !selectedOption && !isChoiceMode;
@@ -710,7 +710,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
               
               {/* LOGICA DE RENDERITZAT */}
               {isSpeakingPart3 ? (
-                  // 👉 NOU RENDERITZADOR DE PART 3
                   renderSpeakingPart3()
               ) : isListeningPart2 ? (
                   // 👉 NOU: Renderitzador específic per Listening Part 2
