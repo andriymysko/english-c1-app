@@ -107,9 +107,10 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const isListening = data.type.startsWith("listening");
   const isPart4 = data.type === "reading_and_use_of_language4";
   
-  // ⚠️ FIX: Listening 2 NO és un "GapFill" estàndard (perquè el text principal és el guió)
-  // El tractarem com un cas especial.
+  // ⚠️ FIX: Identifiquem específicament Listening Part 2
   const isListeningPart2 = data.type === "listening2";
+  
+  // ⚠️ FIX: Treiem "listening2" d'aquesta llista perquè tingui el seu propi renderitzador
   const isGapFill = ["reading_and_use_of_language1", "reading_and_use_of_language2", "reading_and_use_of_language3"].includes(data.type);
   
   const isInteractive = !isWriting && !isSpeaking && !isEssayExam && !selectedOption && !isChoiceMode;
@@ -337,7 +338,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     return (
         <div className="space-y-6">
             {data.questions.map((q, idx) => {
-                const parts = (q.stem || q.question).split(/\[_*\]|\[\d+\]|________/); // Intentem detectar el forat de diferents maneres
+                const parts = (q.stem || q.question).split(/\[_*\]|\[\d+\]|________/); 
                 const qKey = q.question || idx.toString();
                 const userAnswer = userAnswers[qKey] || "";
                 const cleanCorrectAnswer = cleanOptionText(q.answer);
@@ -375,7 +376,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     )
   };
 
-  // ... (renderSpeakingPart3 es manté igual que abans) ...
+  // --- RENDERITZADOR DE SPEAKING PART 3 (DIAGRAMA RESPONSIVE) ---
   const renderSpeakingPart3 = () => {
     return (
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
@@ -396,44 +397,64 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                 <h3 className="text-center text-gray-500 text-sm font-bold uppercase tracking-widest mb-4 sm:mb-8 mt-8 sm:mt-0">Collaborative Task</h3>
                 
                 <div className="relative max-w-lg mx-auto aspect-square flex items-center justify-center scale-[0.60] sm:scale-100 origin-center -my-24 sm:my-0">
+                    {/* Central Bubble */}
                     <div className="absolute inset-0 flex items-center justify-center z-10">
                         <div className="w-48 h-48 bg-blue-600 rounded-full flex items-center justify-center p-4 text-center shadow-xl border-4 border-white ring-4 ring-blue-100 z-20">
                             <p className="text-white font-bold text-lg leading-tight drop-shadow-md">{data.part3_central_question || "Central Question"}</p>
                         </div>
                     </div>
+                    {/* Outer Bubbles */}
                     {data.part3_prompts?.map((prompt, i) => {
                         const angle = (i * (360 / data.part3_prompts!.length)) - 90; 
-                        const radius = 140; 
+                        const radius = 140; // px
                         const x = Math.cos((angle * Math.PI) / 180) * radius;
                         const y = Math.sin((angle * Math.PI) / 180) * radius;
+                        
                         return (
-                            <div key={i} className="absolute w-32 h-32 flex items-center justify-center" style={{ transform: `translate(${x}px, ${y}px)` }}>
+                            <div key={i} className="absolute w-32 h-32 flex items-center justify-center" 
+                                 style={{ transform: `translate(${x}px, ${y}px)` }}>
                                 <div className="bg-white border-2 border-gray-200 rounded-2xl p-2 w-full h-full flex items-center justify-center text-center shadow-lg z-10">
                                     <p className="text-gray-800 font-semibold text-sm leading-tight">{prompt}</p>
                                 </div>
-                                <div className="absolute top-1/2 left-1/2 w-[140px] h-[2px] bg-gray-300 -z-10 origin-left" style={{ transform: `rotate(${angle + 180}deg) translate(0, -50%)`, width: '140px' }}></div>
+                                {/* Connector Line */}
+                                <div className="absolute top-1/2 left-1/2 w-[140px] h-[2px] bg-gray-300 -z-10 origin-left"
+                                     style={{ 
+                                         transform: `rotate(${angle + 180}deg) translate(0, -50%)`,
+                                         width: '140px' 
+                                     }}></div>
                             </div>
                         )
                     })}
                 </div>
+
                 <div className="mt-4 sm:mt-8 flex justify-center pb-4">
-                    <button onClick={() => setPart3Phase('decision')} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-full font-bold hover:bg-blue-700 transition shadow-lg animate-bounce z-30 relative">Next Phase: Decision <ArrowRight className="w-5 h-5" /></button>
+                    <button onClick={() => setPart3Phase('decision')} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-full font-bold hover:bg-blue-700 transition shadow-lg animate-bounce z-30 relative">
+                        Next Phase: Decision <ArrowRight className="w-5 h-5" />
+                    </button>
                 </div>
             </div>
         )}
 
         {part3Phase === 'decision' && (
             <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-6 sm:p-8 rounded-2xl border-2 border-purple-100 shadow-xl text-center">
-                <div className="inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold font-mono mb-6"><Clock className="w-4 h-4 inline mr-1" /> 01:00</div>
+                <div className="inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold font-mono mb-6">
+                    <Clock className="w-4 h-4 inline mr-1" /> 01:00
+                </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-6">Time to Decide</h3>
                 <p className="text-lg sm:text-xl text-gray-700 leading-relaxed font-serif mb-8 px-2">"{data.part3_decision_question}"</p>
+                
                 <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 mx-auto max-w-lg shadow-inner">
                     <p className="text-gray-500 text-sm mb-4">Discuss with your partner (or AI) and reach a conclusion.</p>
                     <div className="flex flex-wrap gap-2 justify-center">
-                        {data.part3_prompts?.map((p, i) => (<span key={i} className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs sm:text-sm">{p}</span>))}
+                        {data.part3_prompts?.map((p, i) => (
+                            <span key={i} className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs sm:text-sm">{p}</span>
+                        ))}
                     </div>
                 </div>
-                <div className="mt-8"><button onClick={() => setPart3Phase('part4')} className="text-purple-600 font-bold hover:underline">Proceed to Part 4 &rarr;</button></div>
+
+                <div className="mt-8">
+                    <button onClick={() => setPart3Phase('part4')} className="text-purple-600 font-bold hover:underline">Proceed to Part 4 &rarr;</button>
+                </div>
             </div>
         )}
 
@@ -441,8 +462,12 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
             <div className="bg-white p-6 sm:p-8 rounded-2xl border-2 border-emerald-100 shadow-xl">
                 <div className="flex items-center gap-3 mb-6 border-b border-emerald-100 pb-4">
                     <div className="bg-emerald-100 p-2 rounded-lg"><Users className="w-6 h-6 text-emerald-700" /></div>
-                    <div><h3 className="text-xl font-bold text-gray-900">Part 4: Discussion</h3><p className="text-emerald-600 text-sm font-medium">Broadening the topic (5 mins)</p></div>
+                    <div>
+                        <h3 className="text-xl font-bold text-gray-900">Part 4: Discussion</h3>
+                        <p className="text-emerald-600 text-sm font-medium">Broadening the topic (5 mins)</p>
+                    </div>
                 </div>
+                
                 <ul className="space-y-4">
                     {data.part4_questions?.map((q, i) => (
                         <li key={i} className="flex gap-4 p-4 bg-emerald-50/50 rounded-xl hover:bg-emerald-50 transition border border-transparent hover:border-emerald-200">
@@ -469,15 +494,29 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                 <h2 className="font-bold text-gray-800">{data.title}</h2>
                 <div className="w-8"></div>
              </div>
+
              <div className="max-w-4xl mx-auto p-8">
-                <div className="text-center mb-8"><h1 className="text-3xl font-black text-gray-900 mb-2">Choose Your Task</h1><p className="text-gray-500">Select one of the options below to start Writing Part 2.</p></div>
+                <div className="text-center mb-8">
+                    <h1 className="text-3xl font-black text-gray-900 mb-2">Choose Your Task</h1>
+                    <p className="text-gray-500">Select one of the options below to start Writing Part 2.</p>
+                </div>
+
                 <div className="grid gap-6">
                     {data.options?.map((opt) => (
-                        <button key={opt.id} onClick={() => setSelectedOption(opt)} className="bg-white p-6 rounded-2xl border-2 border-gray-200 hover:border-blue-500 hover:shadow-xl transition-all text-left group relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-3 bg-gray-100 text-xs font-bold uppercase text-gray-500 rounded-bl-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">{opt.type}</div>
+                        <button 
+                            key={opt.id}
+                            onClick={() => setSelectedOption(opt)}
+                            className="bg-white p-6 rounded-2xl border-2 border-gray-200 hover:border-blue-500 hover:shadow-xl transition-all text-left group relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 p-3 bg-gray-100 text-xs font-bold uppercase text-gray-500 rounded-bl-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                {opt.type}
+                            </div>
                             <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-blue-600">{opt.title}</h3>
                             <p className="text-gray-600 leading-relaxed mb-4">{opt.text}</p>
-                            <div className="flex items-center gap-2 text-sm text-blue-600 font-medium"><LayoutList className="w-4 h-4" /><span>Tip: {opt.tips}</span></div>
+                            <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
+                                <LayoutList className="w-4 h-4" />
+                                <span>Tip: {opt.tips}</span>
+                            </div>
                         </button>
                     ))}
                 </div>
@@ -500,34 +539,105 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
 
     return (
       <div className="bg-white min-h-screen pb-20 animate-in fade-in">
+        {/* FEEDBACK OVERLAY */}
         {feedback && (
             <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] overflow-y-auto relative animate-in zoom-in-95 duration-300">
                     <button onClick={() => setFeedback(null)} className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-gray-200"><XCircle className="w-6 h-6"/></button>
                     <div className="p-8">
-                          <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold text-gray-900">Assessment Result</h2><div className="text-4xl font-black text-blue-600">{feedback.score}/20</div></div>
-                          <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 mb-6"><h4 className="font-bold text-blue-900 mb-2">Feedback</h4><p className="text-blue-800 leading-relaxed">{feedback.feedback}</p></div>
-                          <div className="space-y-4"><h4 className="font-bold text-gray-800 text-lg border-b pb-2">Corrections</h4>{feedback.corrections?.map((corr: any, idx: number) => (<div key={idx} className="bg-white border-l-4 border-red-400 p-4 shadow-sm rounded-r-lg"><div className="flex flex-col md:flex-row gap-4 mb-2"><div className="flex-1 bg-red-50 text-red-800 p-2 rounded line-through">{corr.original}</div><div className="flex-1 bg-green-50 text-green-800 p-2 rounded font-medium">{corr.correction}</div></div><p className="text-sm text-gray-500 italic">💡 {corr.explanation}</p></div>))}</div>
+                          <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-bold text-gray-900">Assessment Result</h2>
+                            <div className="text-4xl font-black text-blue-600">{feedback.score}/20</div>
+                          </div>
+                          <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 mb-6">
+                            <h4 className="font-bold text-blue-900 mb-2">Feedback</h4>
+                            <p className="text-blue-800 leading-relaxed">{feedback.feedback}</p>
+                          </div>
+                          <div className="space-y-4">
+                            <h4 className="font-bold text-gray-800 text-lg border-b pb-2">Corrections</h4>
+                            {feedback.corrections?.map((corr: any, idx: number) => (
+                                <div key={idx} className="bg-white border-l-4 border-red-400 p-4 shadow-sm rounded-r-lg">
+                                    <div className="flex flex-col md:flex-row gap-4 mb-2">
+                                        <div className="flex-1 bg-red-50 text-red-800 p-2 rounded line-through">{corr.original}</div>
+                                        <div className="flex-1 bg-green-50 text-green-800 p-2 rounded font-medium">{corr.correction}</div>
+                                    </div>
+                                    <p className="text-sm text-gray-500 italic">💡 {corr.explanation}</p>
+                                </div>
+                            ))}
+                          </div>
                     </div>
                 </div>
             </div>
         )}
+
         <div className="bg-white border-b border-gray-200 sticky top-0 z-10 px-4 py-3 flex items-center justify-between shadow-sm">
           <button onClick={() => selectedOption ? setSelectedOption(null) : onBack()} className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition"><ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">Back</span></button>
           <h2 className="font-bold text-gray-800 text-lg truncate max-w-[200px] sm:max-w-none">{taskTitle}</h2>
           <div className="flex items-center gap-2 text-sm font-mono bg-gray-100 px-3 py-1 rounded-full text-gray-600"><Clock className="w-4 h-4" /> 45:00</div>
         </div>
+
         <div className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* COLUMNA ESQUERRA: EXAMEN */}
           <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-100px)] custom-scrollbar pr-2">
-            <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3 items-start"><AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" /><div><h3 className="font-bold text-blue-900 text-sm uppercase tracking-wide mb-1">Instructions</h3><p className="text-blue-800 text-sm leading-relaxed">{data.instruction || "Write your answer below."}</p></div></div>
-            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 shadow-sm"><h3 className="font-bold text-gray-900 text-xl mb-4 font-serif">Task</h3>
-              {hasNotes ? (<><p className="text-gray-700 leading-relaxed text-lg mb-8 font-serif border-l-4 border-gray-300 pl-4 italic">{data.content?.input_text}</p><div className="font-bold text-gray-900 mb-6 text-base">{data.content?.question}</div><div className="border-2 border-gray-800 rounded-lg p-5 bg-white mb-6"><h4 className="font-black text-gray-800 uppercase tracking-widest border-b-2 border-gray-200 pb-2 mb-3 text-sm">Notes</h4><ol className="list-decimal list-inside space-y-2 font-bold text-gray-800 ml-2">{data.content?.notes?.map((note: string, i: number) => (<li key={i} className="pl-2">{note}</li>))}</ol></div>{data.content?.opinions && (<div className="bg-gray-50 p-5 rounded-lg border border-gray-200"><h4 className="font-bold text-gray-500 uppercase text-xs mb-3">Some opinions expressed in the discussion:</h4><ul className="space-y-3">{data.content?.opinions.map((op: string, i: number) => (<li key={i} className="flex gap-3 text-gray-600 text-sm italic items-start"><span className="text-gray-300">"</span>{op}<span className="text-gray-300">"</span></li>))}</ul></div>)}</>) : (<p className="text-gray-800 leading-relaxed text-lg font-serif whitespace-pre-line">{taskContent}</p>)}
+            <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3 items-start">
+              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div><h3 className="font-bold text-blue-900 text-sm uppercase tracking-wide mb-1">Instructions</h3><p className="text-blue-800 text-sm leading-relaxed">{data.instruction || "Write your answer below."}</p></div>
+            </div>
+
+            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 shadow-sm">
+              <h3 className="font-bold text-gray-900 text-xl mb-4 font-serif">Task</h3>
+              
+              {hasNotes ? (
+                  <>
+                    <p className="text-gray-700 leading-relaxed text-lg mb-8 font-serif border-l-4 border-gray-300 pl-4 italic">{data.content?.input_text}</p>
+                    <div className="font-bold text-gray-900 mb-6 text-base">{data.content?.question}</div>
+                    <div className="border-2 border-gray-800 rounded-lg p-5 bg-white mb-6">
+                        <h4 className="font-black text-gray-800 uppercase tracking-widest border-b-2 border-gray-200 pb-2 mb-3 text-sm">Notes</h4>
+                        <ol className="list-decimal list-inside space-y-2 font-bold text-gray-800 ml-2">
+                            {data.content?.notes?.map((note: string, i: number) => (<li key={i} className="pl-2">{note}</li>))}
+                        </ol>
+                    </div>
+                    {data.content?.opinions && (
+                        <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                           <h4 className="font-bold text-gray-500 uppercase text-xs mb-3">Some opinions expressed in the discussion:</h4>
+                           <ul className="space-y-3">
+                              {data.content?.opinions.map((op: string, i: number) => (
+                                  <li key={i} className="flex gap-3 text-gray-600 text-sm italic items-start"><span className="text-gray-300">"</span>{op}<span className="text-gray-300">"</span></li>
+                              ))}
+                           </ul>
+                        </div>
+                    )}
+                  </>
+              ) : (
+                  <p className="text-gray-800 leading-relaxed text-lg font-serif whitespace-pre-line">{taskContent}</p>
+              )}
             </div>
           </div>
+
+          {/* COLUMNA DRETA: EDITOR */}
           <div className="flex flex-col h-[calc(100vh-140px)] bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden sticky top-24">
-            <div className="bg-gray-50 p-3 border-b border-gray-200 flex justify-between items-center"><div className="flex items-center gap-2 text-gray-600"><PenTool className="w-4 h-4" /> <span className="text-xs font-bold uppercase">Your {selectedOption?.type || "Essay"}</span></div><div className={`text-xs font-mono px-2 py-1 rounded ${wordCount >= 220 && wordCount <= 260 ? 'bg-green-100 text-green-700' : wordCount > 260 ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-600'}`}>{wordCount} words</div></div>
-            <textarea className="flex-1 w-full p-6 resize-none focus:outline-none font-serif text-lg leading-relaxed text-gray-800" placeholder={`Start writing your ${selectedOption?.type || "essay"} here...`} value={essayAnswer} onChange={handleEssayChange} spellCheck={false} />
-            <div className="p-4 bg-gray-50 border-t border-gray-200"><button onClick={submitWritingTask} disabled={loadingGrade} className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center gap-2 disabled:opacity-50">{loadingGrade ? <Loader2 className="animate-spin w-4 h-4" /> : <Send className="w-4 h-4" />} Submit for Correction</button></div>
+            <div className="bg-gray-50 p-3 border-b border-gray-200 flex justify-between items-center">
+              <div className="flex items-center gap-2 text-gray-600"><PenTool className="w-4 h-4" /> <span className="text-xs font-bold uppercase">Your {selectedOption?.type || "Essay"}</span></div>
+              <div className={`text-xs font-mono px-2 py-1 rounded ${wordCount >= 220 && wordCount <= 260 ? 'bg-green-100 text-green-700' : wordCount > 260 ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-600'}`}>{wordCount} words</div>
+            </div>
+            
+            <textarea
+              className="flex-1 w-full p-6 resize-none focus:outline-none font-serif text-lg leading-relaxed text-gray-800"
+              placeholder={`Start writing your ${selectedOption?.type || "essay"} here...`}
+              value={essayAnswer}
+              onChange={handleEssayChange}
+              spellCheck={false} 
+            />
+            
+            <div className="p-4 bg-gray-50 border-t border-gray-200">
+              <button 
+                  onClick={submitWritingTask}
+                  disabled={loadingGrade}
+                  className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                  {loadingGrade ? <Loader2 className="animate-spin w-4 h-4" /> : <Send className="w-4 h-4" />} Submit for Correction
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -607,7 +717,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
               ) : isGapFill ? (
                 <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">{renderInteractiveText()}</div>
               ) : (
-                data.text && (!isListening || showTranscript || (isListening && !isWriting && !isSpeaking)) && (
+                data.text && (!isListening || showTranscript) && ( // 👈 FIX: Només mostra si showTranscript és true
                     <div className={`prose max-w-none bg-gray-50 p-6 rounded-xl border border-gray-200 leading-relaxed whitespace-pre-line font-serif text-lg text-gray-800 ${isListening && !showTranscript ? 'hidden' : ''}`}>{data.text}</div>
                 )
               )}

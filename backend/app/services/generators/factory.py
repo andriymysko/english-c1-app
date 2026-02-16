@@ -183,6 +183,7 @@ class ExerciseFactory:
         # ==========================================
         
         elif exercise_type == "listening1":
+             # 🚨 MODIFICAT PER A C1 REAL (3 OPCIONS + TEMES SERIOSOS) 🚨
              type_instructions = """
             - Create a "Listening Part 1" exercise.
             - **STRUCTURE**: 3 UNRELATED extracts. 
@@ -193,19 +194,21 @@ class ExerciseFactory:
             - **SCRIPT STYLE**: Scripts must sound NATURAL for C1 level. Use hesitations ("erm...", "well..."), interruptions, idioms, and indirect agreement ("I see your point, but...", "I wouldn't go that far"). Avoid robotic Q&A.
             
             - **CONTENT RULES (C1 LEVEL)**:
-              - **Extract 1**: Professional context (e.g., architects, scientists, engineers discussing a complex problem).
-              - **Extract 2**: Academic/Social context (e.g., friends debating a sociological trend, article, or lecture).
-              - **Extract 3**: Cultural/Arts context (e.g., critics reviewing a film, book, or exhibition).
-              - **BANNED**: No shop returns, no restaurant orders, no basic travel directions.
+              - **Extract 1**: Professional context (e.g., two architects discussing a design flaw, scientists analyzing data).
+              - **Extract 2**: Academic/Social context (e.g., two friends debating a complex social trend or article).
+              - **Extract 3**: Cultural/Arts context (e.g., two critics reviewing a controversial film or exhibition).
+              - **BANNED TOPICS**: No shop returns, no restaurant orders, no asking for directions (Too B1/B2).
             
             - **QUESTION TYPES (2 per extract = 6 total)**:
+              - Do NOT ask for basic facts.
               - Focus on **AGREEMENT** ("What do they both agree on?").
-              - Focus on **ATTITUDE/FEELING** ("How does the woman feel about...?").
-              - Focus on **PURPOSE/OPINION**.
-              
+              - Focus on **ATTITUDE/FEELING** ("How does the woman feel about the man's suggestion?").
+              - Focus on **PURPOSE** ("Why does the man mention X?").
+            
             - **DISTRACTOR LOGIC**: The incorrect options must be mentioned in the text but must be wrong due to a specific detail (e.g., only one person agrees, or it refers to the past, not the present).
             
             - **JSON FORMAT**: Ensure the 'options' list has exactly 3 items.
+            - TIMESTAMPS: Required "MM:SS".
             """
              # Sobreescrivim l'exemple JSON per assegurar que en fa 3
              json_fields_example = """
