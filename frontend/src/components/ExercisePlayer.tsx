@@ -708,14 +708,13 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
 
            <div className={!user?.is_vip && isListening ? "filter blur-sm pointer-events-none select-none opacity-50 transition-all duration-500" : ""}>
               
-              {/* LOGICA DE RENDERITZAT */}
+              {/* LOGICA DE RENDERITZAT (ARA SÍ CORRECTA I COMPLETA) */}
               {isSpeakingPart3 ? (
                   renderSpeakingPart3()
               ) : isListeningPart2 ? (
-                  // 👉 NOU: Renderitzador específic per Listening Part 2
+                  // 👉 FIX DEFINITIU: Pintem les preguntes I el text si el botó està activat
                   <>
                     {renderListeningPart2()}
-                    {/* AQUI ESTÀ EL FIX DEL TRANSCRIPT */}
                     {data.text && showTranscript && (
                         <div className="mt-8 prose max-w-none bg-gray-50 p-6 rounded-xl border border-gray-200 leading-relaxed whitespace-pre-line font-serif text-lg text-gray-800 animate-in fade-in">
                             <h4 className="font-bold text-gray-500 mb-2 uppercase text-sm border-b pb-2">Transcript</h4>
@@ -726,7 +725,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
               ) : isGapFill ? (
                 <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">{renderInteractiveText()}</div>
               ) : (
-                data.text && (!isListening || showTranscript) && ( // 👈 FIX: Només mostra si showTranscript és true
+                data.text && (!isListening || showTranscript) && (
                     <div className={`prose max-w-none bg-gray-50 p-6 rounded-xl border border-gray-200 leading-relaxed whitespace-pre-line font-serif text-lg text-gray-800 ${isListening && !showTranscript ? 'hidden' : ''}`}>{data.text}</div>
                 )
               )}
