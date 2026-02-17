@@ -1,6 +1,6 @@
-import { auth } from "./firebase"; // Ensure this path is correct for your project structure
+// ⚠️ IMPORTANT: Ajusta la ruta "../firebase" si el fitxer està a la mateixa carpeta ("./firebase")
+import { auth } from "./firebase"; 
 
-// Use your Render URL as the default production URL
 const API_URL = import.meta.env.VITE_API_URL || "https://english-c1-api.onrender.com";
 
 // --- HELPERS ---
@@ -14,7 +14,7 @@ const getHeaders = async () => {
   return headers;
 };
 
-// --- C1 TOPICS LIST ---
+// --- LLISTA DE TEMES C1 PER FORÇAR VARIETAT ---
 const C1_TOPICS = [
   "Globalization & Cultural Identity",
   "The Impact of Artificial Intelligence",
@@ -33,17 +33,18 @@ const C1_TOPICS = [
 // --- EXERCISES ---
 export async function fetchExercise(type: string, userId: string, level: string = "C1") {
   
+  // 🔥 FIX: Fem servir userId en un log per evitar l'error de TypeScript "unused variable"
+  console.log(`[API] Fetching ${type} for user: ${userId} at level ${level}`);
+
   // ---------------------------------------------------------
   // 🗣️ SPEAKING PART 1: IA GENERATION + RANDOM TOPIC INJECTION
   // ---------------------------------------------------------
   if (type === 'speaking1') {
     const randomTopic = C1_TOPICS[Math.floor(Math.random() * C1_TOPICS.length)];
     
-    // Using the generic endpoint, assuming the backend handles topic generation internally 
-    // or you can add ?topic=... if your backend supports it.
-    // For now, we rely on the standard GET endpoint.
     try {
-        const response = await fetch(`${API_URL}/exercise/speaking1?level=${level}`, {
+        // Fem servir GET i passem el topic com a paràmetre query
+        const response = await fetch(`${API_URL}/exercise/speaking1?level=${level}&topic=${encodeURIComponent(randomTopic)}`, {
             method: "GET",
             headers: await getHeaders(),
         });
@@ -52,7 +53,6 @@ export async function fetchExercise(type: string, userId: string, level: string 
         
         const data = await response.json();
         
-        // We enrich the data locally with the topic title for the UI
         return {
             ...data,
             title: `Speaking Part 1: ${randomTopic}`,
@@ -61,6 +61,7 @@ export async function fetchExercise(type: string, userId: string, level: string 
 
     } catch (error) {
         console.error("Error generating speaking:", error);
+        // Fallback d'emergència
         return {
             id: 'speaking1_fallback',
             type: 'speaking',
@@ -72,7 +73,7 @@ export async function fetchExercise(type: string, userId: string, level: string 
   }
 
   // ---------------------------------------------------------
-  // ⚡ SIMULATED WRITING PART 1 (ESSAY)
+  // ⚡ SIMULACIÓ WRITING PART 1 (ESSAY)
   // ---------------------------------------------------------
   if (type === 'writing1') {
     await new Promise(resolve => setTimeout(resolve, 600));
@@ -95,7 +96,7 @@ export async function fetchExercise(type: string, userId: string, level: string 
   }
 
   // ---------------------------------------------------------
-  // ⚡ SIMULATED WRITING PART 2 (CHOICE)
+  // ⚡ SIMULACIÓ WRITING PART 2 (CHOICE)
   // ---------------------------------------------------------
   if (type === 'writing2') {
     await new Promise(resolve => setTimeout(resolve, 600));
@@ -131,10 +132,10 @@ export async function fetchExercise(type: string, userId: string, level: string 
   }
 
   // ---------------------------------------------------------
-  // 🚀 STANDARD EXERCISES (CONNECTS TO NEW BACKEND)
+  // 🚀 EXERCICIS ESTÀNDARD (LISTENING, READING) - NOU BACKEND
   // ---------------------------------------------------------
   try {
-    // ⚠️ CRITICAL FIX: Changed from POST /get_exercise/ to GET /exercise/{type}
+    // ⚠️ CRÍTIC: Canviat de POST /get_exercise/ a GET /exercise/{type}
     const response = await fetch(`${API_URL}/exercise/${type}?level=${level}`, {
         method: "GET",
         headers: await getHeaders(),
@@ -142,8 +143,7 @@ export async function fetchExercise(type: string, userId: string, level: string 
 
     if (response.status === 429) throw new Error("DAILY_LIMIT");
     if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch exercise: ${response.status} ${errorText}`);
+        throw new Error(`API Error: ${response.status}`);
     }
     
     return await response.json();
@@ -154,26 +154,24 @@ export async function fetchExercise(type: string, userId: string, level: string 
 }
 
 // ---------------------------------------------------------
-// OTHER API FUNCTIONS
+// FUNCIONS ADICIONALS (PRELOAD, STATS, ETC.)
 // ---------------------------------------------------------
 
-// Start background generation for the next exercise
 export async function preloadExercise(type: string, level: string = "C1") {
   try {
-    // This triggers the GET request which, in your new backend logic, 
-    // checks the DB and triggers a background generation task.
-    // We don't need to wait for the result or use the data here.
+    // Simplement despertem l'endpoint GET perquè el backend faci la seva màgia de pool (background generation)
+    // No esperem la resposta (fire and forget)
     fetch(`${API_URL}/exercise/${type}?level=${level}`, {
         method: "GET",
         headers: await getHeaders(),
-    }).catch(e => console.warn("Preload background fetch warning:", e));
+    }).then(() => console.log("🔄 Preload triggered for:", type)).catch(() => {});
   } catch (err) { 
-      console.warn("Preload trigger failed:", err); 
+      console.warn("Preload warning:", err); 
   }
 }
 
 export async function generateFullExam(userId: string, level: string = "C1") {
-  // Assuming you have or will implement this endpoint
+  // Assumint que tens /generate_full_exam implementat o simulat
   const response = await fetch(`${API_URL}/generate_full_exam`, {
     method: "POST",
     headers: await getHeaders(),
@@ -185,13 +183,14 @@ export async function generateFullExam(userId: string, level: string = "C1") {
 }
 
 export async function submitResult(data: any) {
-  // Ensure the endpoint matches your backend (no trailing slash is safer usually)
-  const response = await fetch(`${API_URL}/submit_result`, {
-    method: "POST",
-    headers: await getHeaders(),
-    body: JSON.stringify(data),
-  });
-  return response.json();
+  try {
+    const response = await fetch(`${API_URL}/submit_result`, {
+        method: "POST",
+        headers: await getHeaders(),
+        body: JSON.stringify(data)
+    });
+    return await response.json();
+  } catch(e) { console.error("Error submitting result:", e); }
 }
 
 export async function getUserStats(userId: string) {
@@ -233,7 +232,7 @@ export async function transcribeAudio(audioBlob: Blob) {
   const formData = new FormData();
   formData.append("file", audioBlob, "recording.webm");
   
-  // Note: No headers here, FormData handles Content-Type boundary automatically
+  // Nota: FormData posa automàticament el Content-Type correcte, no l'hem de posar manualment
   const response = await fetch(`${API_URL}/transcribe`, { 
       method: "POST", 
       body: formData 
@@ -243,21 +242,14 @@ export async function transcribeAudio(audioBlob: Blob) {
 }
 
 export async function fetchAudio(text: string) {
-  // Using /tts endpoint if available, otherwise fallback to existing
-  const response = await fetch(`${API_URL}/tts`, {
+  const response = await fetch(`${API_URL}/tts`, { 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
   });
   if (!response.ok) throw new Error("Failed");
-  // Assuming backend returns { "audio_url": "..." } or directly the blob
-  // Adjust based on your backend response. If it returns JSON with URL:
   const data = await response.json();
   return data.audio_url; 
-  
-  // If it returns raw blob:
-  // const blob = await response.blob();
-  // return URL.createObjectURL(blob);
 }
 
 export async function gradeWriting(userId: string, task: string, text: string) {
@@ -271,7 +263,6 @@ export async function gradeWriting(userId: string, task: string, text: string) {
 }
 
 export async function gradeSpeaking(userId: string, task: string, text: string) {
-    // Assuming endpoint /grade/speaking exists
     const response = await fetch(`${API_URL}/grade/speaking`, {
         method: "POST",
         headers: await getHeaders(),
@@ -325,7 +316,7 @@ export async function reportIssue(userId: string, exerciseData: any, questionInd
   });
 }
 
-// Deprecated or alias function - mapping to fetchExercise for compatibility
+// Deprecated or alias function
 export const generateExercise = async (type: string, level: string = "C1") => {
   return fetchExercise(type, "default", level);
 };

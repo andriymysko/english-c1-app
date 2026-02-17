@@ -61,35 +61,25 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const { user } = useAuth();
 
   // -----------------------------------------------------------
-  // 🔍 ZONA DE DEBUGGING (MIRA LA CONSOLA F12)
+  // 🔍 ZONA DE DEBUGGING (Logs per consola F12)
   // -----------------------------------------------------------
   useEffect(() => {
-    console.log("🚀 [ExercisePlayer] Dades rebudes:", data);
-    console.log("📋 [ExercisePlayer] Tipus:", data.type);
-    
+    console.log("🚀 [ExercisePlayer] Dades rebudes per l'exercici:", data.type);
     if (data.type === 'listening2') {
-        console.log("🐛 [DEBUG LISTENING 2] Text disponible?", !!data.text);
-        if (data.text) console.log("📜 [DEBUG LISTENING 2] Longitud del text:", data.text.length);
-        else console.error("❌ [ERROR] Listening 2 sense text! Revisa el Backend (factory.py).");
+      console.log("🐛 [DEBUG LISTENING 2] Hi ha text disponible?:", !!data.text);
+      if (data.text) console.log("📜 [DEBUG LISTENING 2] Longitud:", data.text.length);
     }
   }, [data]);
 
   // -----------------------------------------------------------
-  // 1. GESTIÓ DE SELECCIÓ (WRITING PART 2)
+  // ESTATS
   // -----------------------------------------------------------
   const isChoiceMode = data.type === 'writing_choice';
   const [selectedOption, setSelectedOption] = useState<any>(null);
-
-  // -----------------------------------------------------------
-  // 2. GESTIÓ ESSAY/WRITING EXAM (PART 1 & PART 2)
-  // -----------------------------------------------------------
   const isEssayExam = data.id === 'writing1' || data.type === 'essay' || (data.type === 'writing1' && data.content);
   const [essayAnswer, setEssayAnswer] = useState("");
   const [wordCount, setWordCount] = useState(0);
 
-  // -----------------------------------------------------------
-  // 3. ESTATS GENERALS & STANDARD MODE
-  // -----------------------------------------------------------
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -108,10 +98,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
-
-  // -----------------------------------------------------------
-  // 4. ESTAT NOU: SPEAKING PART 3 (FASES)
-  // -----------------------------------------------------------
   const [part3Phase, setPart3Phase] = useState<'discussion' | 'decision' | 'part4'>('discussion');
 
   // FLAGS
@@ -120,13 +106,8 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const isSpeakingPart3 = data.type === "speaking3";
   const isListening = data.type.startsWith("listening");
   const isPart4 = data.type === "reading_and_use_of_language4";
-  
-  // ⚠️ FIX: Identifiquem específicament Listening Part 2
   const isListeningPart2 = data.type === "listening2";
-  
-  // ⚠️ FIX: TREIEM 'listening2' d'aquesta llista perquè tingui el seu propi renderitzador
   const isGapFill = ["reading_and_use_of_language1", "reading_and_use_of_language2", "reading_and_use_of_language3"].includes(data.type);
-  
   const isInteractive = !isWriting && !isSpeaking && !isEssayExam && !selectedOption && !isChoiceMode;
 
   // --- HANDLERS ---
@@ -135,7 +116,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     if (isDownloading) return;
     setIsDownloading(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"; 
+      const API_URL = import.meta.env.VITE_API_URL || "https://english-c1-api.onrender.com"; 
       const response = await fetch(`${API_URL}/download_pdf`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -182,7 +163,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     setEssayAnswer("");
     setShowTranscript(false);
     setSelectedOption(null);
-    setPart3Phase('discussion'); // Reset speaking phase
+    setPart3Phase('discussion');
   }, [data.id, data.title]);
 
   useEffect(() => {
@@ -193,7 +174,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     }
   }, [data.type, data.level, isInteractive, isListening, data.text]);
 
-  // --- WRITING EXAM HANDLERS ---
   const handleEssayChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const text = e.target.value;
     setEssayAnswer(text);
@@ -202,15 +182,12 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
 
   const submitWritingTask = async () => {
      if (wordCount < 220) {
-       toast.warning("Too short!", { description: "Aim for at least 220 words for C1 level." });
+       toast.warning("Too short!", { description: "Aim for at least 220 words." });
        return;
      }
      setLoadingGrade(true);
      try {
-       const taskPrompt = selectedOption 
-           ? `TASK: ${selectedOption.title}\nINSTRUCTION: ${selectedOption.text}\nTIP: ${selectedOption.tips}`
-           : (data.instruction + "\n" + (data.content?.question || data.text));
-       
+       const taskPrompt = selectedOption ? selectedOption.title : (data.instruction || data.text);
        const result = await gradeWriting(user?.uid || "anon", taskPrompt, essayAnswer);
        setFeedback(result);
        playSuccessSound();
@@ -222,7 +199,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
      }
   };
 
-  // --- STANDARD HANDLERS ---
   const toggleRecording = async () => {
     if (isRecording) {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
@@ -244,7 +220,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
         try {
           const result = await transcribeAudio(audioBlob);
           setInputText(prev => prev + " " + result.text);
-        } catch (err) { alert("Could not transcribe audio."); } finally { setIsTranscribing(false); }
+        } catch (err) { alert("Could not transcribe."); } finally { setIsTranscribing(false); }
       };
       mediaRecorder.start();
       setIsRecording(true);
@@ -255,14 +231,10 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     if (!user || !inputText) return;
     setLoadingGrade(true);
     try {
-      const fullTask = isSpeakingPart3 
-        ? JSON.stringify({ q: data.part3_central_question, d: data.part3_decision_question, p4: data.part4_questions }) 
-        : (data.instructions + " " + (data.text || ""));
-        
+      const fullTask = isSpeakingPart3 ? JSON.stringify({ q: data.part3_central_question }) : (data.instructions || "");
       let result;
       if (isWriting) result = await gradeWriting(user.uid, fullTask, inputText);
       else result = await gradeSpeaking(user.uid, fullTask, inputText);
-      
       setFeedback(result);
       playSuccessSound();
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
@@ -289,21 +261,21 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
       const isCorrect = (userAns === cleanCorrectAnswer || userAns === q.answer.trim().toLowerCase());
       if (isCorrect) correct++;
       else mistakes.push({
-        question: q.question, stem: q.stem || "", user_answer: userAnswers[key] || "", correct_answer: q.answer, type: data.type
+        question: q.question, user_answer: userAnswers[key] || "", correct_answer: q.answer
       });
     });
     setScore(correct);
     setShowAnswers(true);
     if (correct > (data.questions.length / 2)) {
       playSuccessSound();
-      confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#2563eb', '#3b82f6', '#60a5fa'] });
+      confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
     } else { playErrorSound(); }
     if (user) {
-      submitResult({ user_id: user.uid, exercise_type: data.type, exercise_id: data.id || null, score: correct, total: data.questions.length, mistakes: mistakes });
+      submitResult({ user_id: user.uid, exercise_type: data.type, score: correct, total: data.questions.length, mistakes: mistakes });
     }
   };
 
-  // --- RENDERITZADOR DE READING/USE OF ENGLISH (TEXT GAP FILL) ---
+  // --- RENDERITZADORS ---
   const renderInteractiveText = () => {
     if (!data.text) return null;
     const parts = data.text.split(/\[\s*(\d+)\s*\]/g);
@@ -313,31 +285,28 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
           if (!isNaN(Number(part)) && part.trim() !== "") {
             const questionNumString = part.trim();
             const question = data.questions.find(q => q.question === questionNumString) || data.questions[parseInt(questionNumString) - 1];
-            if (!question) return <span key={index} className="text-red-500 font-bold">[{part}]</span>;
+            if (!question) return <span key={index}>[{part}]</span>;
             const qKey = question.question || index.toString();
             const userAnswer = userAnswers[qKey] || "";
             const isCorrect = showAnswers && (userAnswer.toLowerCase() === cleanOptionText(question.answer).toLowerCase());
             const isWrong = showAnswers && !isCorrect;
-            const wrapperClass = `inline-flex items-center align-middle mx-1 my-1 rounded-md border shadow-sm transition-all overflow-hidden relative ${showAnswers ? (isCorrect ? "border-green-500 ring-1 ring-green-500" : "border-red-500 ring-1 ring-red-500") : "border-gray-300 bg-white hover:border-blue-400 focus-within:border-blue-500"}`;
-            const badgeClass = `px-2 py-1.5 text-xs font-bold border-r select-none h-full flex items-center justify-center ${showAnswers ? (isCorrect ? "bg-green-100 text-green-700 border-green-300" : "bg-red-100 text-red-700 border-red-300") : "bg-slate-100 text-slate-500 border-gray-200"}`;
-            const inputClass = "outline-none bg-transparent px-2 py-1 text-base min-w-[80px] text-gray-800 font-sans h-full";
             return (
               <span key={index} className="group relative inline-block">
-                <span className={wrapperClass}>
-                  <span className={badgeClass}>{questionNumString}</span>
+                <span className="inline-flex items-center align-middle mx-1 my-1 rounded-md border shadow-sm bg-white">
+                  <span className="px-2 py-1.5 text-xs font-bold border-r bg-slate-100 text-slate-500">{questionNumString}</span>
                   {data.type === "reading_and_use_of_language1" && question.options ? (
-                    <div className="relative h-full">
-                      <select value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`${inputClass} appearance-none pr-7 cursor-pointer`}>
+                    <div className="relative">
+                      <select value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className="outline-none bg-transparent px-2 py-1 appearance-none pr-6">
                         <option value="">Choose...</option>
                         {question.options.map((opt: any, i: number) => (<option key={i} value={cleanOptionText(opt)}>{cleanOptionText(opt)}</option>))}
                       </select>
-                      <ChevronDown className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 opacity-50 pointer-events-none" />
+                      <ChevronDown className="w-3 h-3 absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none opacity-40"/>
                     </div>
                   ) : (
-                    <input type="text" value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} autoComplete="off" className={inputClass} style={{ width: `${Math.max(80, userAnswer.length * 10)}px` }} />
+                    <input type="text" value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} autoComplete="off" className="outline-none bg-transparent px-2 py-1 min-w-[80px]" />
                   )}
                 </span>
-                {isWrong && <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg pointer-events-none"><span className="text-green-300 font-bold mr-1">✓</span> {cleanOptionText(question.answer)}</span>}
+                {isWrong && <span className="absolute -bottom-8 left-0 z-20 bg-gray-900 text-white text-xs px-2 py-1 rounded">✓ {cleanOptionText(question.answer)}</span>}
               </span>
             );
           }
@@ -347,7 +316,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     );
   };
 
-  // --- RENDERITZADOR DE LISTENING PART 2 (SENTENCE COMPLETION) ---
   const renderListeningPart2 = () => {
     return (
         <div className="space-y-6">
@@ -358,7 +326,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                 const cleanCorrectAnswer = cleanOptionText(q.answer);
                 const isCorrect = showAnswers && (userAnswer.toLowerCase() === cleanCorrectAnswer.toLowerCase());
                 const isWrong = showAnswers && !isCorrect;
-
                 return (
                     <div key={idx} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                         <div className="flex items-start gap-4">
@@ -369,13 +336,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                                         {part}
                                         {i < parts.length - 1 && (
                                             <span className="inline-block mx-2 relative">
-                                                <input 
-                                                    type="text" 
-                                                    value={userAnswer} 
-                                                    onChange={(e) => handleSelect(qKey, e.target.value)} 
-                                                    disabled={showAnswers}
-                                                    className={`border-b-2 outline-none px-2 py-1 w-48 text-center font-sans font-medium transition-colors ${showAnswers ? (isCorrect ? "border-green-500 bg-green-50 text-green-900" : "border-red-500 bg-red-50 text-red-900") : "border-gray-300 focus:border-blue-500 bg-gray-50"}`} 
-                                                />
+                                                <input type="text" value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`border-b-2 outline-none px-2 py-1 w-48 text-center transition-colors ${showAnswers ? (isCorrect ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50") : "border-gray-300 focus:border-blue-500"}`} />
                                                 {isWrong && <div className="absolute top-full left-0 w-full text-center text-xs text-green-700 font-bold mt-1 bg-green-100 px-1 rounded shadow-sm z-10"><CheckCircle className="w-3 h-3 inline mr-1"/>{cleanCorrectAnswer}</div>}
                                             </span>
                                         )}
@@ -390,105 +351,36 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     )
   };
 
-  // --- RENDERITZADOR DE SPEAKING PART 3 (DIAGRAMA RESPONSIVE) ---
   const renderSpeakingPart3 = () => {
     return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-        {/* PHASE INDICATOR */}
+      <div className="space-y-8 animate-in fade-in">
         <div className="flex justify-center mb-6">
-            <div className="bg-gray-100 p-1 rounded-full flex text-sm font-medium overflow-x-auto max-w-full">
-                <button onClick={() => setPart3Phase('discussion')} className={`px-3 sm:px-4 py-2 rounded-full transition-all whitespace-nowrap ${part3Phase === 'discussion' ? 'bg-white shadow-md text-blue-700' : 'text-gray-500 hover:text-gray-900'}`}>1. Discussion (2')</button>
-                <button onClick={() => setPart3Phase('decision')} className={`px-3 sm:px-4 py-2 rounded-full transition-all flex items-center gap-2 whitespace-nowrap ${part3Phase === 'decision' ? 'bg-white shadow-md text-purple-700' : 'text-gray-500 hover:text-gray-900'}`}>2. Decision (1') {part3Phase === 'discussion' && <Lock className="w-3 h-3"/>}</button>
-                <button onClick={() => setPart3Phase('part4')} className={`px-3 sm:px-4 py-2 rounded-full transition-all flex items-center gap-2 whitespace-nowrap ${part3Phase === 'part4' ? 'bg-white shadow-md text-emerald-700' : 'text-gray-500 hover:text-gray-900'}`}>3. Part 4 {part3Phase !== 'part4' && <Lock className="w-3 h-3"/>}</button>
+            <div className="bg-gray-100 p-1 rounded-full flex text-sm font-medium">
+                <button onClick={() => setPart3Phase('discussion')} className={`px-4 py-2 rounded-full ${part3Phase === 'discussion' ? 'bg-white shadow text-blue-700' : 'text-gray-500'}`}>1. Discussion</button>
+                <button onClick={() => setPart3Phase('decision')} className={`px-4 py-2 rounded-full ${part3Phase === 'decision' ? 'bg-white shadow text-purple-700' : 'text-gray-500'}`}>2. Decision</button>
+                <button onClick={() => setPart3Phase('part4')} className={`px-4 py-2 rounded-full ${part3Phase === 'part4' ? 'bg-white shadow text-emerald-700' : 'text-gray-500'}`}>3. Part 4</button>
             </div>
         </div>
-
         {part3Phase === 'discussion' && (
-            <div className="bg-white p-4 sm:p-8 rounded-2xl border-2 border-blue-100 shadow-xl relative overflow-hidden">
-                <div className="absolute top-4 right-4 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold font-mono flex items-center gap-2 z-20">
-                    <Clock className="w-4 h-4" /> 02:00
-                </div>
-                <h3 className="text-center text-gray-500 text-sm font-bold uppercase tracking-widest mb-4 sm:mb-8 mt-8 sm:mt-0">Collaborative Task</h3>
-                
-                <div className="relative max-w-lg mx-auto aspect-square flex items-center justify-center scale-[0.60] sm:scale-100 origin-center -my-24 sm:my-0">
-                    {/* Central Bubble */}
-                    <div className="absolute inset-0 flex items-center justify-center z-10">
-                        <div className="w-48 h-48 bg-blue-600 rounded-full flex items-center justify-center p-4 text-center shadow-xl border-4 border-white ring-4 ring-blue-100 z-20">
-                            <p className="text-white font-bold text-lg leading-tight drop-shadow-md">{data.part3_central_question || "Central Question"}</p>
-                        </div>
-                    </div>
-                    {/* Outer Bubbles */}
-                    {data.part3_prompts?.map((prompt, i) => {
-                        const angle = (i * (360 / data.part3_prompts!.length)) - 90; 
-                        const radius = 140; // px
-                        const x = Math.cos((angle * Math.PI) / 180) * radius;
-                        const y = Math.sin((angle * Math.PI) / 180) * radius;
-                        
-                        return (
-                            <div key={i} className="absolute w-32 h-32 flex items-center justify-center" 
-                                 style={{ transform: `translate(${x}px, ${y}px)` }}>
-                                <div className="bg-white border-2 border-gray-200 rounded-2xl p-2 w-full h-full flex items-center justify-center text-center shadow-lg z-10">
-                                    <p className="text-gray-800 font-semibold text-sm leading-tight">{prompt}</p>
-                                </div>
-                                {/* Connector Line */}
-                                <div className="absolute top-1/2 left-1/2 w-[140px] h-[2px] bg-gray-300 -z-10 origin-left"
-                                     style={{ 
-                                         transform: `rotate(${angle + 180}deg) translate(0, -50%)`,
-                                         width: '140px' 
-                                     }}></div>
-                            </div>
-                        )
-                    })}
-                </div>
-
-                <div className="mt-4 sm:mt-8 flex justify-center pb-4">
-                    <button onClick={() => setPart3Phase('decision')} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-full font-bold hover:bg-blue-700 transition shadow-lg animate-bounce z-30 relative">
-                        Next Phase: Decision <ArrowRight className="w-5 h-5" />
-                    </button>
+            <div className="bg-white p-8 rounded-2xl border-2 border-blue-100 text-center shadow-lg">
+                <h3 className="font-bold text-gray-400 mb-6 uppercase tracking-widest text-sm">Collaborative Task (2 mins)</h3>
+                <div className="text-2xl font-black text-blue-600 mb-8 leading-tight">{data.part3_central_question}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {data.part3_prompts?.map((p,i) => <div key={i} className="bg-blue-50 p-4 rounded-xl border border-blue-200 font-medium text-blue-900">{p}</div>)}
                 </div>
             </div>
         )}
-
         {part3Phase === 'decision' && (
-            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-6 sm:p-8 rounded-2xl border-2 border-purple-100 shadow-xl text-center">
-                <div className="inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold font-mono mb-6">
-                    <Clock className="w-4 h-4 inline mr-1" /> 01:00
-                </div>
-                <h3 className="text-2xl font-black text-gray-900 mb-6">Time to Decide</h3>
-                <p className="text-lg sm:text-xl text-gray-700 leading-relaxed font-serif mb-8 px-2">"{data.part3_decision_question}"</p>
-                
-                <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 mx-auto max-w-lg shadow-inner">
-                    <p className="text-gray-500 text-sm mb-4">Discuss with your partner (or AI) and reach a conclusion.</p>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                        {data.part3_prompts?.map((p, i) => (
-                            <span key={i} className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs sm:text-sm">{p}</span>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="mt-8">
-                    <button onClick={() => setPart3Phase('part4')} className="text-purple-600 font-bold hover:underline">Proceed to Part 4 &rarr;</button>
-                </div>
+            <div className="bg-purple-50 p-8 rounded-2xl border-2 border-purple-100 text-center shadow-lg animate-in zoom-in-95">
+                <h3 className="font-bold text-purple-400 mb-6 uppercase tracking-widest text-sm">Decision Phase (1 min)</h3>
+                <p className="text-xl font-bold text-purple-900 leading-relaxed italic">"{data.part3_decision_question}"</p>
             </div>
         )}
-
         {part3Phase === 'part4' && (
-            <div className="bg-white p-6 sm:p-8 rounded-2xl border-2 border-emerald-100 shadow-xl">
-                <div className="flex items-center gap-3 mb-6 border-b border-emerald-100 pb-4">
-                    <div className="bg-emerald-100 p-2 rounded-lg"><Users className="w-6 h-6 text-emerald-700" /></div>
-                    <div>
-                        <h3 className="text-xl font-bold text-gray-900">Part 4: Discussion</h3>
-                        <p className="text-emerald-600 text-sm font-medium">Broadening the topic (5 mins)</p>
-                    </div>
-                </div>
-                
+            <div className="bg-emerald-50 p-8 rounded-2xl border-2 border-emerald-100 shadow-lg">
+                <h3 className="font-bold text-emerald-600 mb-6 flex items-center gap-2 uppercase tracking-widest text-sm"><Users className="w-5 h-5"/> Part 4: Discussion</h3>
                 <ul className="space-y-4">
-                    {data.part4_questions?.map((q, i) => (
-                        <li key={i} className="flex gap-4 p-4 bg-emerald-50/50 rounded-xl hover:bg-emerald-50 transition border border-transparent hover:border-emerald-200">
-                            <div className="bg-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-emerald-600 shadow-sm flex-shrink-0">{i + 1}</div>
-                            <p className="text-gray-800 font-medium text-base sm:text-lg">{q}</p>
-                        </li>
-                    ))}
+                    {data.part4_questions?.map((q,i) => <li key={i} className="flex gap-3 text-emerald-900 font-medium bg-white/50 p-3 rounded-lg"><span className="text-emerald-400 font-black">{i+1}.</span> {q}</li>)}
                 </ul>
             </div>
         )}
@@ -496,41 +388,21 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     );
   };
 
-
   // ==========================================================
-  // 🌟 RENDER 1: SELECCIÓ DE TASCA (WRITING PART 2 CHOICE)
+  // RENDER PER WRITING O MODES ESPECIALS
   // ==========================================================
   if (isChoiceMode && !selectedOption) {
     return (
-        <div className="bg-slate-50 min-h-screen pb-20 animate-in fade-in">
-             <div className="bg-white border-b border-gray-200 sticky top-0 z-10 px-4 py-3 flex items-center justify-between shadow-sm">
-                <button onClick={onBack} className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition"><ArrowLeft className="w-5 h-5" /> Back</button>
-                <h2 className="font-bold text-gray-800">{data.title}</h2>
-                <div className="w-8"></div>
-             </div>
-
-             <div className="max-w-4xl mx-auto p-8">
-                <div className="text-center mb-8">
-                    <h1 className="text-3xl font-black text-gray-900 mb-2">Choose Your Task</h1>
-                    <p className="text-gray-500">Select one of the options below to start Writing Part 2.</p>
-                </div>
-
+        <div className="bg-slate-50 min-h-screen p-8 animate-in fade-in">
+             <div className="max-w-4xl mx-auto">
+                <button onClick={onBack} className="flex items-center gap-2 text-gray-500 mb-8"><ArrowLeft className="w-5 h-5" /> Back</button>
+                <h1 className="text-3xl font-black mb-8">Choose Your Writing Task</h1>
                 <div className="grid gap-6">
                     {data.options?.map((opt) => (
-                        <button 
-                            key={opt.id}
-                            onClick={() => setSelectedOption(opt)}
-                            className="bg-white p-6 rounded-2xl border-2 border-gray-200 hover:border-blue-500 hover:shadow-xl transition-all text-left group relative overflow-hidden"
-                        >
-                            <div className="absolute top-0 right-0 p-3 bg-gray-100 text-xs font-bold uppercase text-gray-500 rounded-bl-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                {opt.type}
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-blue-600">{opt.title}</h3>
-                            <p className="text-gray-600 leading-relaxed mb-4">{opt.text}</p>
-                            <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
-                                <LayoutList className="w-4 h-4" />
-                                <span>Tip: {opt.tips}</span>
-                            </div>
+                        <button key={opt.id} onClick={() => setSelectedOption(opt)} className="bg-white p-6 rounded-2xl border-2 hover:border-blue-500 text-left transition-all group shadow-sm">
+                            <h3 className="text-xl font-bold mb-2 group-hover:text-blue-600">{opt.title}</h3>
+                            <p className="text-gray-600 mb-4">{opt.text}</p>
+                            <span className="text-sm font-bold text-blue-500 flex items-center gap-2"><LayoutList className="w-4 h-4"/> Tip: {opt.tips}</span>
                         </button>
                     ))}
                 </div>
@@ -539,297 +411,259 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     );
   }
 
-  // ==========================================================
-  // 🌟 RENDER 2: EDITOR D'ESCRIPTURA (PART 1 O PART 2 SELECCIONADA)
-  // ==========================================================
   if (isEssayExam || selectedOption) {
     const taskTitle = selectedOption ? selectedOption.title : data.title;
     const taskContent = selectedOption ? selectedOption.text : (data.content?.input_text || data.text);
-    useEffect(() => {
-        const typeToPreload = selectedOption ? 'writing2' : data.type;
-        preloadExercise(typeToPreload, data.level || "C1");
-    }, [data.id, selectedOption]);
-    const hasNotes = !selectedOption && data.content?.notes; 
-
     return (
-      <div className="bg-white min-h-screen pb-20 animate-in fade-in">
-        {/* FEEDBACK OVERLAY */}
+      <div className="bg-white min-h-screen flex flex-col animate-in fade-in">
         {feedback && (
-            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] overflow-y-auto relative animate-in zoom-in-95 duration-300">
-                    <button onClick={() => setFeedback(null)} className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-gray-200"><XCircle className="w-6 h-6"/></button>
-                    <div className="p-8">
-                          <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">Assessment Result</h2>
-                            <div className="text-4xl font-black text-blue-600">{feedback.score}/20</div>
-                          </div>
-                          <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 mb-6">
-                            <h4 className="font-bold text-blue-900 mb-2">Feedback</h4>
-                            <p className="text-blue-800 leading-relaxed">{feedback.feedback}</p>
-                          </div>
-                          <div className="space-y-4">
-                            <h4 className="font-bold text-gray-800 text-lg border-b pb-2">Corrections</h4>
-                            {feedback.corrections?.map((corr: any, idx: number) => (
-                                <div key={idx} className="bg-white border-l-4 border-red-400 p-4 shadow-sm rounded-r-lg">
-                                    <div className="flex flex-col md:flex-row gap-4 mb-2">
-                                        <div className="flex-1 bg-red-50 text-red-800 p-2 rounded line-through">{corr.original}</div>
-                                        <div className="flex-1 bg-green-50 text-green-800 p-2 rounded font-medium">{corr.correction}</div>
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-8 relative">
+                    <button onClick={() => setFeedback(null)} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full"><XCircle className="w-6 h-6"/></button>
+                    <div className="flex items-center justify-between mb-8 border-b pb-6">
+                        <h2 className="text-3xl font-black">Assessment Result</h2>
+                        <div className="text-5xl font-black text-blue-600">{feedback.score}/20</div>
+                    </div>
+                    <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 mb-8"><h4 className="font-bold text-blue-900 mb-2">Examiner Feedback</h4><p className="text-blue-800 leading-relaxed whitespace-pre-wrap">{feedback.feedback}</p></div>
+                    {feedback.corrections?.length > 0 && (
+                        <div className="space-y-4">
+                            <h4 className="font-bold text-lg border-b pb-2">Key Improvements</h4>
+                            {feedback.corrections.map((corr: any, i: number) => (
+                                <div key={i} className="bg-white border-l-4 border-red-400 p-4 shadow-sm rounded-r-lg">
+                                    <div className="flex gap-4 mb-2">
+                                        <div className="flex-1 bg-red-50 p-2 rounded line-through text-red-700">{corr.original}</div>
+                                        <div className="flex-1 bg-green-50 p-2 rounded text-green-700 font-bold">{corr.correction}</div>
                                     </div>
                                     <p className="text-sm text-gray-500 italic">💡 {corr.explanation}</p>
                                 </div>
                             ))}
-                          </div>
-                    </div>
+                        </div>
+                    )}
+                    {feedback.model_answer && <div className="mt-8 bg-emerald-50 p-6 rounded-2xl border border-emerald-100"><h4 className="font-bold text-emerald-900 flex items-center gap-2 mb-4"><Sparkles className="w-5 h-5"/> Model Answer (C1 Level)</h4><div className="text-emerald-800 font-serif leading-relaxed whitespace-pre-wrap">{feedback.model_answer}</div></div>}
+                    <button onClick={onBack} className="mt-8 w-full py-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition shadow-lg">Main Menu</button>
                 </div>
             </div>
         )}
-
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-10 px-4 py-3 flex items-center justify-between shadow-sm">
-          <button onClick={() => selectedOption ? setSelectedOption(null) : onBack()} className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition"><ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">Back</span></button>
-          <h2 className="font-bold text-gray-800 text-lg truncate max-w-[200px] sm:max-w-none">{taskTitle}</h2>
-          <div className="flex items-center gap-2 text-sm font-mono bg-gray-100 px-3 py-1 rounded-full text-gray-600"><Clock className="w-4 h-4" /> 45:00</div>
+        <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
+            <button onClick={() => selectedOption ? setSelectedOption(null) : onBack()} className="flex items-center gap-2 text-gray-500"><ArrowLeft className="w-5 h-5" /> Back</button>
+            <h2 className="font-bold text-lg truncate max-w-md">{taskTitle}</h2>
+            <div className="text-sm font-bold bg-gray-100 px-3 py-1 rounded-full text-gray-600 flex items-center gap-2"><Clock className="w-4 h-4" /> 45:00</div>
         </div>
-
-        <div className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* COLUMNA ESQUERRA: EXAMEN */}
-          <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-100px)] custom-scrollbar pr-2">
-            <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3 items-start">
-              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div><h3 className="font-bold text-blue-900 text-sm uppercase tracking-wide mb-1">Instructions</h3><p className="text-blue-800 text-sm leading-relaxed">{data.instruction || "Write your answer below."}</p></div>
+        <div className="flex-1 max-w-7xl mx-auto w-full p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 overflow-hidden">
+            <div className="overflow-y-auto pr-2 space-y-6">
+                <div className="bg-blue-50 p-4 rounded-xl flex gap-3 text-blue-800 text-sm border border-blue-100"><AlertCircle className="w-5 h-5 flex-shrink-0"/><p>{data.instruction || "Follow the task instructions below."}</p></div>
+                <div className="bg-white border-2 rounded-2xl p-8 shadow-sm font-serif leading-relaxed text-lg whitespace-pre-line text-gray-800">{taskContent}</div>
             </div>
-
-            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 shadow-sm">
-              <h3 className="font-bold text-gray-900 text-xl mb-4 font-serif">Task</h3>
-              
-              {hasNotes ? (
-                  <>
-                    <p className="text-gray-700 leading-relaxed text-lg mb-8 font-serif border-l-4 border-gray-300 pl-4 italic">{data.content?.input_text}</p>
-                    <div className="font-bold text-gray-900 mb-6 text-base">{data.content?.question}</div>
-                    <div className="border-2 border-gray-800 rounded-lg p-5 bg-white mb-6">
-                        <h4 className="font-black text-gray-800 uppercase tracking-widest border-b-2 border-gray-200 pb-2 mb-3 text-sm">Notes</h4>
-                        <ol className="list-decimal list-inside space-y-2 font-bold text-gray-800 ml-2">
-                            {data.content?.notes?.map((note: string, i: number) => (<li key={i} className="pl-2">{note}</li>))}
-                        </ol>
-                    </div>
-                    {data.content?.opinions && (
-                        <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
-                           <h4 className="font-bold text-gray-500 uppercase text-xs mb-3">Some opinions expressed in the discussion:</h4>
-                           <ul className="space-y-3">
-                              {data.content?.opinions.map((op: string, i: number) => (
-                                  <li key={i} className="flex gap-3 text-gray-600 text-sm italic items-start"><span className="text-gray-300">"</span>{op}<span className="text-gray-300">"</span></li>
-                              ))}
-                           </ul>
-                        </div>
-                    )}
-                  </>
-              ) : (
-                  <p className="text-gray-800 leading-relaxed text-lg font-serif whitespace-pre-line">{taskContent}</p>
-              )}
+            <div className="flex flex-col bg-white rounded-2xl border-2 shadow-xl overflow-hidden">
+                <div className="bg-gray-50 p-4 border-b flex justify-between items-center text-sm font-bold text-gray-500 uppercase tracking-widest"><div className="flex items-center gap-2"><PenTool className="w-4 h-4"/> Your Response</div><div className={wordCount >= 220 && wordCount <= 260 ? "text-green-600" : "text-gray-400"}>{wordCount} words</div></div>
+                <textarea className="flex-1 p-8 outline-none resize-none font-serif text-xl leading-relaxed" placeholder="Start typing your answer here..." value={essayAnswer} onChange={handleEssayChange} spellCheck={false} />
+                <div className="p-4 bg-gray-50 border-t"><button onClick={submitWritingTask} disabled={loadingGrade} className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:shadow-xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:scale-100">{loadingGrade ? <Loader2 className="animate-spin mx-auto w-6 h-6" /> : "Submit for Grading"}</button></div>
             </div>
-          </div>
-
-          {/* COLUMNA DRETA: EDITOR */}
-          <div className="flex flex-col h-[calc(100vh-140px)] bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden sticky top-24">
-            <div className="bg-gray-50 p-3 border-b border-gray-200 flex justify-between items-center">
-              <div className="flex items-center gap-2 text-gray-600"><PenTool className="w-4 h-4" /> <span className="text-xs font-bold uppercase">Your {selectedOption?.type || "Essay"}</span></div>
-              <div className={`text-xs font-mono px-2 py-1 rounded ${wordCount >= 220 && wordCount <= 260 ? 'bg-green-100 text-green-700' : wordCount > 260 ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-600'}`}>{wordCount} words</div>
-            </div>
-            
-            <textarea
-              className="flex-1 w-full p-6 resize-none focus:outline-none font-serif text-lg leading-relaxed text-gray-800"
-              placeholder={`Start writing your ${selectedOption?.type || "essay"} here...`}
-              value={essayAnswer}
-              onChange={handleEssayChange}
-              spellCheck={false} 
-            />
-            
-            <div className="p-4 bg-gray-50 border-t border-gray-200">
-              <button 
-                  onClick={submitWritingTask}
-                  disabled={loadingGrade}
-                  className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                  {loadingGrade ? <Loader2 className="animate-spin w-4 h-4" /> : <Send className="w-4 h-4" />} Submit for Correction
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     );
   }
 
   // ==========================================================
-  // 🌟 RENDER 3: MODE ESTÀNDARD (Reading, Listening, Speaking)
+  // RENDER PER READING / LISTENING / SPEAKING (STANDARD)
   // ==========================================================
   return (
     <div className="max-w-4xl mx-auto bg-white min-h-screen shadow-2xl rounded-xl overflow-hidden flex flex-col animate-in fade-in duration-500">
-      {/* HEADER */}
+      {/* Header */}
       <div className={`p-6 flex justify-between items-center sticky top-0 z-10 shadow-md text-white ${isSpeaking ? 'bg-purple-900' : isWriting ? 'bg-emerald-900' : isListening ? 'bg-orange-800' : 'bg-gray-900'}`}>
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft className="w-6 h-6" /></button>
-          <div>
-            <h2 className="text-xl font-bold">{data.title}</h2>
-            <p className="text-white/70 text-sm">C1 Advanced • {isWriting ? " Writing" : isSpeaking ? " Speaking" : isListening ? " Listening" : " Reading"}</p>
-          </div>
+          <div><h2 className="text-xl font-bold">{data.title}</h2><p className="text-white/70 text-sm">C1 Advanced • {data.type.replace(/_/g, ' ')}</p></div>
         </div>
-        <button onClick={handleDownloadPDF} disabled={isDownloading} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${isDownloading ? "bg-white/10 cursor-not-allowed opacity-70" : "bg-white/10 hover:bg-white/20"}`}>
-          {isDownloading ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Generating...</span></> : <><Download className="w-4 h-4" /><span>PDF</span></>}
+        <button onClick={handleDownloadPDF} disabled={isDownloading} className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition-all border border-white/20">
+          {isDownloading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Download className="w-4 h-4" />} PDF
         </button>
       </div>
 
-      {/* CONTENT */}
-      <div className="p-8 md:p-12 space-y-8 overflow-y-auto flex-1 relative">
+      <div className="p-8 md:p-12 space-y-8 overflow-y-auto flex-1 relative custom-scrollbar">
         <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg text-blue-900 leading-relaxed shadow-sm">
-          <h3 className="font-bold mb-2 flex items-center gap-2"><AlertCircle className="w-5 h-5" /> Instructions</h3>
+          <h3 className="font-bold mb-2 flex items-center gap-2 uppercase tracking-wider text-xs"><AlertCircle className="w-4 h-4" /> Instructions</h3>
           {data.instructions}
         </div>
 
-        {/* IMATGES (Part 2) */}
         {data.image_urls && data.image_urls.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="font-bold text-gray-700 flex items-center gap-2"><ImageIcon className="w-5 h-5" /> Visual Materials</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {data.image_urls.map((url: string, index: number) => (
-                <div key={index} className="rounded-xl overflow-hidden shadow-lg border border-gray-200 bg-gray-100 group hover:scale-[1.02] transition-transform">
-                  <div className="aspect-square relative"><img src={url} alt={`Task picture ${index + 1}`} className="w-full h-full object-cover" loading="lazy" /></div>
-                </div>
-              ))}
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {data.image_urls.map((url, i) => (
+              <div key={i} className="rounded-xl overflow-hidden shadow-lg border-2 border-gray-100 hover:scale-105 transition-transform"><img src={url} alt="Task" className="w-full h-full object-cover aspect-square" /></div>
+            ))}
           </div>
         )}
 
         {isListening && (
-          <div className="bg-orange-50 p-6 rounded-xl border border-orange-200 shadow-sm flex flex-col items-center gap-4 sticky top-0 z-20">
+          <div className="bg-orange-50 p-6 rounded-2xl border-2 border-orange-100 shadow-sm flex flex-col items-center gap-4 sticky top-0 z-20">
             <div className="flex items-center gap-2 text-orange-800 font-bold text-lg"><Volume2 className="w-6 h-6" /> Audio Track</div>
-            {loadingAudio ? <div className="flex items-center gap-2 text-orange-600"><Loader2 className="animate-spin w-5 h-5" /> Generating AI Voice...</div> : audioUrl ? (
-                <AudioPlayerLocked isVip={user?.is_vip} audioUrl={audioUrl} onUnlock={onOpenPricing} />
-            ) : <p className="text-red-500">Error loading audio.</p>}
+            {loadingAudio ? (
+              <div className="flex items-center gap-2 text-orange-600 font-medium"><Loader2 className="animate-spin w-5 h-5" /> Generating AI Audio...</div>
+            ) : audioUrl ? (
+              <AudioPlayerLocked isVip={user?.is_vip} audioUrl={audioUrl} onUnlock={onOpenPricing} />
+            ) : <p className="text-red-500 text-sm">Error loading audio.</p>}
             
-            {/* BOTÓ AMB LOG */}
             <button onClick={() => {
-                console.log("🐛 [DEBUG BUTTON] Clicked! New state:", !showTranscript);
+                console.log("🔘 Click Transcript. Estat actual:", showTranscript);
                 setShowTranscript(!showTranscript);
-            }} className="text-sm text-orange-700 underline flex items-center gap-1 hover:text-orange-900 mt-2">
-                <FileText className="w-4 h-4" /> {showTranscript ? "Hide Transcript" : "Show Transcript (Cheating!)"}
+            }} className="text-sm font-bold text-orange-700 underline flex items-center gap-1 hover:text-orange-900 mt-2">
+                <FileText className="w-4 h-4" /> {showTranscript ? "Hide Transcript" : "Show Transcript (Practice only!)"}
             </button>
           </div>
         )}
 
         <div className="relative">
            {!user?.is_vip && isListening && (
-              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-white/70 backdrop-blur-[2px] rounded-xl h-full">
-                  <div className="sticky top-20 bg-white p-8 rounded-3xl shadow-2xl border border-orange-100 max-w-sm text-center">
-                      <div className="bg-gradient-to-br from-orange-100 to-orange-200 p-5 rounded-full mb-5 w-20 h-20 flex items-center justify-center mx-auto shadow-inner"><Lock className="w-10 h-10 text-orange-600" /></div>
+              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-white/70 backdrop-blur-[2px] rounded-2xl">
+                  <div className="bg-white p-8 rounded-3xl shadow-2xl border-2 border-orange-100 max-w-sm text-center animate-in zoom-in-95">
+                      <div className="bg-orange-100 p-5 rounded-full mb-5 w-20 h-20 flex items-center justify-center mx-auto shadow-inner"><Lock className="w-10 h-10 text-orange-600" /></div>
                       <h3 className="font-black text-gray-900 text-2xl mb-3">Listening Locked</h3>
                       <p className="text-gray-600 mb-8 leading-relaxed">Upgrade to the <strong>Season Pass</strong> to unlock full audio tracks.</p>
-                      <button onClick={onOpenPricing} className="w-full py-3.5 bg-gradient-to-r from-orange-600 to-red-600 text-white font-bold rounded-xl hover:scale-105 transition shadow-xl flex items-center justify-center gap-2"><Lock className="w-5 h-5" /> Unlock Listening</button>
+                      <button onClick={onOpenPricing} className="w-full py-4 bg-gradient-to-r from-orange-600 to-red-600 text-white font-bold rounded-xl hover:scale-105 transition shadow-xl flex items-center justify-center gap-2">Unlock Now</button>
                   </div>
               </div>
            )}
 
            <div className={!user?.is_vip && isListening ? "filter blur-sm pointer-events-none select-none opacity-50 transition-all duration-500" : ""}>
               
-              {/* LOGICA DE RENDERITZAT (ARA SÍ CORRECTA) */}
+              {/* LÒGICA DE RENDERITZAT DINÀMICA */}
               {isSpeakingPart3 ? (
                   renderSpeakingPart3()
               ) : isListeningPart2 ? (
-                  // 👉 FIX DEFINITIU: Pintem les preguntes I el text si el botó està activat
                   <>
                     {renderListeningPart2()}
-                    {console.log("🐛 [RENDER CHECK] isListeningPart2:", isListeningPart2, "showTranscript:", showTranscript)}
                     {showTranscript && (
-                        <div className="mt-8 prose max-w-none bg-gray-50 p-6 rounded-xl border border-gray-200 leading-relaxed whitespace-pre-line font-serif text-lg text-gray-800 animate-in fade-in">
-                            <h4 className="font-bold text-gray-500 mb-2 uppercase text-sm border-b pb-2">Transcript</h4>
-                            {data.text ? data.text : "⚠️ No text available in data.text"}
+                        <div className="mt-8 prose max-w-none bg-gray-50 p-8 rounded-2xl border-2 border-gray-200 leading-relaxed whitespace-pre-line font-serif text-xl text-gray-800 animate-in slide-in-from-bottom-4 shadow-inner">
+                            <h4 className="font-bold text-gray-400 mb-6 uppercase tracking-widest text-sm border-b pb-4">Full Audio Transcript</h4>
+                            {data.text || "⚠️ Text missing from data.text"}
                         </div>
                     )}
                   </>
               ) : isGapFill ? (
-                <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">{renderInteractiveText()}</div>
+                <div className="bg-white p-8 rounded-2xl border-2 border-gray-100 shadow-sm">{renderInteractiveText()}</div>
               ) : (
-                data.text && (!isListening || showTranscript) && ( // 👈 FIX: Només mostra si showTranscript és true
-                    <div className={`prose max-w-none bg-gray-50 p-6 rounded-xl border border-gray-200 leading-relaxed whitespace-pre-line font-serif text-lg text-gray-800 ${isListening && !showTranscript ? 'hidden' : ''}`}>{data.text}</div>
-                )
-              )}
+                <>
+                  {data.text && (!isListening || showTranscript) && (
+                    <div className="prose max-w-none bg-gray-50 p-8 rounded-2xl border-2 border-gray-200 leading-relaxed whitespace-pre-line font-serif text-xl text-gray-800 animate-in fade-in shadow-inner">
+                        {data.text}
+                    </div>
+                  )}
 
-              {isInteractive && !isGapFill && !isSpeakingPart3 && !isListeningPart2 && (
-                <div className="space-y-8 mt-8">
-                  {data.questions.map((q, idx) => {
-                    const key = q.question || idx.toString();
-                    const userAnswer = userAnswers[key];
-                    const cleanCorrectAnswer = cleanOptionText(q.answer);
-                    const isCorrect = showAnswers && (userAnswer === cleanCorrectAnswer.toLowerCase() || userAnswer === q.answer.trim().toLowerCase());
-                    const isWrong = showAnswers && userAnswer && !isCorrect;
-                    return (
-                        <div key={idx} className={`p-6 rounded-xl border transition-all ${showAnswers ? (isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200') : 'bg-white border-gray-100 hover:shadow-md'}`}>
-                            <div className="flex gap-4">
-                                <div className="flex-1 space-y-4">
-                                    <div className="flex justify-between items-start"><span className="font-bold text-gray-400 text-lg">{q.question}</span></div>
-                                    {isPart4 ? (
-                                        <div className="mb-4 bg-slate-50 p-4 rounded-lg border border-slate-200 shadow-sm">
-                                            <p className="text-gray-900 font-medium text-lg mb-3 leading-relaxed">{q.original_sentence || "Original missing"}</p>
-                                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
-                                                <div className="bg-gray-900 text-white px-3 py-1 rounded-md font-bold text-sm tracking-wider uppercase shadow-sm w-fit">{q.keyword || "KEYWORD"}</div>
-                                                <p className="text-sm text-gray-500 italic">(Use 3-6 words)</p>
-                                            </div>
-                                            <p className="text-gray-800 text-lg">{q.second_sentence || "Second sentence missing"}</p>
-                                        </div>
-                                    ) : ( q.stem && <div className="mb-2"><p className="font-medium text-gray-900 text-lg">{q.stem}</p></div> )}
-
+                  {isInteractive && (
+                    <div className="space-y-8 mt-8">
+                      {data.questions.map((q, idx) => {
+                         const key = q.question || idx.toString();
+                         const userAnswer = userAnswers[key];
+                         const cleanCorrectAnswer = cleanOptionText(q.answer);
+                         const isCorrect = showAnswers && (userAnswer === cleanCorrectAnswer.toLowerCase() || userAnswer === q.answer.trim().toLowerCase());
+                         const isWrong = showAnswers && userAnswer && !isCorrect;
+                         return (
+                            <div key={idx} className={`p-6 rounded-2xl border-2 transition-all ${showAnswers ? (isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100') : 'bg-white border-gray-100 hover:shadow-lg'}`}>
+                                <div className="space-y-6">
+                                    <div className="flex gap-4 items-start"><span className="font-black text-gray-200 text-3xl">{idx + 1}</span><p className="font-bold text-gray-900 text-lg pt-1 leading-snug">{q.question}</p></div>
+                                    {q.stem && <p className="text-gray-600 bg-gray-50 p-3 rounded-lg border italic">{q.stem}</p>}
                                     {q.options && q.options.length > 0 ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                             {q.options.map((opt, i) => {
                                                 const text = cleanOptionText(opt);
                                                 const isSelected = userAnswer === text.toLowerCase();
                                                 const isTheCorrectOption = text.toLowerCase() === cleanCorrectAnswer.toLowerCase();
-                                                let divClass = "p-3 border rounded-lg cursor-pointer transition flex justify-between items-center select-none ";
+                                                let optClass = "p-4 border-2 rounded-xl cursor-pointer transition-all flex justify-between items-center select-none ";
                                                 if (showAnswers) {
-                                                    if (isTheCorrectOption) divClass += "bg-green-200 border-green-500 ring-1 ring-green-500 font-medium";
-                                                    else if (isSelected && !isTheCorrectOption) divClass += "bg-red-100 border-red-400 text-red-800";
-                                                    else divClass += "opacity-50";
+                                                    if (isTheCorrectOption) optClass += "bg-green-100 border-green-500 font-bold text-green-900 ring-4 ring-green-500/10";
+                                                    else if (isSelected) optClass += "bg-red-100 border-red-400 text-red-800";
+                                                    else optClass += "opacity-40 grayscale-[0.5]";
                                                 } else {
-                                                    if (isSelected) divClass += "bg-blue-100 border-blue-600 ring-2 ring-blue-500 text-blue-900 font-medium";
-                                                    else divClass += "bg-white hover:bg-gray-50 border-gray-200";
+                                                    if (isSelected) optClass += "bg-blue-100 border-blue-600 text-blue-900 shadow-md ring-4 ring-blue-500/10 scale-[1.02]";
+                                                    else optClass += "bg-white hover:bg-gray-50 border-gray-200";
                                                 }
-                                                return (
-                                                    <div key={i} onClick={() => handleSelect(key, text.toLowerCase())} className={divClass}>
-                                                        <div className="flex items-center"><span className="font-bold mr-3 opacity-60">{String.fromCharCode(65 + i)}.</span>{text}</div>
-                                                        {showAnswers && isTheCorrectOption && <CheckCircle className="w-5 h-5 text-green-700" />}
-                                                        {showAnswers && isSelected && !isTheCorrectOption && <XCircle className="w-5 h-5 text-red-600" />}
-                                                    </div>
-                                                );
+                                                return (<div key={i} onClick={() => handleSelect(key, text.toLowerCase())} className={optClass}><div className="flex items-center"><span className="font-black mr-3 opacity-30">{String.fromCharCode(65 + i)}.</span>{text}</div>{showAnswers && isTheCorrectOption && <CheckCircle className="w-5 h-5 text-green-700" />}{showAnswers && isSelected && !isTheCorrectOption && <XCircle className="w-5 h-5 text-red-600" />}</div>);
                                             })}
                                         </div>
                                     ) : (
                                         <div className="relative">
-                                            <input type="text" value={userAnswer || ""} disabled={showAnswers} autoComplete="off" spellCheck="false" onChange={(e) => handleSelect(key, e.target.value)} placeholder="Type your answer..." className={`w-full p-3 border rounded-lg outline-none font-medium ${showAnswers ? (userAnswer?.trim().toLowerCase() === q.answer.trim().toLowerCase() ? "bg-green-100 border-green-500 text-green-900 font-bold" : "bg-red-50 border-red-300 text-red-900") : "focus:ring-2 focus:ring-blue-500 bg-gray-50 border-gray-300 text-gray-800"}`} />
-                                            {showAnswers && !isCorrect && <div className="mt-2 text-sm text-green-700 font-bold flex items-center gap-1 animate-in slide-in-from-top-2"><CheckCircle className="w-4 h-4" /> Correct: <span className="uppercase">{cleanCorrectAnswer}</span></div>}
+                                            <input type="text" value={userAnswer || ""} disabled={showAnswers} autoComplete="off" spellCheck="false" onChange={(e) => handleSelect(key, e.target.value)} placeholder="Type your answer..." className={`w-full p-4 border-2 rounded-xl outline-none font-bold transition-all ${showAnswers ? (isCorrect ? "bg-green-100 border-green-500 text-green-900 ring-4 ring-green-500/10" : "bg-red-50 border-red-300 text-red-900") : "focus:border-blue-500 bg-gray-50 focus:bg-white text-gray-800 shadow-inner"}`} />
+                                            {showAnswers && !isCorrect && <div className="mt-3 text-sm font-black text-green-700 flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-100 w-fit animate-in slide-in-from-top-2"><CheckCircle className="w-4 h-4" /> CORRECT: <span className="uppercase">{cleanCorrectAnswer}</span></div>}
                                         </div>
                                     )}
                                 </div>
                             </div>
+                         );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* SPEAKING / WRITING CREATIVE MODE */}
+              {!isInteractive && !isEssayExam && !isChoiceMode && (
+                <div className="space-y-6">
+                    {!feedback ? (
+                        <>
+                            {isSpeaking && (
+                                <div className="flex flex-col items-center justify-center py-6 gap-4 relative">
+                                    <button onClick={toggleRecording} disabled={isTranscribing} className={`w-24 h-24 rounded-full flex items-center justify-center transition-all shadow-2xl hover:scale-110 active:scale-95 ${isRecording ? 'bg-red-500 animate-pulse ring-8 ring-red-100' : 'bg-purple-600 ring-8 ring-purple-100'}`}>
+                                        {isRecording ? <StopCircle className="w-12 h-12 text-white" /> : <Mic className="w-12 h-12 text-white" />}
+                                    </button>
+                                    {isTranscribing && <div className="text-purple-600 font-bold flex items-center gap-2 bg-purple-50 px-4 py-2 rounded-full border border-purple-100 animate-in fade-in"><Loader2 className="animate-spin w-5 h-5" /> Processing Audio...</div>}
+                                    {isRecording && <p className="text-red-500 font-black animate-pulse uppercase tracking-widest text-xs">Recording...</p>}
+                                </div>
+                            )}
+                            <div className="relative">
+                                <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} disabled={isSpeaking && !user?.is_vip} placeholder={isSpeaking ? "Your transcript will appear here..." : "Write your response here..."} className="w-full h-80 p-8 border-2 rounded-3xl outline-none text-xl font-serif leading-relaxed resize-none shadow-inner focus:border-blue-500 transition-colors" />
+                            </div>
+                            <div className="flex justify-end pt-4">
+                                <button onClick={handleSubmitCreative} disabled={loadingGrade || inputText.length < 10 || isTranscribing || isRecording} className="flex items-center gap-3 px-10 py-4 rounded-2xl font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-2xl hover:scale-105 transition-all disabled:opacity-50 disabled:grayscale">
+                                    {loadingGrade ? <Loader2 className="animate-spin" /> : <Send className="w-5 h-5" />} Submit for AI Feedback
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="animate-in slide-in-from-bottom-10 space-y-6">
+                            <div className="bg-white border-2 rounded-3xl p-8 shadow-xl flex items-center justify-between border-blue-50">
+                                <div><h3 className="text-2xl font-black text-gray-900">AI Assessment</h3><p className="text-gray-500 font-medium">Cambridge C1 Level Criteria</p></div>
+                                <div className="text-right flex flex-col items-center"><div className="text-5xl font-black text-blue-600">{feedback.score}/20</div><div className="text-[10px] font-black text-gray-300 uppercase tracking-widest mt-1">Global Score</div></div>
+                            </div>
+                            <div className="bg-blue-50 p-8 rounded-3xl border-2 border-blue-100 shadow-inner"><h4 className="font-black text-blue-900 mb-3 flex items-center gap-2"><Sparkles className="w-5 h-5"/> Detailed Feedback</h4><p className="text-blue-800 leading-relaxed font-medium">{feedback.feedback}</p></div>
+                            <div className="space-y-4">
+                                <h4 className="font-black text-gray-400 uppercase tracking-widest text-xs ml-2">Recommended Improvements</h4>
+                                {feedback.corrections?.map((corr: any, idx: number) => (
+                                    <div key={idx} className="bg-white border-2 border-gray-100 p-6 shadow-sm rounded-3xl flex flex-col gap-4">
+                                        <div className="flex flex-col md:flex-row gap-4"><div className="flex-1 bg-red-50 text-red-700 p-3 rounded-xl line-through font-medium">{corr.original}</div><div className="flex-1 bg-green-50 text-green-800 p-3 rounded-xl font-bold">{corr.correction}</div></div>
+                                        <p className="text-sm text-gray-500 italic bg-gray-50 p-3 rounded-lg border">💡 {corr.explanation}</p>
+                                    </div>
+                                ))}
+                            </div>
+                            {feedback.model_answer && (
+                                <div className="mt-8 p-8 bg-emerald-50 rounded-3xl border-2 border-emerald-100 shadow-xl relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 bg-emerald-200 text-emerald-800 px-4 py-1 font-black text-[10px] uppercase rounded-bl-xl tracking-tighter">Model Answer</div>
+                                    <h3 className="text-xl font-black text-emerald-900 mb-6 flex items-center gap-2"><Sparkles className="w-6 h-6" /> Perfect Example</h3>
+                                    <div className="prose text-emerald-900 font-serif text-lg leading-relaxed whitespace-pre-wrap">{feedback.model_answer}</div>
+                                </div>
+                            )}
+                            <div className="flex justify-center pt-10 pb-20"><button onClick={onBack} className="flex items-center gap-2 px-10 py-3 rounded-full font-black text-gray-600 bg-white border-2 hover:bg-gray-50 transition shadow-lg">Try Another Task</button></div>
                         </div>
-                    );
-                  })}
+                    )}
                 </div>
               )}
            </div>
         </div>
-
-        {/* Footer */}
-        {isInteractive && (
-            <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-center sticky bottom-0 z-20">
-              {!showAnswers ? (
-                <button onClick={checkScore} disabled={isListening && !user?.is_vip} className="flex items-center gap-2 px-8 py-3 rounded-full font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-105 shadow-lg transition-transform disabled:opacity-50 disabled:cursor-not-allowed"><Eye className="w-5 h-5" /> Check Answers</button>
-              ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="text-xl font-bold text-gray-800">Score: <span className={score! > (data.questions.length / 2) ? "text-green-600" : "text-orange-600"}>{score}</span> / {data.questions.length}</div>
-                  <button onClick={onBack} className="flex items-center gap-2 px-6 py-2 rounded-lg font-medium text-gray-600 bg-white border hover:bg-gray-100 transition"><RefreshCw className="w-4 h-4" /> Main Menu</button>
-                </div>
-              )}
-            </div>
-        )}
       </div>
+
+      {isInteractive && (
+        <div className="p-6 border-t border-gray-200 bg-gray-50/80 backdrop-blur-md flex justify-center sticky bottom-0 z-20 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.05)]">
+          {!showAnswers ? (
+            <button onClick={checkScore} disabled={isListening && !user?.is_vip} className="flex items-center gap-3 px-16 py-4 rounded-2xl font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale">
+              <Eye className="w-5 h-5" /> Check Answers
+            </button>
+          ) : (
+            <div className="flex flex-col items-center gap-3 w-full">
+              <div className="text-2xl font-black text-gray-900 flex items-center gap-3">Your Result: <span className={score! > (data.questions.length / 2) ? "text-green-600 bg-green-100 px-4 py-1 rounded-full border-2 border-green-200" : "text-orange-600 bg-orange-100 px-4 py-1 rounded-full border-2 border-orange-200"}>{score} / {data.questions.length}</span></div>
+              <button onClick={onBack} className="flex items-center gap-2 px-10 py-3 rounded-full font-black text-gray-600 bg-white border-2 hover:bg-gray-50 transition-all shadow-md">Continue to Menu <ArrowRight className="w-5 h-5"/></button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
