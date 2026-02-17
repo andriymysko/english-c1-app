@@ -193,13 +193,22 @@ export async function submitResult(data: any) {
   } catch(e) { console.error("Error submitting result:", e); }
 }
 
-export async function getUserStats(userId: string) {
-  const response = await fetch(`${API_URL}/user_stats/${userId}`, {
-      headers: await getHeaders()
-  });
-  if (!response.ok) throw new Error("Failed to load stats");
-  return response.json();
-}
+export const getUserStats = async (userId: string) => {
+  try {
+    const response = await fetch(`${API_URL}/user_stats/${userId}`, {
+      headers: await getHeaders(),
+    });
+    
+    if (!response.ok) {
+        console.warn("Stats not found, returning default");
+        return { xp: 0, streak: 0, completed: 0 };
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error getting stats:", error);
+    return { xp: 0, streak: 0, completed: 0 }; // No facis "throw", retorna valors per defecte
+  }
+};
 
 export async function generateReview(userId: string) {
   const response = await fetch(`${API_URL}/generate_review/${userId}`, { 
