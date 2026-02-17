@@ -251,14 +251,24 @@ export async function transcribeAudio(audioBlob: Blob) {
 }
 
 export async function fetchAudio(text: string) {
-  const response = await fetch(`${API_URL}/tts`, { 
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
-  if (!response.ok) throw new Error("Failed");
-  const data = await response.json();
-  return data.audio_url; 
+  try {
+    const response = await fetch(`${API_URL}/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!response.ok) throw new Error("TTS Failed");
+
+    // ⚠️ IMPORTANT: Ara rebem un BLOB (binari), no un JSON
+    const blob = await response.blob();
+    
+    // Creem una URL temporal per a aquest fitxer binari
+    return URL.createObjectURL(blob);
+  } catch (error) {
+    console.error("TTS Error:", error);
+    return null;
+  }
 }
 
 export async function gradeWriting(userId: string, task: string, text: string) {

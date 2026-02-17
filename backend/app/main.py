@@ -1,9 +1,10 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import firebase_admin
 from firebase_admin import credentials
 import os
+from openai import OpenAI  # 👈 Nou import
 
 # --- IMPORTACIONS DELS TEUS SERVEIS ---
 from app.services.generators.factory import ExerciseFactory
@@ -33,8 +34,6 @@ if not firebase_admin._apps:
 # ==========================================
 # 2. CONFIGURACIÓ CORS (CORREGIDA)
 # ==========================================
-# Afegim "allow_origin_regex" amb r"" per evitar errors de sintaxi i 
-# eixamplem les opcions per evitar el bloqueig del navegador.
 origins = [
     "http://localhost:5173",
     "http://localhost:3000",
@@ -45,7 +44,7 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https://.*\.vercel\.app", # La 'r' evita l'error de "invalid escape sequence"
+    allow_origin_regex=r"https://.*\.vercel\.app", 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -71,7 +70,29 @@ def generate_and_save_background(exercise_type: str, level: str):
 def read_root():
     return {"status": "online", "server": "Render"}
 
-# Endpoint per a les estadístiques (Evita el 404 del Frontend)
+# --- ENDPOINT TTS (TEXT-TO-SPEECH) ---
+class TTSRequest(BaseModel):
+    text: str
+
+@app.post("/tts")
+async def text_to_speech(request: TTSRequest):
+    """Genera àudio a partir del guió de l'exercici."""
+    print("🎙️ Generant àudio per al monòleg...")
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    
+    try:
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=request.text
+        )
+        # Retornem el contingut binari de l'àudio directament
+        return Response(content=response.content, media_type="audio/mpeg")
+    except Exception as e:
+        print(f"❌ Error a TTS: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Endpoint per a les estadístiques
 @app.get("/user_stats/{user_id}")
 async def get_user_stats_endpoint(user_id: str):
     try:
@@ -86,7 +107,6 @@ async def get_user_stats_endpoint(user_id: str):
 async def get_exercise(exercise_type: str, level: str = "C1", background_tasks: BackgroundTasks = None):
     print(f"📥 [REQUEST]: {exercise_type}")
     
-    # 1. Intentem treure de la BD
     try:
         existing_exercise = DatabaseService.get_random_exercise(exercise_type, level)
     except Exception as e:
@@ -99,11 +119,9 @@ async def get_exercise(exercise_type: str, level: str = "C1", background_tasks: 
             background_tasks.add_task(generate_and_save_background, exercise_type, level)
         return existing_exercise
 
-    # 2. Si no hi ha res, generem en temps real
     print("🐢 [CACHE MISS] Generant...")
     try:
         new_exercise = ExerciseFactory.create_exercise(exercise_type, level)
-        # Guardem a la BD (opcionalment en background per no frenar la resposta)
         if background_tasks:
             background_tasks.add_task(DatabaseService.save_exercise, new_exercise.model_dump())
         
@@ -125,4 +143,6 @@ app.include_router(payment_router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    # Render usa la variable d'entorn PORT
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
