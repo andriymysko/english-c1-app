@@ -115,6 +115,20 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   
   const isInteractive = !isWriting && !isSpeaking && !isEssayExam && !selectedOption && !isChoiceMode;
 
+  // 👇👇👇 ZONA DE DEBUGGING (MIRA LA CONSOLA F12) 👇👇👇
+  useEffect(() => {
+    if (isListening) {
+        console.log("%c 🐛 DEBUG LISTENING STATUS ", "background: #222; color: #bada55; font-size: 14px");
+        console.log("Tipus d'exercici (data.type):", data.type);
+        console.log("És Listening Part 2? (isListeningPart2):", isListeningPart2);
+        console.log("És GapFill normal? (isGapFill):", isGapFill);
+        console.log("Estat Show Transcript:", showTranscript);
+        console.log("Hi ha text al JSON? (data.text):", data.text ? "SÍ (Longitud: " + data.text.length + ")" : "❌ NO, ESTÀ BUIT!");
+        if (!data.text) console.error("⚠️ ALERTA: El backend no ha enviat el text. Revisa factory.py!");
+    }
+  }, [data, showTranscript, isListeningPart2]);
+  // 👆👆👆 FI ZONA DE DEBUGGING 👆👆👆
+
   // --- HANDLERS ---
 
   const handleDownloadPDF = async () => {
@@ -708,11 +722,11 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
 
            <div className={!user?.is_vip && isListening ? "filter blur-sm pointer-events-none select-none opacity-50 transition-all duration-500" : ""}>
               
-              {/* LOGICA DE RENDERITZAT (ARA SÍ CORRECTA I COMPLETA) */}
+              {/* LOGICA DE RENDERITZAT (ARA SÍ CORRECTA) */}
               {isSpeakingPart3 ? (
                   renderSpeakingPart3()
               ) : isListeningPart2 ? (
-                  // 👉 FIX DEFINITIU: Pintem les preguntes I el text si el botó està activat
+                  // 👉 NOU: Renderitzador específic per Listening Part 2
                   <>
                     {renderListeningPart2()}
                     {data.text && showTranscript && (
@@ -794,69 +808,20 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
            </div>
         </div>
 
-        {/* CREATIVE MODE UI (OLD WRITING & SPEAKING) */}
-        {!isInteractive && !isEssayExam && !isChoiceMode && (
-            <div className="space-y-6">
-                {!feedback ? (
-                    <>
-                        {isSpeaking && (
-                            <div className="flex flex-col items-center justify-center py-4 gap-2 relative">
-                                {!user?.is_vip && (
-                                    <div className="absolute inset-0 z-20 bg-white/70 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl text-center p-4 border border-white/50">
-                                        <div className="bg-purple-100 p-4 rounded-full mb-3 shadow-lg"><Lock className="w-8 h-8 text-purple-600" /></div>
-                                        <h3 className="font-bold text-gray-900 text-lg">Speaking Mode is Locked</h3>
-                                        <p className="text-sm text-gray-600 mb-4 max-w-xs">Upgrade to the Season Pass to get instant AI analysis.</p>
-                                        <button onClick={onOpenPricing} className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-full hover:scale-105 transition shadow-lg">Unlock Speaking</button>
-                                    </div>
-                                )}
-                                <button onClick={toggleRecording} disabled={isTranscribing || !user?.is_vip} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-xl ${isRecording ? 'bg-red-500 animate-pulse scale-110' : 'bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed'}`}>
-                                    {isRecording ? <StopCircle className="w-10 h-10 text-white" /> : <Mic className="w-10 h-10 text-white" />}
-                                </button>
-                                {isRecording && <p className="text-red-500 font-bold animate-pulse text-sm">Recording... Click to finish</p>}
-                                {isTranscribing && <p className="text-purple-600 font-bold flex items-center gap-2 text-sm"><Loader2 className="animate-spin w-4 h-4" /> Converting Audio to Text...</p>}
-                            </div>
-                        )}
-                        <div className="relative">
-                            <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} disabled={isSpeaking && !user?.is_vip} placeholder={isSpeaking ? "Your speech will appear here automatically after recording..." : "Write your essay here... (Minimum 150 words)"} className={`w-full h-80 p-6 border-2 rounded-xl outline-none text-lg font-serif leading-relaxed resize-none shadow-inner ${isSpeaking ? 'border-purple-200 focus:border-purple-500 bg-purple-50/30' : 'border-emerald-200 focus:border-emerald-500'}`} />
-                        </div>
-                        <div className="flex justify-end">
-                            <button onClick={handleSubmitCreative} disabled={loadingGrade || inputText.length < 10 || isTranscribing || isRecording || (!user?.is_vip && isSpeaking)} className="flex items-center gap-2 px-8 py-3 rounded-full font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-105 shadow-lg transition-transform disabled:opacity-50 disabled:cursor-not-allowed">
-                                {loadingGrade ? <Loader2 className="animate-spin" /> : <Send className="w-5 h-5" />} Submit for Feedback
-                            </button>
-                        </div>
-                    </>
-                ) : (
-                    <div className="animate-in slide-in-from-bottom-10 space-y-6">
-                        <div className="bg-white border rounded-2xl p-6 shadow-lg flex items-center justify-between">
-                            <div><h3 className="text-xl font-bold text-gray-800">Assessment Result</h3><p className="text-gray-500">Based on Cambridge C1 Criteria</p></div>
-                            <div className="text-right"><div className="text-4xl font-black text-blue-600">{feedback.score}/20</div><div className="text-sm font-bold text-gray-400 uppercase tracking-wide">Score</div></div>
-                        </div>
-                        <div className="bg-blue-50 p-6 rounded-xl border border-blue-100"><h4 className="font-bold text-blue-900 mb-2">Feedback</h4><p className="text-blue-800 leading-relaxed">{feedback.feedback}</p></div>
-                        <div className="space-y-4"><h4 className="font-bold text-gray-800 text-lg border-b pb-2">Key Improvements</h4>
-                            {feedback.corrections?.map((corr: any, idx: number) => (
-                                <div key={idx} className="bg-white border-l-4 border-red-400 p-4 shadow-sm rounded-r-lg"><div className="flex flex-col md:flex-row gap-4 mb-2"><div className="flex-1 bg-red-50 text-red-800 p-2 rounded line-through decoration-red-400 decoration-2">{corr.original}</div><div className="flex-1 bg-green-50 text-green-800 p-2 rounded font-medium">{corr.correction}</div></div><p className="text-sm text-gray-500 italic">💡 {corr.explanation}</p></div>
-                            ))}
-                        </div>
-                        {feedback.model_answer && <div className="mt-8 p-6 bg-emerald-50 rounded-xl border border-emerald-100 shadow-sm"><h3 className="text-lg font-bold text-emerald-800 mb-3 flex items-center gap-2"><Sparkles className="w-5 h-5" /> Model Answer (C1 Level)</h3><div className="prose text-emerald-900 whitespace-pre-wrap font-serif leading-relaxed">{feedback.model_answer}</div></div>}
-                        <div className="flex justify-center pt-8"><button onClick={onBack} className="flex items-center gap-2 px-6 py-2 rounded-lg font-medium text-gray-600 bg-white border hover:bg-gray-100 transition"><RefreshCw className="w-4 h-4" /> Try Another Task</button></div>
-                    </div>
-                )}
+        {/* Footer */}
+        {isInteractive && (
+            <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-center sticky bottom-0 z-20">
+              {!showAnswers ? (
+                <button onClick={checkScore} disabled={isListening && !user?.is_vip} className="flex items-center gap-2 px-8 py-3 rounded-full font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-105 shadow-lg transition-transform disabled:opacity-50 disabled:cursor-not-allowed"><Eye className="w-5 h-5" /> Check Answers</button>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="text-xl font-bold text-gray-800">Score: <span className={score! > (data.questions.length / 2) ? "text-green-600" : "text-orange-600"}>{score}</span> / {data.questions.length}</div>
+                  <button onClick={onBack} className="flex items-center gap-2 px-6 py-2 rounded-lg font-medium text-gray-600 bg-white border hover:bg-gray-100 transition"><RefreshCw className="w-4 h-4" /> Main Menu</button>
+                </div>
+              )}
             </div>
         )}
       </div>
-
-      {isInteractive && (
-        <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-center sticky bottom-0 z-20">
-          {!showAnswers ? (
-            <button onClick={checkScore} disabled={isListening && !user?.is_vip} className="flex items-center gap-2 px-8 py-3 rounded-full font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-105 shadow-lg transition-transform disabled:opacity-50 disabled:cursor-not-allowed"><Eye className="w-5 h-5" /> Check Answers</button>
-          ) : (
-            <div className="flex flex-col items-center gap-2">
-              <div className="text-xl font-bold text-gray-800">Score: <span className={score! > (data.questions.length / 2) ? "text-green-600" : "text-orange-600"}>{score}</span> / {data.questions.length}</div>
-              <button onClick={onBack} className="flex items-center gap-2 px-6 py-2 rounded-lg font-medium text-gray-600 bg-white border hover:bg-gray-100 transition"><RefreshCw className="w-4 h-4" /> Main Menu</button>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
