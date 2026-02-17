@@ -223,12 +223,26 @@ class ExerciseFactory:
         elif exercise_type == "listening2":
              type_instructions = """
             - Create a "Listening Part 2: Sentence Completion" exercise.
-            - TEXT LENGTH: Strictly between 550 and 650 words (Monologue).
-            - CONTENT: An informative talk on a specific topic (e.g., archaeology, zoology).
-            - Create 8 sentences (numbered 7-14) summarizing points, each with a GAP "[________]".
-            - The answer must be a specific word/phrase (max 3 words) present in the text exactly as heard.
+            - **TEXT LENGTH**: Strictly between 550 and 650 words (Monologue).
+            - **CONTENT**: An informative talk on a specific topic (e.g., archaeology, zoology, history).
+            - **STRUCTURE**:
+              1. Generate a monologue (full text). Put this in the 'text' field.
+              2. Create 8 sentences (numbered 7-14) summarizing specific points from the text.
+              3. Each sentence must have a GAP marked exactly as "[________]".
+              4. The answer must be a specific word or short phrase (max 3 words) found EXACTLY in the text.
+            
+            - **CRITICAL JSON RULES**:
+              - 'options': Must be an empty list []. Do NOT provide choices.
+              - 'stem': The sentence with the gap.
+              - 'answer': The exact word(s) to fill the gap.
             - TIMESTAMPS: Required "MM:SS".
             """
+             # Forcem una estructura neta sense opcions
+             json_fields_example = """
+                    "stem": "The ancient city was discovered by [________] in 1922.",
+                    "answer": "chance",
+                    "options": [],
+             """
 
         elif exercise_type == "listening3":
              type_instructions = """
