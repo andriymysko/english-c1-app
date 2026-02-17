@@ -58,11 +58,9 @@ interface Props {
 }
 
 export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
-  const { user } = auth(); // Nota: Assegura't que l'auth s'importa correctament del teu context
+  // 🟢 CORREGIT: Fem servir useAuth() real del teu context
+  const { user } = useAuth();
 
-  // -----------------------------------------------------------
-  // 🔍 DEBUGGING LOGS
-  // -----------------------------------------------------------
   useEffect(() => {
     console.log("🚀 [ExercisePlayer] Iniciat tipus:", data.type);
   }, [data.type]);
@@ -103,7 +101,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const isGapFill = ["reading_and_use_of_language1", "reading_and_use_of_language2", "reading_and_use_of_language3"].includes(data.type);
   const isInteractive = !isWriting && !isSpeaking && !isEssayExam && !selectedOption && !isChoiceMode;
 
-  // HANDLERS
   const handleDownloadPDF = async () => {
     if (isDownloading) return;
     setIsDownloading(true);
@@ -124,8 +121,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
       link.click();
       link.remove();
     } catch (error) {
-      console.error("PDF error:", error);
-      alert("Failed to generate PDF.");
+      console.error(error);
     } finally {
       setIsDownloading(false);
     }
@@ -135,12 +131,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     window.history.pushState({ page: "exercise" }, "", "");
     const handlePopState = (event: PopStateEvent) => {
       event.preventDefault();
-      if (selectedOption) {
-          setSelectedOption(null);
-          setEssayAnswer("");
-      } else {
-          onBack();
-      }
+      if (selectedOption) { setSelectedOption(null); setEssayAnswer(""); } else { onBack(); }
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
@@ -186,7 +177,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
      } catch (e) {
        console.error(e);
-       alert("Error grading essay");
      } finally {
        setLoadingGrade(false);
      }
@@ -213,11 +203,11 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
         try {
           const result = await transcribeAudio(audioBlob);
           setInputText(prev => prev + " " + result.text);
-        } catch (err) { console.error(err); alert("Could not transcribe."); } finally { setIsTranscribing(false); }
+        } catch (err) { console.error(err); } finally { setIsTranscribing(false); }
       };
       mediaRecorder.start();
       setIsRecording(true);
-    } catch (err) { console.error(err); alert("Microphone denied."); }
+    } catch (err) { console.error(err); }
   };
 
   const handleSubmitCreative = async () => {
@@ -231,7 +221,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
       setFeedback(result);
       playSuccessSound();
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-    } catch (e) { console.error(e); alert("Error"); } finally { setLoadingGrade(false); }
+    } catch (e) { console.error(e); } finally { setLoadingGrade(false); }
   };
 
   const handleSelect = (qKey: string, value: string) => {
@@ -268,7 +258,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     }
   };
 
-  // --- RENDERITZADORS ---
   const renderInteractiveText = () => {
     if (!data.text) return null;
     const parts = data.text.split(/\[\s*(\d+)\s*\]/g);
@@ -381,7 +370,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     );
   };
 
-  // --- RENDER PER WRITING O ALTRES ---
   if (isChoiceMode && !selectedOption) {
     return (
         <div className="bg-slate-50 min-h-screen p-8 animate-in fade-in">
@@ -415,7 +403,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                         <h2 className="text-3xl font-black">Assessment Result</h2>
                         <div className="text-5xl font-black text-blue-600">{feedback.score}/20</div>
                     </div>
-                    <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 mb-8"><h4 className="font-bold text-blue-900 mb-2">Examiner Feedback</h4><p className="text-blue-800 leading-relaxed whitespace-pre-wrap">{feedback.feedback}</p></div>
+                    <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 mb-8"><h4 className="font-bold text-blue-900 mb-2">Feedback</h4><p className="text-blue-800 leading-relaxed whitespace-pre-wrap">{feedback.feedback}</p></div>
                     {feedback.corrections?.length > 0 && (
                         <div className="space-y-4">
                             <h4 className="font-bold text-lg border-b pb-2">Key Improvements</h4>
@@ -455,15 +443,16 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     );
   }
 
-  // --- RENDER STANDARD ---
   return (
     <div className="max-w-4xl mx-auto bg-white min-h-screen shadow-2xl rounded-xl overflow-hidden flex flex-col animate-in fade-in duration-500">
       <div className={`p-6 flex justify-between items-center sticky top-0 z-10 shadow-md text-white ${isSpeaking ? 'bg-purple-900' : isWriting ? 'bg-emerald-900' : isListening ? 'bg-orange-800' : 'bg-gray-900'}`}>
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft className="w-6 h-6" /></button>
-          <div><h2 className="text-xl font-bold">{data.title}</h2><p className="text-white/70 text-sm">C1 Advanced</p></div>
+          <div><h2 className="text-xl font-bold">{data.title}</h2><p className="text-white/70 text-sm">C1 Advanced • {data.type.replace(/_/g, ' ')}</p></div>
         </div>
-        <button onClick={handleDownloadPDF} disabled={isDownloading} className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg"><Download className="w-4 h-4" /> PDF</button>
+        <button onClick={handleDownloadPDF} disabled={isDownloading} className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition-all border border-white/20">
+          {isDownloading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Download className="w-4 h-4" />} PDF
+        </button>
       </div>
 
       <div className="p-8 md:p-12 space-y-8 overflow-y-auto flex-1 relative custom-scrollbar">
@@ -490,7 +479,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
         <div className="relative">
            {!user?.is_vip && isListening && (
               <div className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-white/70 backdrop-blur-[2px] rounded-2xl">
-                  <div className="bg-white p-8 rounded-3xl shadow-2xl border-2 border-orange-100 max-w-sm text-center">
+                  <div className="bg-white p-8 rounded-3xl shadow-2xl border-2 border-orange-100 max-w-sm text-center animate-in zoom-in-95">
                       <div className="bg-orange-100 p-5 rounded-full mb-5 w-20 h-20 flex items-center justify-center mx-auto shadow-inner"><Lock className="w-10 h-10 text-orange-600" /></div>
                       <h3 className="font-black text-gray-900 text-2xl mb-3">Listening Locked</h3>
                       <p className="text-gray-600 mb-8 leading-relaxed">Upgrade to the <strong>Season Pass</strong> to unlock tracks.</p>
@@ -534,13 +523,16 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                             <div key={idx} className={`p-6 rounded-2xl border-2 transition-all ${showAnswers ? (isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100') : 'bg-white border-gray-100 hover:shadow-lg'}`}>
                                 <div className="space-y-6">
                                     <div className="flex gap-4 items-start"><span className="font-black text-gray-200 text-3xl">{idx + 1}</span><p className="font-bold text-gray-900 text-lg pt-1">{q.question}</p></div>
-                                    {isPart4 && q.original_sentence && (
+                                    
+                                    {/* SECCIÓ PER A PART 4 */}
+                                    {data.type === "reading_and_use_of_language4" && q.original_sentence && (
                                         <div className="mb-4 bg-slate-50 p-4 rounded-lg border">
                                             <p className="text-gray-900 font-medium mb-3">{q.original_sentence}</p>
                                             <div className="bg-gray-900 text-white px-3 py-1 rounded-md font-bold text-sm tracking-wider uppercase shadow-sm w-fit mb-3">{q.keyword}</div>
                                             <p className="text-gray-800">{q.second_sentence}</p>
                                         </div>
                                     )}
+
                                     {q.options && q.options.length > 0 ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                             {q.options.map((opt, i) => {
@@ -574,7 +566,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                 </>
               )}
 
-              {/* CREATIVE MODE UI */}
+              {/* CREATIVE MODE UI (SPEAKING / WRITING) */}
               {!isInteractive && !isEssayExam && !isChoiceMode && (
                 <div className="space-y-6">
                     {!feedback ? (
@@ -587,7 +579,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                                     {isTranscribing && <div className="text-purple-600 font-bold flex items-center gap-2"><Loader2 className="animate-spin w-5 h-5" /> Processing...</div>}
                                 </div>
                             )}
-                            <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} disabled={isSpeaking && !user?.is_vip} placeholder={isSpeaking ? "Transcript will appear here..." : "Write response here..."} className="w-full h-80 p-8 border-2 rounded-3xl outline-none text-xl font-serif leading-relaxed resize-none focus:border-blue-500" />
+                            <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} disabled={isSpeaking && !user?.is_vip} placeholder={isSpeaking ? "Transcript will appear here..." : "Write response here..."} className="w-full h-80 p-8 border-2 rounded-3xl outline-none text-xl font-serif leading-relaxed resize-none shadow-inner focus:border-blue-500" />
                             <div className="flex justify-end pt-4">
                                 <button onClick={handleSubmitCreative} disabled={loadingGrade || inputText.length < 10 || isTranscribing || isRecording} className="flex items-center gap-3 px-10 py-4 rounded-2xl font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-105 transition-all disabled:opacity-50">
                                     {loadingGrade ? <Loader2 className="animate-spin" /> : <Send className="w-5 h-5" />} Submit for Feedback
@@ -601,14 +593,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                                 <div className="text-right flex flex-col items-center"><div className="text-5xl font-black text-blue-600">{feedback.score}/20</div></div>
                             </div>
                             <div className="bg-blue-50 p-8 rounded-3xl border-2 border-blue-100 shadow-inner"><h4 className="font-black text-blue-900 mb-3 flex items-center gap-2"><Sparkles className="w-5 h-5"/> Feedback</h4><p className="text-blue-800 leading-relaxed">{feedback.feedback}</p></div>
-                            <div className="space-y-4">
-                                {feedback.corrections?.map((corr: any, idx: number) => (
-                                    <div key={idx} className="bg-white border-2 border-gray-100 p-6 shadow-sm rounded-3xl flex flex-col gap-4">
-                                        <div className="flex flex-col md:flex-row gap-4"><div className="flex-1 bg-red-50 text-red-700 p-3 rounded-xl line-through">{corr.original}</div><div className="flex-1 bg-green-50 text-green-800 p-3 rounded-xl font-bold">{corr.correction}</div></div>
-                                        <p className="text-sm text-gray-500 italic">💡 {corr.explanation}</p>
-                                    </div>
-                                ))}
-                            </div>
                             {feedback.model_answer && (
                                 <div className="mt-8 p-8 bg-emerald-50 rounded-3xl border-2 border-emerald-100">
                                     <h3 className="text-xl font-black text-emerald-900 mb-6 flex items-center gap-2"><Sparkles className="w-6 h-6" /> Perfect Answer</h3>
@@ -640,9 +624,4 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
       )}
     </div>
   );
-}
-
-// Helper mock for user/auth if not defined in your context
-function auth() {
-    return { uid: 'anon', is_vip: true };
 }
