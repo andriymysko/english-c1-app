@@ -7,15 +7,16 @@ load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-class Grader:
+class CorrectionService:  # 👈 ABANS ES DEIA 'Grader'
+    
     @staticmethod
-    def grade_essay(essay_text: str, task_instructions: str, level: str = "C1"):
+    def grade_writing(task_prompt: str, user_text: str, level: str = "C1"):
         # --- MODIFICACIÓ PAS 2.1: DEMANAR MODEL ANSWER ---
         prompt = f"""
         You are a strict Cambridge English {level} examiner.
         
-        TASK INSTRUCTIONS: "{task_instructions}"
-        STUDENT ESSAY: "{essay_text}"
+        TASK INSTRUCTIONS: "{task_prompt}"
+        STUDENT ESSAY: "{user_text}"
         
         ACTION:
         1. Grade the essay based on the official Cambridge scale (0-5 per criteria): 
@@ -44,15 +45,15 @@ class Grader:
             "model_answer": "Here write the full text of the perfect example essay..."
         }}
         """
-        return Grader._call_ai(prompt)
+        return CorrectionService._call_ai(prompt)
 
     @staticmethod
-    def grade_speaking(transcript: str, task_instructions: str, level: str = "C1"):
+    def grade_speaking(task_prompt: str, transcript_text: str, level: str = "C1"):
         prompt = f"""
         You are a Cambridge English {level} ORAL examiner.
         
-        TASK: "{task_instructions}"
-        STUDENT TRANSCRIPT (Speech-to-text): "{transcript}"
+        TASK: "{task_prompt}"
+        STUDENT TRANSCRIPT (Speech-to-text): "{transcript_text}"
         
         Analyze this spoken response. 
         NOTE: Since this is a transcript, ignore minor punctuation errors. Focus on:
@@ -70,16 +71,17 @@ class Grader:
                     "correction": "more natural C1 phrasing",
                     "explanation": "Why this sounds better"
                 }}
-            ]
+            ],
+            "model_answer": "Write a short paragraph of how a native speaker would answer this question perfectly."
         }}
         """
-        return Grader._call_ai(prompt)
+        return CorrectionService._call_ai(prompt)
 
     @staticmethod
     def _call_ai(prompt):
         try:
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",  # Recomano gpt-4o per corregir millor, si vols estalviar posa gpt-4o-mini
                 messages=[{"role": "system", "content": prompt}],
                 temperature=0.4, # Temperatura baixa per a correccions consistents
                 response_format={"type": "json_object"}
@@ -87,4 +89,10 @@ class Grader:
             return json.loads(response.choices[0].message.content)
         except Exception as e:
             print(f"Error calling AI Grader: {e}")
-            return {"error": str(e)}
+            # Retornem una estructura d'error segura per no trencar el frontend
+            return {
+                "score": 0,
+                "feedback": "There was an error processing the correction. Please try again.",
+                "corrections": [],
+                "model_answer": "Error generating model answer."
+            }

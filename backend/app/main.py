@@ -10,8 +10,8 @@ import time
 # Assegura't que aquestes rutes existeixen. Si el teu router ja tenia lògica,
 # aquest main.py la sobreescriurà per l'endpoint /exercise/{type} per assegurar el tir.
 from app.services.generators.factory import ExerciseFactory
-from app.services.database import DatabaseService 
-from app.services.corrector import CorrectionService
+from app.services.db import DatabaseService 
+from app.services.grader import CorrectionService
 from app.routers.payment import payment_router
 # from app.api.router import router  <-- Ho comentem per evitar conflictes si ja tens rutes definides allà
 
