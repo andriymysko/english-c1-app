@@ -58,9 +58,11 @@ interface Props {
 }
 
 export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
-  // 🟢 CORREGIT: Fem servir useAuth() real del teu context
   const { user } = useAuth();
 
+  // -----------------------------------------------------------
+  // 🔍 DEBUGGING LOGS
+  // -----------------------------------------------------------
   useEffect(() => {
     console.log("🚀 [ExercisePlayer] Iniciat tipus:", data.type);
   }, [data.type]);
@@ -96,11 +98,11 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const isSpeaking = data.type.startsWith("speaking");
   const isSpeakingPart3 = data.type === "speaking3";
   const isListening = data.type.startsWith("listening");
-  const isPart4 = data.type === "reading_and_use_of_language4";
   const isListeningPart2 = data.type === "listening2";
   const isGapFill = ["reading_and_use_of_language1", "reading_and_use_of_language2", "reading_and_use_of_language3"].includes(data.type);
   const isInteractive = !isWriting && !isSpeaking && !isEssayExam && !selectedOption && !isChoiceMode;
 
+  // HANDLERS
   const handleDownloadPDF = async () => {
     if (isDownloading) return;
     setIsDownloading(true);
@@ -403,7 +405,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                         <h2 className="text-3xl font-black">Assessment Result</h2>
                         <div className="text-5xl font-black text-blue-600">{feedback.score}/20</div>
                     </div>
-                    <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 mb-8"><h4 className="font-bold text-blue-900 mb-2">Feedback</h4><p className="text-blue-800 leading-relaxed whitespace-pre-wrap">{feedback.feedback}</p></div>
+                    <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 mb-8"><h4 className="font-bold text-blue-900 mb-2">Examiner Feedback</h4><p className="text-blue-800 leading-relaxed whitespace-pre-wrap">{feedback.feedback}</p></div>
                     {feedback.corrections?.length > 0 && (
                         <div className="space-y-4">
                             <h4 className="font-bold text-lg border-b pb-2">Key Improvements</h4>
@@ -448,7 +450,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
       <div className={`p-6 flex justify-between items-center sticky top-0 z-10 shadow-md text-white ${isSpeaking ? 'bg-purple-900' : isWriting ? 'bg-emerald-900' : isListening ? 'bg-orange-800' : 'bg-gray-900'}`}>
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft className="w-6 h-6" /></button>
-          <div><h2 className="text-xl font-bold">{data.title}</h2><p className="text-white/70 text-sm">C1 Advanced • {data.type.replace(/_/g, ' ')}</p></div>
+          <div><h2 className="text-xl font-bold">{data.title}</h2><p className="text-white/70 text-sm">C1 Advanced</p></div>
         </div>
         <button onClick={handleDownloadPDF} disabled={isDownloading} className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition-all border border-white/20">
           {isDownloading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Download className="w-4 h-4" />} PDF
@@ -461,13 +463,21 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
           {data.instructions}
         </div>
 
+        {data.image_urls && data.image_urls.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {data.image_urls.map((url, i) => (
+              <div key={i} className="rounded-xl overflow-hidden shadow-lg border-2 border-gray-100 hover:scale-105 transition-transform"><img src={url} alt="Task" className="w-full h-full object-cover aspect-square" /></div>
+            ))}
+          </div>
+        )}
+
         {isListening && (
           <div className="bg-orange-50 p-6 rounded-2xl border-2 border-orange-100 shadow-sm flex flex-col items-center gap-4 sticky top-0 z-20">
             <div className="flex items-center gap-2 text-orange-800 font-bold text-lg"><Volume2 className="w-6 h-6" /> Audio Track</div>
             {loadingAudio ? (
               <div className="flex items-center gap-2 text-orange-600 font-medium"><Loader2 className="animate-spin w-5 h-5" /> Generating...</div>
             ) : audioUrl ? (
-              <AudioPlayerLocked isVip={user?.is_vip} audioUrl={audioUrl} onUnlock={onOpenPricing} />
+              <AudioPlayerLocked isVip={user?.is_vip || false} audioUrl={audioUrl} onUnlock={onOpenPricing} />
             ) : <p className="text-red-500 text-sm">Error loading audio.</p>}
             
             <button onClick={() => setShowTranscript(!showTranscript)} className="text-sm font-bold text-orange-700 underline flex items-center gap-1 hover:text-orange-900 mt-2">
@@ -477,7 +487,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
         )}
 
         <div className="relative">
-           {!user?.is_vip && isListening && (
+           {isListening && (!user || !user.is_vip) && (
               <div className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-white/70 backdrop-blur-[2px] rounded-2xl">
                   <div className="bg-white p-8 rounded-3xl shadow-2xl border-2 border-orange-100 max-w-sm text-center animate-in zoom-in-95">
                       <div className="bg-orange-100 p-5 rounded-full mb-5 w-20 h-20 flex items-center justify-center mx-auto shadow-inner"><Lock className="w-10 h-10 text-orange-600" /></div>
@@ -488,7 +498,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
               </div>
            )}
 
-           <div className={!user?.is_vip && isListening ? "filter blur-sm pointer-events-none select-none opacity-50" : ""}>
+           <div className={isListening && (!user || !user.is_vip) ? "filter blur-sm pointer-events-none select-none opacity-50" : ""}>
               {isSpeakingPart3 ? (
                   renderSpeakingPart3()
               ) : isListeningPart2 ? (
@@ -524,7 +534,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                                 <div className="space-y-6">
                                     <div className="flex gap-4 items-start"><span className="font-black text-gray-200 text-3xl">{idx + 1}</span><p className="font-bold text-gray-900 text-lg pt-1">{q.question}</p></div>
                                     
-                                    {/* SECCIÓ PER A PART 4 */}
                                     {data.type === "reading_and_use_of_language4" && q.original_sentence && (
                                         <div className="mb-4 bg-slate-50 p-4 rounded-lg border">
                                             <p className="text-gray-900 font-medium mb-3">{q.original_sentence}</p>
@@ -579,7 +588,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                                     {isTranscribing && <div className="text-purple-600 font-bold flex items-center gap-2"><Loader2 className="animate-spin w-5 h-5" /> Processing...</div>}
                                 </div>
                             )}
-                            <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} disabled={isSpeaking && !user?.is_vip} placeholder={isSpeaking ? "Transcript will appear here..." : "Write response here..."} className="w-full h-80 p-8 border-2 rounded-3xl outline-none text-xl font-serif leading-relaxed resize-none shadow-inner focus:border-blue-500" />
+                            <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} disabled={isSpeaking && (!user || !user.is_vip)} placeholder={isSpeaking ? "Transcript will appear here..." : "Write response here..."} className="w-full h-80 p-8 border-2 rounded-3xl outline-none text-xl font-serif leading-relaxed resize-none shadow-inner focus:border-blue-500" />
                             <div className="flex justify-end pt-4">
                                 <button onClick={handleSubmitCreative} disabled={loadingGrade || inputText.length < 10 || isTranscribing || isRecording} className="flex items-center gap-3 px-10 py-4 rounded-2xl font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-105 transition-all disabled:opacity-50">
                                     {loadingGrade ? <Loader2 className="animate-spin" /> : <Send className="w-5 h-5" />} Submit for Feedback
@@ -611,13 +620,13 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
       {isInteractive && (
         <div className="p-6 border-t bg-gray-50/80 backdrop-blur-md flex justify-center sticky bottom-0 z-20">
           {!showAnswers ? (
-            <button onClick={checkScore} disabled={isListening && !user?.is_vip} className="flex items-center gap-3 px-16 py-4 rounded-2xl font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50">
+            <button onClick={checkScore} disabled={isListening && (!user || !user.is_vip)} className="flex items-center gap-3 px-16 py-4 rounded-2xl font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50">
               <Eye className="w-5 h-5" /> Check Answers
             </button>
           ) : (
             <div className="flex flex-col items-center gap-3 w-full">
               <div className="text-2xl font-black">Score: {score} / {data.questions.length}</div>
-              <button onClick={onBack} className="flex items-center gap-2 px-10 py-3 rounded-full font-black text-gray-600 bg-white border-2 hover:bg-gray-50 transition-all shadow-md">Menu <ArrowRight className="w-5 h-5"/></button>
+              <button onClick={onBack} className="flex items-center gap-2 px-10 py-3 rounded-full font-black text-gray-600 bg-white border-2 hover:bg-gray-100 transition-all shadow-md">Menu <ArrowRight className="w-5 h-5"/></button>
             </div>
           )}
         </div>
