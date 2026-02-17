@@ -415,3 +415,33 @@ class DatabaseService:
             return [doc.id for doc in docs]
         except Exception:
             return []
+        
+class DatabaseService:
+    @staticmethod
+    def save_exercise(exercise_data: dict):
+        """Guarda un exercici a la col·lecció 'exercises'"""
+        db = firestore.client()
+        # Afegim un timestamp o ID si cal
+        exercise_data["created_at"] = firestore.SERVER_TIMESTAMP
+        # Guardem
+        db.collection("exercises").add(exercise_data)
+
+    @staticmethod
+    def get_random_exercise(exercise_type: str, level: str = "C1"):
+        """Busca un exercici del tipus correcte a la BD"""
+        db = firestore.client()
+        
+        # Consultem exercicis d'aquest tipus
+        # Nota: En producció, idealment marquem els 'usats' per no repetir.
+        # Aquí fem un random simple per començar.
+        docs = db.collection("exercises")\
+                 .where("type", "==", exercise_type)\
+                 .limit(10)\
+                 .stream()
+        
+        exercises = [doc.to_dict() for doc in docs]
+        
+        if not exercises:
+            return None
+            
+        return random.choice(exercises)

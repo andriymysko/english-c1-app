@@ -107,27 +107,13 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const isListening = data.type.startsWith("listening");
   const isPart4 = data.type === "reading_and_use_of_language4";
   
-  // ⚠️ FIX: Identifiquem específicament Listening Part 2
+  // ⚠️ FIX: Identifiquem Listening Part 2
   const isListeningPart2 = data.type === "listening2";
   
-  // ⚠️ FIX: TREIEM 'listening2' d'aquesta llista perquè tingui el seu propi renderitzador
+  // ⚠️ FIX: TREIEM 'listening2' d'aquesta llista perquè no entri en conflicte
   const isGapFill = ["reading_and_use_of_language1", "reading_and_use_of_language2", "reading_and_use_of_language3"].includes(data.type);
   
   const isInteractive = !isWriting && !isSpeaking && !isEssayExam && !selectedOption && !isChoiceMode;
-
-  // 👇👇👇 ZONA DE DEBUGGING (MIRA LA CONSOLA F12) 👇👇👇
-  useEffect(() => {
-    if (isListening) {
-        console.log("%c 🐛 DEBUG LISTENING STATUS ", "background: #222; color: #bada55; font-size: 14px");
-        console.log("Tipus d'exercici (data.type):", data.type);
-        console.log("És Listening Part 2? (isListeningPart2):", isListeningPart2);
-        console.log("És GapFill normal? (isGapFill):", isGapFill);
-        console.log("Estat Show Transcript:", showTranscript);
-        console.log("Hi ha text al JSON? (data.text):", data.text ? "SÍ (Longitud: " + data.text.length + ")" : "❌ NO, ESTÀ BUIT!");
-        if (!data.text) console.error("⚠️ ALERTA: El backend no ha enviat el text. Revisa factory.py!");
-    }
-  }, [data, showTranscript, isListeningPart2]);
-  // 👆👆👆 FI ZONA DE DEBUGGING 👆👆👆
 
   // --- HANDLERS ---
 
