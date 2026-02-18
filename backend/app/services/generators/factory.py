@@ -236,6 +236,12 @@ class ExerciseFactory:
               - 'stem': The sentence with the gap.
               - 'answer': The exact word(s) to fill the gap.
             - TIMESTAMPS: Required "MM:SS".
+
+            The output must be a JSON object with:
+              - "title": string
+              - "instructions": string
+              - "text": string (The full monologue transcript) <--- AIXÒ ÉS CLAU
+              - "questions": list of objects
             """
              # Forcem una estructura neta sense opcions
              json_fields_example = """

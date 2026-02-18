@@ -506,11 +506,22 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                     {renderListeningPart2()}
                     {showTranscript && (
                         <div className="mt-8 prose max-w-none bg-gray-50 p-8 rounded-2xl border-2 border-gray-200 leading-relaxed whitespace-pre-line font-serif text-xl text-gray-800 animate-in slide-in-from-bottom-4 shadow-inner">
-                            <h4 className="font-bold text-gray-400 mb-6 uppercase tracking-widest text-sm border-b pb-4">
-                                Full Audio Transcript
+                            <h4 className="font-bold text-gray-400 mb-6 uppercase tracking-widest text-sm border-b pb-4 flex justify-between">
+                                <span>Full Audio Transcript</span>
+                                <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded">C1 Level</span>
                             </h4>
-                            {/* Provem totes les variants on la IA podria haver guardat el text */}
-                            {data.text || (data as any).script || (data as any).transcript || "⚠️ Transcript content not found in the exercise data."}
+                            
+                            {/* Comprovem data.text, data.transcript o data.script */}
+                            {data.text || (data as any).transcript || (data as any).script ? (
+                                <div className="animate-in fade-in duration-500">
+                                    {data.text || (data as any).transcript || (data as any).script}
+                                </div>
+                            ) : (
+                                <div className="text-red-500 font-bold p-4 bg-red-50 rounded-lg border border-red-100 flex items-center gap-2">
+                                    <AlertCircle className="w-5 h-5" />
+                                    No transcript text was found in this exercise.
+                                </div>
+                            )}
                         </div>
                     )}
                   </>
