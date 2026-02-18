@@ -32,43 +32,97 @@ db = firestore.client()
 
 class DatabaseService:
     
-    # --- NOVES FUNCIONS DE GESTIÓ DE VIP I CRÈDITS (PAS 1) ---
-    
+    # ==========================================
+    # 1. GESTIÓ D'EXERCICIS (CORE)
+    # ==========================================
+
     @staticmethod
-    def get_random_exercise(exercise_type: str, level: str = "C1"):
-        """Busca un exercici que coincideixi exactament amb tipus i nivell"""
+    def save_exercise(exercise_data: dict):
+        """Guarda un exercici a la col·lecció 'exercises' assegurant camps per a filtratge"""
         try:
-            docs = db.collection("exercises")\
-                     .where("type", "==", exercise_type)\
-                     .where("level", "==", level)\
-                     .limit(15).get() # Agafem un pool petit per triar
+            # Unificació de noms de camp per poder filtrar correctament després
+            if "type" not in exercise_data and "exercise_type" in exercise_data:
+                exercise_data["type"] = exercise_data["exercise_type"]
             
-            exercises = []
-            for doc in docs:
-                d = doc.to_dict()
-                d["id"] = doc.id
-                exercises.append(d)
+            exercise_data["created_at"] = firestore.SERVER_TIMESTAMP
+            exercise_data["is_flagged"] = False
             
-            if not exercises:
-                print(f"⚠️ Cap exercici trobat a la BD per {exercise_type} ({level})")
-                return None
-                
-            return random.choice(exercises)
+            doc_ref = db.collection("exercises").document()
+            doc_ref.set(exercise_data)
+            
+            print(f"✅ Exercici guardat amb ID: {doc_ref.id} (Tipus: {exercise_data.get('type')})")
+            return doc_ref.id
         except Exception as e:
-            print(f"❌ Error buscant exercici: {e}")
+            print(f"❌ Error guardant exercici: {e}")
             return None
 
     @staticmethod
-    def add_credits_only(user_id: str, credits: int):
-        """Només afegeix crèdits de correcció (per packs sueltos)"""
+    def get_random_exercise(exercise_type: str, level: str = "C1"):
+        """Busca un exercici aleatori a la BD que coincideixi amb tipus i nivell"""
+        try:
+            exercises_ref = db.collection("exercises")
+            query = exercises_ref.where("type", "==", exercise_type)\
+                                 .where("level", "==", level)\
+                                 .where("is_flagged", "==", False)\
+                                 .limit(20)
+            
+            docs = query.get()
+            exercises = []
+            for doc in docs:
+                data = doc.to_dict()
+                data["id"] = doc.id
+                exercises.append(data)
+            
+            if not exercises:
+                print(f"⚠️ Cap exercici trobat a la BD per a: {exercise_type}")
+                return None
+            
+            selected = random.choice(exercises)
+            print(f"🎲 Exercici recuperat de la BD: {selected.get('id')}")
+            return selected
+        except Exception as e:
+            print(f"❌ Error a get_random_exercise: {e}")
+            return None
+
+    # ==========================================
+    # 2. GESTIÓ DE VIP, CRÈDITS I ANUNCIS
+    # ==========================================
+
+    @staticmethod
+    def grant_vip_access(user_id: str, days: int, correction_credits: int):
+        """Dona accés VIP temporal i suma crèdits de correcció"""
         try:
             user_ref = db.collection('users').document(user_id)
-            # Utilitzem 'increment' de firestore que és atòmic i segur
-            user_ref.update({'correction_credits': firestore.Increment(credits)})
+            user_doc = user_ref.get()
+            data = user_doc.to_dict() if user_doc.exists else {}
+
+            current_expiry = data.get('vip_expiry')
+            now = datetime.now()
+            
+            if current_expiry:
+                current_expiry = current_expiry.replace(tzinfo=None) if hasattr(current_expiry, 'replace') else current_expiry
+                new_expiry = (current_expiry if current_expiry > now else now) + timedelta(days=days)
+            else:
+                new_expiry = now + timedelta(days=days)
+
+            user_ref.set({
+                'is_vip': True,
+                'vip_expiry': new_expiry,
+                'correction_credits': (data.get('correction_credits', 0) + correction_credits)
+            }, merge=True)
+            
             return True
         except Exception as e:
-            print(f"Error adding credits: {e}")
+            print(f"Error granting VIP: {e}")
             return False
+
+    @staticmethod
+    def add_credits_only(user_id: str, credits: int):
+        try:
+            user_ref = db.collection('users').document(user_id)
+            user_ref.update({'correction_credits': firestore.Increment(credits)})
+            return True
+        except: return False
 
     @staticmethod
     def use_correction_credit(user_id: str) -> bool:
@@ -91,84 +145,23 @@ class DatabaseService:
         try:
             user_ref = db.collection('users').document(user_id)
             user_doc = user_ref.get()
+            if not user_doc.exists: return False
+            
             data = user_doc.to_dict()
-            
-            # 1. Comprovem quants anuncis ha vist avui
             ads_today = data.get('ads_watched_today', 0)
+            if ads_today >= 3: return False
             
-            # 2. POSEM EL LÍMIT AQUÍ (Exemple: Màxim 5 anuncis al dia)
-            MAX_ADS = 3
-            if ads_today >= MAX_ADS:
-                return False # Li diem que no pot veure més
-            
-            # 3. Si està dins del límit, li donem la recompensa
             batch = db.batch()
             batch.update(user_ref, {'daily_gen_count': firestore.Increment(-1)})
             batch.update(user_ref, {'ads_watched_today': firestore.Increment(1)})
             batch.commit()
-            
-            return True
-        except Exception:
-            return False
-
-    # --- RATE LIMITING ---
-    @staticmethod
-    def check_user_quota(user_id: str, cost: int = 1, limit: int = 10) -> bool:
-        """
-        Retorna True si l'usuari pot generar. False si ha superat el límit diari.
-        Ara també comprova si el VIP ha caducat.
-        """
-        if not user_id: return True 
-        
-        try:
-            user_ref = db.collection('users').document(user_id)
-            user_doc = user_ref.get()
-            data = user_doc.to_dict() if user_doc.exists else {}
-            
-            # 1. Comprovem VIP per Data (NOU)
-            vip_expiry = data.get('vip_expiry')
-            if vip_expiry:
-                expiry_date = vip_expiry.replace(tzinfo=None) if hasattr(vip_expiry, 'replace') else vip_expiry
-                if expiry_date > datetime.now():
-                    return True # És VIP vigent -> Barra lliure
-
-            # 2. Si no és VIP (o ha caducat), mirem quota diària
-            today = datetime.now().strftime('%Y-%m-%d')
-            last_date = data.get('last_gen_date', '')
-            daily_count = data.get('daily_gen_count', 0)
-            
-            if last_date != today:
-                daily_count = 0
-            
-            if daily_count + cost > limit:
-                print(f"🚫 QUOTA EXCEEDED: User {user_id} ({daily_count}/{limit})")
-                return False
-            
-            user_ref.set({
-                'last_gen_date': today,
-                'daily_gen_count': daily_count + cost
-            }, merge=True)
-            
-            return True
-        except Exception as e:
-            print(f"⚠️ Error checking quota: {e}")
-            return True 
-
-    # --- REPORTING ---
-    @staticmethod
-    def report_issue(user_id: str, exercise_id: str, question_index: int, reason: str, exercise_data: dict):
-        try:
-            db.collection('reports').add({
-                'user_id': user_id,
-                'exercise_id': exercise_id,
-                'question_index': question_index,
-                'reason': reason,
-                'timestamp': datetime.now()
-            })
             return True
         except: return False
 
-    # --- GAMIFICATION & STATS ---
+    # ==========================================
+    # 3. GAMIFICACIÓ I STATS
+    # ==========================================
+
     @staticmethod
     def update_user_gamification(user_id: str, score: int):
         try:
@@ -193,11 +186,12 @@ class DatabaseService:
     def get_user_stats(user_id: str):
         try:
             u_doc = db.collection('users').document(user_id).get()
-            u_data = u_doc.to_dict() if u_doc.exists else {}
+            if not u_doc.exists:
+                return {"xp": 0, "streak": 0, "completed": 0, "is_vip": False}
             
-            # Lògica VIP
-            is_vip_active = False
+            u_data = u_doc.to_dict()
             vip_expiry = u_data.get('vip_expiry')
+            is_vip_active = False
             if vip_expiry:
                 expiry_date = vip_expiry.replace(tzinfo=None) if hasattr(vip_expiry, 'replace') else vip_expiry
                 is_vip_active = expiry_date > datetime.now()
@@ -208,7 +202,7 @@ class DatabaseService:
                 "level": u_data.get('level', 1),
                 "is_vip": is_vip_active,
                 "correction_credits": u_data.get('correction_credits', 0),
-                "completed": u_data.get('completed_exercises_count', 0)
+                "daily_gen_count": u_data.get('daily_gen_count', 0)
             }
         except: return None
 
@@ -225,137 +219,11 @@ class DatabaseService:
                 'timestamp': datetime.now()
             })
             return DatabaseService.update_user_gamification(user_id, score)
-        except Exception:
-            return None
+        except: return None
 
-    # --- CORE EXERCISE ---
-    @staticmethod
-    def save_exercise(exercise_data: dict):
-        """Guarda un exercici assegurant camps per a filtratge"""
-        try:
-            # UNIFICACIÓ: Assegurem que el camp es digui 'type' per buscar-lo bé després
-            if "type" not in exercise_data and "exercise_type" in exercise_data:
-                exercise_data["type"] = exercise_data["exercise_type"]
-            
-            exercise_data["created_at"] = firestore.SERVER_TIMESTAMP
-            
-            doc_ref = db.collection("exercises").document()
-            doc_ref.set(exercise_data)
-            
-            print(f"✅ Exercici guardat amb ID: {doc_ref.id} (Tipus: {exercise_data.get('type')})")
-            return doc_ref.id
-        except Exception as e:
-            print(f"❌ Error guardant exercici: {e}")
-            return None
-    
-    @staticmethod
-    def get_random_exercise(exercise_type: str, level: str = "C1"):
-        """
-        Busca exercicis a la base de dades que coincideixin amb el tipus i nivell.
-        Si en troba diversos, en tria un a l'atzar.
-        """
-        try:
-            # Referència a la col·lecció d'exercicis
-            exercises_ref = db.collection("exercises")
-            
-            # Fem la consulta filtrant per tipus i nivell
-            # IMPORTANT: El camp a Firestore s'ha de dir 'type' (o 'exercise_type')
-            query = exercises_ref.where("type", "==", exercise_type)\
-                                 .where("level", "==", level)\
-                                 .limit(20) # Agafem els últims 20 per tenir varietat
-            
-            docs = query.get()
-            
-            exercises = []
-            for doc in docs:
-                data = doc.to_dict()
-                data["id"] = doc.id # Afegim l'ID de Firestore
-                exercises.append(data)
-            
-            if not exercises:
-                print(f"⚠️ Cap exercici trobat a la BD per a: {exercise_type}")
-                return None
-            
-            # Triem un a l'atzar del pool de 20
-            selected = random.choice(exercises)
-            print(f"🎲 Exercici recuperat de la BD: {selected.get('id')}")
-            return selected
-
-        except Exception as e:
-            print(f"❌ Error a get_random_exercise: {e}")
-            return None
-
-    @staticmethod
-    def get_existing_exercise(level: str, exercise_type: str, completed_ids: list):
-        try:
-            db = firestore.client()
-            exercises_ref = db.collection('exercises')
-            
-            print(f"🔍 BUSCANT A DB: Level={level}, Type={exercise_type}")
-
-            # INTENT 1: Cerca estàndard (pel camp exercise_type)
-            query = exercises_ref.where("level", "==", level)\
-                                 .where("exercise_type", "==", exercise_type)
-            
-            docs = list(query.stream())
-            
-            # INTENT 2: Si no en troba, potser el camp es diu 'type' o 'part_id' a la teva DB antiga?
-            if not docs:
-                print("⚠️ No trobats per 'exercise_type'. Provant per 'type'...")
-                query = exercises_ref.where("level", "==", level)\
-                                     .where("type", "==", exercise_type)
-                docs = list(query.stream())
-
-            # INTENT 3: Si encara no en troba, potser falta el camp i ho hem de buscar manualment
-            if not docs:
-                print("⚠️ No trobats per 'type'. Descarregant tot el nivell per inspeccionar (Debug)...")
-                # Això és només per debug, no ho deixis en producció si tens milers d'exercicis
-                all_level_docs = exercises_ref.where("level", "==", level).limit(20).stream()
-                for d in all_level_docs:
-                    data = d.to_dict()
-                    # Comprovem si l'estructura és l'antiga (on el tipus era una clau del diccionari)
-                    if exercise_type in data: 
-                        docs.append(d)
-
-            # Filtrem els que ja ha fet l'usuari
-            available = []
-            print(f"📄 Documents trobats bruts: {len(docs)}")
-            
-            for doc in docs:
-                # Gestionem si 'doc' ja és un objecte o una referència
-                data = doc.to_dict() if hasattr(doc, 'to_dict') else doc.to_dict()
-                doc_id = doc.id
-                
-                # Normalitzem l'ID
-                data['id'] = doc_id
-                
-                if doc_id not in completed_ids:
-                    available.append(data)
-                else:
-                    print(f"   ❌ Saltant {doc_id} (Ja completat)")
-
-            if not available:
-                print("❌ 0 disponibles després de filtrar l'historial.")
-                return None
-
-            print(f"✅ DISPONIBLES REALS: {len(available)}")
-            
-            # Selecció aleatòria
-            selected = random.choice(available)
-            print(f"🎲 Random Select: {selected.get('id')} from {len(available)} options.")
-            return selected
-
-        except Exception as e:
-            print(f"Error fetching exercise: {e}")
-            return None
-
-    # --- FLASHCARDS ---
-    @staticmethod
-    def get_user_flashcards(user_id: str):
-        try:
-            docs = db.collection('users').document(user_id).collection('flashcards').order_by('priority', direction=firestore.Query.DESCENDING).limit(20).stream()
-            return [{**doc.to_dict(), 'id': doc.id} for doc in docs]
-        except: return []
+    # ==========================================
+    # 4. FLASHCARDS I REPORTS
+    # ==========================================
 
     @staticmethod
     def save_generated_flashcards(user_id: str, new_cards: list):
@@ -370,21 +238,23 @@ class DatabaseService:
         except: return False
 
     @staticmethod
-    def update_flashcard_priority(user_id: str, card_id: str, success: bool):
+    def report_issue(user_id: str, exercise_id: str, question_index: int, reason: str, exercise_data: dict):
         try:
-            ref = db.collection('users').document(user_id).collection('flashcards').document(card_id)
-            doc = ref.get()
-            if not doc.exists: return
-            curr = doc.to_dict().get('priority', 50)
-            new_p = max(1, curr - 10) if success else min(100, curr + 20)
-            ref.update({'priority': new_p})
-        except: pass
+            db.collection('reports').add({
+                'user_id': user_id,
+                'exercise_id': exercise_id,
+                'question_index': question_index,
+                'reason': reason,
+                'exercise_type': exercise_data.get('type'),
+                'timestamp': datetime.now(),
+                'status': 'open'
+            })
+            return True
+        except: return False
 
     @staticmethod
     def get_user_completed_ids(user_id: str) -> list:
-        """Retorna una llista simple amb tots els IDs d'exercicis fets per l'usuari"""
         try:
-            docs = db.collection("users").document(user_id).collection("completed_exercises").stream()
-            return [doc.id for doc in docs]
-        except Exception:
-            return []
+            docs = db.collection("user_results").where("user_id", "==", user_id).stream()
+            return [doc.to_dict().get('exercise_id') for doc in docs if doc.to_dict().get('exercise_id')]
+        except: return []

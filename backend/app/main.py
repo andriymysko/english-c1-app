@@ -4,7 +4,8 @@ from pydantic import BaseModel
 import firebase_admin
 from firebase_admin import credentials
 import os
-from openai import OpenAI  # 👈 Nou import
+from openai import OpenAI
+from typing import List, Optional
 
 # --- IMPORTACIONS DELS TEUS SERVEIS ---
 from app.services.generators.factory import ExerciseFactory
@@ -32,7 +33,7 @@ if not firebase_admin._apps:
         print("⚠️ ALERTA: No s'ha trobat serviceAccountKey.json.")
 
 # ==========================================
-# 2. CONFIGURACIÓ CORS (CORREGIDA)
+# 2. CONFIGURACIÓ CORS
 # ==========================================
 origins = [
     "http://localhost:5173",
@@ -51,10 +52,27 @@ app.add_middleware(
 )
 
 # ==========================================
-# 3. LÒGICA "POOL" (PRE-CARREGA)
+# 3. MODELS DE DADES (Pydantic)
+# ==========================================
+class TTSRequest(BaseModel):
+    text: str
+
+class ResultRequest(BaseModel):
+    user_id: str
+    exercise_type: str
+    score: int
+    total: int
+    exercise_id: Optional[str] = None
+    mistakes: Optional[List[dict]] = []
+
+class WritingRequest(BaseModel):
+    task_prompt: str
+    user_text: str
+
+# ==========================================
+# 4. LÒGICA BACKGROUND
 # ==========================================
 def generate_and_save_background(exercise_type: str, level: str):
-    print(f"🔄 [BACKGROUND] Generant exercici de reserva: {exercise_type}...")
     try:
         new_exercise = ExerciseFactory.create_exercise(exercise_type, level)
         DatabaseService.save_exercise(new_exercise.model_dump())
@@ -63,36 +81,26 @@ def generate_and_save_background(exercise_type: str, level: str):
         print(f"❌ [BACKGROUND ERROR]: {e}")
 
 # ==========================================
-# 4. ENDPOINTS
+# 5. ENDPOINTS
 # ==========================================
 
 @app.get("/")
 def read_root():
     return {"status": "online", "server": "Render"}
 
-# --- ENDPOINT TTS (TEXT-TO-SPEECH) ---
-class TTSRequest(BaseModel):
-    text: str
-
 @app.post("/tts")
 async def text_to_speech(request: TTSRequest):
-    """Genera àudio a partir del guió de l'exercici."""
-    print("🎙️ Generant àudio per al monòleg...")
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    
     try:
         response = client.audio.speech.create(
             model="tts-1",
             voice="alloy",
             input=request.text
         )
-        # Retornem el contingut binari de l'àudio directament
         return Response(content=response.content, media_type="audio/mpeg")
     except Exception as e:
-        print(f"❌ Error a TTS: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Endpoint per a les estadístiques
 @app.get("/user_stats/{user_id}")
 async def get_user_stats_endpoint(user_id: str):
     try:
@@ -105,34 +113,51 @@ async def get_user_stats_endpoint(user_id: str):
 
 @app.get("/exercise/{exercise_type}")
 async def get_exercise(exercise_type: str, level: str = "C1", background_tasks: BackgroundTasks = None):
-    print(f"📥 [REQUEST]: {exercise_type}")
-    
     try:
         existing_exercise = DatabaseService.get_random_exercise(exercise_type, level)
     except Exception as e:
-        print(f"⚠️ Error BD: {e}")
         existing_exercise = None
 
     if existing_exercise:
-        print("⚡ [CACHE HIT]")
         if background_tasks:
             background_tasks.add_task(generate_and_save_background, exercise_type, level)
         return existing_exercise
 
-    print("🐢 [CACHE MISS] Generant...")
+    print("🐢 [CACHE MISS] Generant en temps real...")
     try:
         new_exercise = ExerciseFactory.create_exercise(exercise_type, level)
-        if background_tasks:
-            background_tasks.add_task(DatabaseService.save_exercise, new_exercise.model_dump())
         
-        return new_exercise.model_dump()
-    except Exception as e:
-        print(f"❌ ERROR GENERACIÓ: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # ⚠️ CONSELL PRO: Convertim a dict i forcem els camps de cerca
+        exercise_dict = new_exercise.model_dump()
+        exercise_dict["type"] = exercise_type
+        exercise_dict["level"] = level
 
-class WritingRequest(BaseModel):
-    task_prompt: str
-    user_text: str
+        if background_tasks:
+            # Usem el diccionari ja preparat
+            background_tasks.add_task(DatabaseService.save_exercise, exercise_dict)
+        
+        return exercise_dict
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+# ✅ NOU: Endpoint per guardar resultats (Evita el 404)
+@app.post("/submit_result")
+async def submit_result_endpoint(request: ResultRequest):
+    print(f"📊 Rebut resultat per a l'usuari: {request.user_id}")
+    try:
+        # Aquí cridem a la teva funció de DB per guardar la nota
+        success = DatabaseService.save_user_result(
+            user_id=request.user_id,
+            exercise_data={"id": request.exercise_id, "type": request.exercise_type},
+            score=request.score,
+            total=request.total,
+            mistakes=request.mistakes
+        )
+        return {"status": "success", "updated_stats": success}
+    except Exception as e:
+        print(f"❌ Error guardant resultat: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/grade/writing")
 async def grade_writing_endpoint(request: WritingRequest):
@@ -143,6 +168,5 @@ app.include_router(payment_router)
 
 if __name__ == "__main__":
     import uvicorn
-    # Render usa la variable d'entorn PORT
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
