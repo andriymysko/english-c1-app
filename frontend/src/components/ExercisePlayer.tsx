@@ -505,9 +505,12 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                   <>
                     {renderListeningPart2()}
                     {showTranscript && (
-                        <div className="mt-8 prose max-w-none bg-gray-50 p-8 rounded-2xl border-2 border-gray-200 leading-relaxed font-serif text-xl text-gray-800">
-                            <h4 className="font-bold text-gray-400 mb-6 uppercase tracking-widest text-sm border-b pb-4">Transcript</h4>
-                            {data.text || "No text available"}
+                        <div className="mt-8 prose max-w-none bg-gray-50 p-8 rounded-2xl border-2 border-gray-200 leading-relaxed whitespace-pre-line font-serif text-xl text-gray-800 animate-in slide-in-from-bottom-4 shadow-inner">
+                            <h4 className="font-bold text-gray-400 mb-6 uppercase tracking-widest text-sm border-b pb-4">
+                                Full Audio Transcript
+                            </h4>
+                            {/* Provem totes les variants on la IA podria haver guardat el text */}
+                            {data.text || (data as any).script || (data as any).transcript || "⚠️ Transcript content not found in the exercise data."}
                         </div>
                     )}
                   </>
