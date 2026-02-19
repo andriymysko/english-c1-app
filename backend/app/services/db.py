@@ -16,24 +16,28 @@ class DatabaseService:
     # ==========================================
 
     @staticmethod
-    def save_exercise(exercise_data: dict,is_public: bool = True):
-        """Guarda un exercici a la col·lecció 'exercises' assegurant camps per a filtratge"""
+    def save_exercise(exercise_data: dict, is_public: bool = True):
         try:
+            # 1. Netegem l'ID si ja en té un per no duplicar-lo
+            if "id" in exercise_data:
+                del exercise_data["id"]
+                
+            # 🔥 2. ELIMINEM L'ÀUDIO BASE64 PER EVITAR EL LÍMIT D'1MB DE FIREBASE
+            if "audio_base64" in exercise_data:
+                del exercise_data["audio_base64"]
+                
+            # 3. Afegim el camp públic
             exercise_data["is_public"] = is_public
-            # Unificació de noms de camp per poder filtrar correctament després
-            if "type" not in exercise_data and "exercise_type" in exercise_data:
-                exercise_data["type"] = exercise_data["exercise_type"]
             
-            exercise_data["created_at"] = firestore.SERVER_TIMESTAMP
-            exercise_data["is_flagged"] = False
-            
+            # 4. Guardem a la col·lecció
             doc_ref = db.collection("exercises").document()
             doc_ref.set(exercise_data)
             
-            print(f"✅ Exercici guardat amb ID: {doc_ref.id} (Tipus: {exercise_data.get('type')})")
+            print(f"✅ BACKGROUND: Exercici guardat correctament a la DB! ID: {doc_ref.id}")
             return doc_ref.id
+            
         except Exception as e:
-            print(f"❌ Error guardant exercici: {e}")
+            print(f"❌ ERROR CRÍTIC GUARDANT A FIREBASE: {e}")
             return None
 
     @staticmethod
