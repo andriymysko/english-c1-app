@@ -304,16 +304,25 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     return (
         <div className="space-y-6">
             {data.questions.map((q, idx) => {
-                const parts = (q.stem || q.question).split(/\[_*\]|\[\d+\]|________/); 
+                // 👇 1. Netejem el text perquè no comenci per números ("1. ", "2-", etc.)
+                const cleanStem = (q.stem || q.question).replace(/^\d+[\.\-\)]?\s*/, '');
+                
+                // 👇 2. Partim el text netejat per trobar els forats
+                const parts = cleanStem.split(/\[_*\]|\[\d+\]|________/); 
+                
                 const qKey = q.question || idx.toString();
                 const userAnswer = userAnswers[qKey] || "";
                 const cleanCorrectAnswer = cleanOptionText(q.answer);
                 const isCorrect = showAnswers && (userAnswer.toLowerCase() === cleanCorrectAnswer.toLowerCase());
                 const isWrong = showAnswers && !isCorrect;
+                
                 return (
                     <div key={idx} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                         <div className="flex items-start gap-4">
-                            <div className="bg-orange-100 text-orange-800 font-bold rounded-lg w-8 h-8 flex items-center justify-center flex-shrink-0 mt-1">{q.question || idx + 1}</div>
+                            {/* 👇 3. Forcem que el cercle només mostri el número visual (1, 2, 3...) */}
+                            <div className="bg-orange-100 text-orange-800 font-bold rounded-lg w-8 h-8 flex items-center justify-center flex-shrink-0 mt-1">
+                                {idx + 1}
+                            </div>
                             <div className="leading-loose text-lg text-gray-800 font-serif flex-1">
                                 {parts.map((part, i) => (
                                     <span key={i}>
@@ -537,8 +546,12 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                          return (
                             <div key={idx} className={`p-6 rounded-2xl border-2 transition-all ${showAnswers ? (isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100') : 'bg-white border-gray-100 hover:shadow-lg'}`}>
                                 <div className="space-y-6">
-                                    <div className="flex gap-4 items-start"><span className="font-black text-gray-200 text-3xl">{idx + 1}</span><p className="font-bold text-gray-900 text-lg pt-1">{q.question}</p></div>
-                                    
+                                    <div className="flex gap-4 items-start">
+                                        <span className="font-black text-gray-200 text-3xl">{idx + 1}</span>
+                                        <p className="font-bold text-gray-900 text-lg pt-1">
+                                            {q.question.replace(/^\d+[\.\-\)]?\s*/, '')}
+                                        </p>
+                                    </div>
                                     {data.type === "reading_and_use_of_language4" && q.original_sentence && (
                                         <div className="mb-4 bg-slate-50 p-4 rounded-lg border">
                                             <p className="text-gray-900 font-medium mb-3">{q.original_sentence}</p>

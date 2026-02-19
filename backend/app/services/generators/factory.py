@@ -223,25 +223,24 @@ class ExerciseFactory:
         elif exercise_type == "listening2":
              type_instructions = """
             - Create a "Listening Part 2: Sentence Completion" exercise.
-            - **TEXT LENGTH**: Strictly between 550 and 650 words (Monologue).
-            - **CONTENT**: An informative talk on a specific topic (e.g., archaeology, zoology, history).
+            - **TEXT LENGTH**: Strictly between 500 and 600 words (Monologue).
+            - **CONTENT**: An informative talk on a specific topic (e.g., conservation, archaeology, psychology).
             - **STRUCTURE**:
               1. Generate a monologue (full text). Put this in the 'text' field.
-              2. Create 8 sentences (numbered 7-14) summarizing specific points from the text.
+              2. Create 8 sentences summarizing specific points from the text.
               3. Each sentence must have a GAP marked exactly as "[________]".
-              4. The answer must be a specific word or short phrase (max 3 words) found EXACTLY in the text.
+              4. The answer must be a specific word or short phrase (1 to 3 words) found EXACTLY in the text.
+            
+            - **🚨 ADVANCED CAMBRIDGE CALIBRATION (CRITICAL) 🚨**:
+              - **PACING (Cognitive Load)**: The 8 answers MUST be evenly spaced throughout the 500-600 word monologue (roughly one answer every 60-70 words). Do NOT cluster answers together. Fill the space between answers with anecdotes, background context, or secondary examples so the student has time to write the previous answer.
+              - **NO ACOUSTIC TRAPS**: Be extremely careful with grammatical matching. If the sentence prompt says "Ensuring [GAP] is crucial...", the audio MUST NOT say "maintaining a delicate balance and ensuring genetic diversity". Why? Because if the student reads "Ensuring" on their paper, they will mistakenly write "a delicate balance" upon hearing the previous verb. The syntax before the gap must not artificially trick the ear into writing the adjacent wrong noun phrase.
             
             - **CRITICAL JSON RULES**:
+              - 'instructions': MUST BE EXACTLY "You will hear a monologue. For questions 7-14, complete the sentences with a word or short phrase (between 1 and 3 words)."
               - 'options': Must be an empty list []. Do NOT provide choices.
-              - 'stem': The sentence with the gap.
+              - 'stem': The sentence with the gap. Do NOT start the stem with a number (e.g., write "The..." NOT "7. The...").
               - 'answer': The exact word(s) to fill the gap.
             - TIMESTAMPS: Required "MM:SS".
-
-            The output must be a JSON object with:
-              - "title": string
-              - "instructions": string
-              - "text": string (The full monologue transcript) <--- AIXÒ ÉS CLAU
-              - "questions": list of objects
             """
              # Forcem una estructura neta sense opcions
              json_fields_example = """
