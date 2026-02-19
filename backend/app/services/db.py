@@ -16,9 +16,10 @@ class DatabaseService:
     # ==========================================
 
     @staticmethod
-    def save_exercise(exercise_data: dict):
+    def save_exercise(exercise_data: dict,is_public: bool = True):
         """Guarda un exercici a la col·lecció 'exercises' assegurant camps per a filtratge"""
         try:
+            exercise_data["is_public"] = is_public
             # Unificació de noms de camp per poder filtrar correctament després
             if "type" not in exercise_data and "exercise_type" in exercise_data:
                 exercise_data["type"] = exercise_data["exercise_type"]
