@@ -312,8 +312,7 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
         user_id = request.user_id
         ex_type = request.exercise_type
         
-        # --- 1. LLEGIR DADES ---
-        from app.services.db import db # (O com tinguis importat db)
+        # --- 1. LLEGIR DADES I COMPROVAR LÍMITS ---
         user_ref = db.collection("users").document(user_id)
         user_doc = user_ref.get()
         user_data = user_doc.to_dict() if user_doc.exists else {}
@@ -326,45 +325,42 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
             
         current_count = usage_data.get("counts", {}).get(ex_type, 0)
         
-        # --- 2. VALIDAR ---
         if not is_vip and current_count >= 3:
             raise HTTPException(status_code=429, detail="DAILY_LIMIT")
 
-        # ✅ 3. ACTUALITZAR IMMEDIATAMENT (Abans de generar res per evitar doble-clic)
+        # --- 2. ACTUALITZAR COMPTADOR IMMEDIATAMENT ---
         if not is_vip:
             usage_data["counts"][ex_type] = current_count + 1
             user_ref.set({"daily_usage": usage_data}, merge=True)
 
-        if isinstance(final_exercise, dict):
-            final_exercise = {k: v for k, v in final_exercise.items() if type(v).__name__ != 'Sentinel'}
-
-        # ----------------------------------------
+        # --- 3. BUSCAR O GENERAR L'EXERCICI ---
         existing = DatabaseService.get_existing_exercise(request.level, request.exercise_type, request.completed_ids)
         
         if existing:
             print("✨ REUTILITZANT EXERCICI DB")
-            # Disparem la generació en background (que ara farà 3 fotos si cal)
             background_tasks.add_task(generate_and_save_exercise, request.level, request.exercise_type)
             final_exercise = existing
         else:
             print("⚠️ POOL BUIDA. Generant on-demand (Blocking, 3 fotos)...")
-            # Generació bloquejant (trigarà uns 30-40 segons per les 3 fotos)
             final_exercise = generate_and_save_exercise(request.level, request.exercise_type, is_public=True)
+            
             if not final_exercise:
-                 # Si falla, retornem fallback
-                 if request.exercise_type == "speaking2":
-                     final_exercise = FALLBACK_SPEAKING_2
-                     final_exercise["id"] = "fallback_on_demand"
-                 else:
+                if request.exercise_type == "speaking2":
+                    final_exercise = FALLBACK_SPEAKING_2
+                    final_exercise["id"] = "fallback_on_demand"
+                else:
                     raise HTTPException(status_code=503, detail="Service currently unavailable.")
 
-        if not is_vip:
-            usage_data["counts"][ex_type] = current_count + 1
-            user_ref.set({"daily_usage": usage_data}, merge=True)
+        # --- 4. NETEJAR EL SENTINEL DE FIREBASE ---
+        # (Aquí va la neteja, un cop final_exercise ja té l'exercici a dins!)
+        if isinstance(final_exercise, dict):
+            final_exercise = {k: v for k, v in final_exercise.items() if type(v).__name__ != 'Sentinel'}
 
+        # --- 5. RETORNAR AL FRONTEND ---
         return final_exercise
 
-    except HTTPException as he: raise he
+    except HTTPException as he: 
+        raise he
     except Exception as e:
         print(f"ERROR CRÍTIC: {e}")
         raise HTTPException(status_code=500, detail=str(e))
