@@ -5,7 +5,7 @@ from firebase_admin import credentials
 import os
 
 # --- IMPORTACIÓ DE CONFIGURACIÓ ---
-from core.config import settings # Utilitzem el teu config.py per a variables d'entorn!
+from app.core.config import settings # Utilitzem el teu config.py per a variables d'entorn!
 
 # --- IMPORTACIONS DELS TEUS ROUTERS ---
 # ⚠️ NOTA: Ajusta l'estructura 'app.routers...' segons on tinguis els arxius realment
