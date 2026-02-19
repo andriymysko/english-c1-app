@@ -335,6 +335,9 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
             usage_data["counts"][ex_type] = current_count + 1
             user_ref.set({"daily_usage": usage_data}, merge=True)
 
+        if isinstance(final_exercise, dict):
+            final_exercise = {k: v for k, v in final_exercise.items() if type(v).__name__ != 'Sentinel'}
+
         # ----------------------------------------
         existing = DatabaseService.get_existing_exercise(request.level, request.exercise_type, request.completed_ids)
         
