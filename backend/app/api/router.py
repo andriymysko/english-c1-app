@@ -6,7 +6,7 @@ from app.services.db import DatabaseService
 from app.services.generators.review import ReviewGenerator
 from app.services.generators.vocabulary import VocabularyGenerator
 from app.services.generators.exam import ExamGenerator
-from app.services.grader import Grader
+from app.services.grader import CorrectionService
 from app.services.audio import AudioService
 from app.services.storage import StorageService 
 from pydantic import BaseModel
@@ -457,11 +457,11 @@ def update_flashcard(user_id: str, update: FlashcardUpdate):
 
 @router.post("/grade_writing/")
 def grade_writing(request: WritingSubmission):
-    return Grader.grade_essay(request.user_text, request.task_text, request.level)
+    return CorrectionService.grade_writing(request.user_text, request.task_text, request.level)
 
 @router.post("/grade_speaking/")
 def grade_speaking(request: WritingSubmission):
-    return Grader.grade_speaking(request.user_text, request.task_text, request.level)
+    return CorrectionService.grade_speaking(request.user_text, request.task_text, request.level)
 
 @router.post("/transcribe_audio/")
 def transcribe_audio(file: UploadFile = File(...)):
