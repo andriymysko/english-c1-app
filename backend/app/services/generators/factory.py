@@ -251,14 +251,33 @@ class ExerciseFactory:
 
         elif exercise_type == "listening3":
              type_instructions = """
-            - Create a "Listening Part 3: Multiple Choice" exercise.
-            - TEXT LENGTH: Strictly between 600 and 700 words (Interview).
-            - STRUCTURE: Interviewer + 2 Guests (M/F).
-            - Create 6 multiple-choice questions (numbered 15-20) with 4 options (A, B, C, D).
-            - Focus on feelings, attitudes, opinions, and agreement/disagreement.
-            - CRITICAL JSON RULE: Options must NOT start with "A.", "B.". Answer must be the EXACT TEXT.
+            - Create a "Listening Part 3: Multiple Choice (Interview)" exercise.
+            - **TEXT LENGTH**: Strictly between 600 and 800 words. This is CRITICAL. The audio should last around 3.5 to 4 minutes.
+            - **FORMAT**: A radio interview featuring a host/interviewer and two experts discussing a C1-level academic or professional topic (e.g., urban planning, ecology, psychology).
+            - **PACING (Cognitive Load)**: Do NOT fire answers rapidly. Space out the 6 answers evenly (roughly one answer every 100-120 words). Experts MUST use anecdotes, digressions, and detailed examples before and after giving the core information. The student needs time to read the 4 long options.
+            - **QUESTIONS**: Create EXACTLY 6 questions.
+            - **QUESTION STYLE**: Questions MUST focus on attitudes, opinions, feelings, agreement/disagreement, and deductions. 
+              Examples of good C1 questions: 
+              - "What is Dr. X's primary point about..."
+              - "How does Mr. Y feel about the social impact of..."
+              - "What does Ms. Z suggest is the most effective way to..."
+              - "When discussing [Topic], both experts agree that..."
+              DO NOT ask for simple objective facts.
+            - **OPTIONS**: Exactly 4 options per question. The options must be long and complex (paraphrasing the audio). NEVER include letters like "A)", "B)" inside the option text.
+            - **CRITICAL JSON RULES**:
+              - 'instructions': MUST BE EXACTLY "You will hear an interview. For questions 15-20, choose the answer (A, B, C or D) which fits best according to what you hear."
             - TIMESTAMPS: Required "MM:SS".
             """
+             json_fields_example = """
+                    "question": "What is Dr. Carter's primary point about the ecological value of urban green spaces?",
+                    "options": [
+                        "They provide a necessary refuge for endangered species.",
+                        "They help to regulate the temperature of the city.",
+                        "They offer a psychological boost to the inhabitants.",
+                        "They are the most cost-effective environmental policy."
+                    ],
+                    "answer": "They provide a necessary refuge for endangered species.",
+             """
 
         elif exercise_type == "listening4":
              type_instructions = """

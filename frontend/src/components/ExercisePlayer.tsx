@@ -321,7 +321,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                         <div className="flex items-start gap-4">
                             {/* 👇 3. Forcem que el cercle només mostri el número visual (1, 2, 3...) */}
                             <div className="bg-orange-100 text-orange-800 font-bold rounded-lg w-8 h-8 flex items-center justify-center flex-shrink-0 mt-1">
-                                {idx + 1}
+                                {idx + 7}
                             </div>
                             <div className="leading-loose text-lg text-gray-800 font-serif flex-1">
                                 {parts.map((part, i) => (
