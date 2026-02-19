@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Request, Header
 # Si db.py està a la mateixa carpeta, fes: from .db import DatabaseService
 # Si està a app/services/db.py, fes:
 from app.services.db import DatabaseService 
-from core.config import settings # Importem les variables d'entorn del teu config.py
+from app.core.config import settings # Importem les variables d'entorn del teu config.py
 
 payment_router = APIRouter()
 

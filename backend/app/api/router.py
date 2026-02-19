@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Any
 from collections import Counter
 import os
-from core.config import settings
+from app.core.config import settings
 import tempfile
 import base64
 from openai import OpenAI
