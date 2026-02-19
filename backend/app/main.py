@@ -4,16 +4,11 @@ import firebase_admin
 from firebase_admin import credentials
 import os
 
-# --- IMPORTACIÓ DE CONFIGURACIÓ ---
-from app.core.config import settings # Utilitzem el teu config.py per a variables d'entorn!
-
-# --- IMPORTACIONS DELS TEUS ROUTERS ---
-# ⚠️ NOTA: Ajusta l'estructura 'app.routers...' segons on tinguis els arxius realment
-from app.api.router import router as exercises_router 
-from app.routers.payment import payment_router 
+# 1. Variables d'entorn
+from app.core.config import settings 
 
 # ==========================================
-# 1. CONFIGURACIÓ FIREBASE (L'ÚNIC LLOC ON S'INICIALITZA)
+# 🔥 2. FIREBASE S'HA D'ENCENDRE ABANS QUE RES MÉS
 # ==========================================
 if not firebase_admin._apps:
     cred_path = "serviceAccountKey.json"  
@@ -29,7 +24,13 @@ if not firebase_admin._apps:
     else:
         print("⚠️ ALERTA: No s'ha trobat serviceAccountKey.json.")
 
-# Inicialitzem l'App
+# ==========================================
+# 3. ARA SÍ, IMPORTEM ELS ROUTERS (perquè Firebase ja està encès)
+# ==========================================
+from app.api.router import router as exercises_router 
+from app.routers.payment import payment_router 
+
+# 4. Inicialitzem l'App
 app = FastAPI(title="English C1 Generator API")
 
 # ==========================================
