@@ -166,7 +166,7 @@ def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool =
             if 'image_url' in exercise_data: del exercise_data['image_url']
 
         # 4. Guardar a Firestore
-        doc_id = DatabaseService.save_exercise(exercise_data, level, exercise_type, is_public=is_public)
+        doc_id = DatabaseService.save_exercise(exercise_data, is_public=is_public)
         print(f"✅ BACKGROUND: Exercici guardat correctament a la DB! ID: {doc_id}")
         return exercise_data
 
@@ -430,7 +430,7 @@ def generate_review(user_id: str):
     target_type = Counter(mistake_types).most_common(1)[0][0] if mistake_types else "reading_and_use_of_language1"
     gen = ReviewGenerator(mistakes, target_type)
     ex = gen.generate("C1").model_dump()
-    ex['id'] = DatabaseService.save_exercise(ex, "C1", "review", is_public=False)
+    ex['id'] = DatabaseService.save_exercise(ex, is_public=False)
     return ex
 
 @router.get("/vocabulary_flashcards/{user_id}")
