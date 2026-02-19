@@ -36,6 +36,43 @@ class DatabaseService:
             return None
 
     @staticmethod
+    def get_existing_exercise(level: str, exercise_type: str, completed_ids: list):
+        """
+        Busca a Firestore un exercici d'un nivell i tipus específic 
+        que l'usuari encara no hagi completat (Cache Hit).
+        """
+        try:
+            # 1. Busquem tots els exercicis d'aquest tipus i nivell
+            docs = db.collection("exercises")\
+                     .where("level", "==", level)\
+                     .where("type", "==", exercise_type)\
+                     .stream()
+            
+            available_exercises = []
+            
+            # 2. Filtrem els que l'usuari ja ha fet
+            for doc in docs:
+                if doc.id not in completed_ids:
+                    ex_data = doc.to_dict()
+                    ex_data["id"] = doc.id
+                    available_exercises.append(ex_data)
+            
+            # 3. Si en tenim de disponibles, en retornem un a l'atzar
+            if available_exercises:
+                import random
+                selected = random.choice(available_exercises)
+                print(f"✅ CACHE HIT: Trobat exercici {selected['id']} a la Pool.")
+                return selected
+                
+            # Si tots estan fets o no n'hi ha cap (Cache Miss)
+            print("⚠️ CACHE MISS: Cap exercici disponible a la Pool. Generant...")
+            return None
+            
+        except Exception as e:
+            print(f"❌ Error a get_existing_exercise: {e}")
+            return None
+
+    @staticmethod
     def get_random_exercise(exercise_type: str, level: str = "C1"):
         """Busca un exercici aleatori a la BD que coincideixi amb tipus i nivell"""
         try:
