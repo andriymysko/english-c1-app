@@ -67,7 +67,7 @@ export default function Profile({ onBack, onStartReview }: { onBack: () => void,
     });
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/create-checkout-session/`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/payment/create-checkout-session/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // 👇 AQUI ESTA LA CLAU DEL FIX

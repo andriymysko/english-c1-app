@@ -13,7 +13,7 @@ import {
   type User as FirebaseUser    
 } from "firebase/auth";
 
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase"; 
 
 // Definim el tipus d'usuari complet (Auth + Dades BD)
@@ -52,41 +52,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 🔥 ELIMINEM EL RETARD (FLICKER)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    // 1. Escoltem els canvis de Login/Logout
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
-        try {
-          // 1. Llegim la base de dades AL MOMENT
-          const userDocRef = doc(db, "users", currentUser.uid);
-          const userDoc = await getDoc(userDocRef);
-          
+        const userDocRef = doc(db, "users", currentUser.uid);
+        
+        // 2. 🔥 ESCOLTEM LA BASE DE DADES EN TEMPS REAL 🔥
+        const unsubscribeSnapshot = onSnapshot(userDocRef, (userDoc) => {
           let firestoreData = {};
           if (userDoc.exists()) {
             firestoreData = userDoc.data();
           }
 
-          // 2. Creem l'objecte complet immediatament
-          const fullUser: User = {
-            uid: currentUser.uid,
-            email: currentUser.email,
-            ...firestoreData, // Inserim is_vip: true
-          };
-
-          setUser(fullUser);
-        } catch (error) {
-          console.error("Error carregant dades extra:", error);
+          // Qualsevol canvi a Firestore (ex: is_vip passa a true) s'aplica al moment!
           setUser({
             uid: currentUser.uid,
             email: currentUser.email,
+            ...firestoreData,
           });
-        }
+          setLoading(false);
+        }, (error) => {
+          console.error("Error escoltant Firestore:", error);
+          setLoading(false);
+        });
+
+        // Quan l'usuari fa logout, tanquem el "tub" de dades
+        return () => unsubscribeSnapshot();
       } else {
         setUser(null);
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
   const login = async (email: string, password: string) => {

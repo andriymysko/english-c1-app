@@ -1,20 +1,17 @@
-import os
 import stripe
 from fastapi import APIRouter, HTTPException, Request, Header
 # ⚠️ ASSEGURA'T QUE LA RUTA D'IMPORTACIÓ ÉS CORRECTA (depèn de la teva estructura de carpetes)
 # Si db.py està a la mateixa carpeta, fes: from .db import DatabaseService
 # Si està a app/services/db.py, fes:
 from app.services.db import DatabaseService 
-from dotenv import load_dotenv
-
-load_dotenv()
+from core.config import settings # Importem les variables d'entorn del teu config.py
 
 payment_router = APIRouter()
 
-# 1. CONFIGURACIÓ
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173") # Canvia a la URL de Vercel en producció
+# 1. CONFIGURACIÓ (Tot centralitzat)
+stripe.api_key = settings.STRIPE_SECRET_KEY
+WEBHOOK_SECRET = settings.STRIPE_WEBHOOK_SECRET # ⚠️ Recorda afegir això al teu config.py!
+FRONTEND_URL = settings.FRONTEND_URL
 
 # 2. DEFINICIÓ DE PRODUCTES (El teu catàleg)
 PRODUCTS_DB = {
@@ -109,65 +106,71 @@ async def create_checkout_session(data: dict):
 @payment_router.post("/webhook")
 async def stripe_webhook(request: Request, stripe_signature: str = Header(None)):
     payload = await request.body()
-    event = None
-
+    
     try:
         event = stripe.Webhook.construct_event(
             payload, stripe_signature, WEBHOOK_SECRET
         )
-    except ValueError:
-        return {"status": "invalid payload"} # Silenciós per no alertar a Stripe
-    except stripe.error.SignatureVerificationError:
+    except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    # LOG DE L'EVENT
-    print(f"📨 Event rebut: {event['type']}")
+    print(f"📨 Event de Stripe rebut: {event['type']}")
 
+    # ==========================================
+    # CAS A: COMPRA COMPLETADA (Donar VIP)
+    # ==========================================
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         
-        # --- BLOC DE DIAGNÒSTIC EXTREM ---
-        print("📦 Dades de la sessió (resum):")
-        print(f"   - ID: {session.get('id')}")
-        print(f"   - Metadata Directa: {session.get('metadata')}")
-        # ----------------------------------
-
-        # 1. INTENTEM LLEGIR METADATA DIRECTAMENT
         metadata = session.get("metadata", {})
-        
         user_id = metadata.get("user_id")
         product_type = metadata.get("product_type")
-
-        # 2. SI FALLA, ESTRATÈGIA DE RESCAT (Opcional, per si Stripe fa coses rares)
-        if not user_id or not product_type:
-            print("⚠️ Metadata buida! Intentant recuperar-la del Payment Intent...")
-            # Aquí podries fer una crida extra a Stripe si calgués, però 
-            # normalment si 'metadata' és buit és que no s'ha enviat bé al crear la sessió.
-
-        print(f"🕵️ DADES RECUPERADES -> User: {user_id} | Product: {product_type}")
+        subscription_id = session.get("subscription") # 👈 Guardem el ID de la subscripció
 
         if user_id and product_type:
-            # Busquem el producte al teu diccionari
             product_info = PRODUCTS_DB.get(product_type)
-            
             if product_info:
-                print(f"🚀 Aplicant millora: {product_info['name']}")
-                
                 if product_info['vip_days'] > 0:
+                    # Ho afegim a la DB
                     DatabaseService.grant_vip_access(
                         user_id=user_id, 
                         days=product_info['vip_days'], 
                         correction_credits=product_info['credits']
                     )
-                    print(f"✅ ÉXIT TOTAL: VIP activat per a {user_id}")
+                    
+                    # ✅ NOU: Guardem la ID de la subscripció a l'usuari per si cancel·la
+                    if subscription_id:
+                        from app.services.db import db
+                        db.collection("users").document(user_id).update({
+                            "subscription_id": subscription_id,
+                            "subscription_status": "active"
+                        })
                 else:
-                    DatabaseService.add_credits_only(
-                        user_id=user_id, 
-                        credits=product_info['credits']
-                    )
-            else:
-                print(f"❌ ERROR: Tipus de producte '{product_type}' no existeix a PRODUCTS_DB")
-        else:
-            print("❌ ERROR FATAL: Falta user_id o product_type a les metadades.")
+                    DatabaseService.add_credits_only(user_id, product_info['credits'])
+
+    # ==========================================
+    # CAS B: SUBSCRIPCIÓ CANCEL·LADA O IMPAGADA (Treure VIP)
+    # ==========================================
+    elif event['type'] in ['customer.subscription.deleted', 'customer.subscription.updated']:
+        subscription = event['data']['object']
+        status = subscription.get('status')
+        
+        # Si s'ha cancel·lat o no ha pagat
+        if event['type'] == 'customer.subscription.deleted' or status in ['past_due', 'canceled', 'unpaid']:
+            sub_id = subscription.get('id')
+            print(f"⚠️ Subscripció {sub_id} cancel·lada o impagada. Retirant VIP...")
+            
+            from app.services.db import db
+            # Busquem a quin usuari pertany aquesta subscripció
+            users_ref = db.collection("users")
+            query = users_ref.where("subscription_id", "==", sub_id).stream()
+            
+            for doc in query:
+                doc.reference.update({
+                    "is_vip": False, 
+                    "subscription_status": "inactive"
+                    # Opcional: Podries deixar 'vip_expiry' a la data actual perquè caduqui avui
+                })
+                print(f"❌ VIP retirat a l'usuari: {doc.id}")
 
     return {"status": "success"}

@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # AFEGEIX AIXÒ:
     STRIPE_SECRET_KEY: str 
-
+    STRIPE_WEBHOOK_SECRET: str
     class Config:
         env_file = ".env"
         # Això fa que no importi si al .env està en minúscules o majúscules

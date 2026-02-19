@@ -1,5 +1,4 @@
-import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import firestore
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
@@ -7,27 +6,7 @@ import random
 
 load_dotenv()
 
-# Inicialització de Firebase
-if not firebase_admin._apps:
-    try:
-        cred_path = os.getenv("FIREBASE_CREDENTIALS")
-        if not cred_path:
-            if os.path.exists("serviceAccountKey.json"):
-                cred_path = "serviceAccountKey.json"
-            elif os.path.exists("app/serviceAccountKey.json"):
-                cred_path = "app/serviceAccountKey.json"
-
-        if cred_path and os.path.exists(cred_path):
-            print(f"🔑 Carregant credencials Firebase des de: {cred_path}")
-            cred = credentials.Certificate(cred_path)
-            firebase_admin.initialize_app(cred)
-        else:
-            print(f"⚠️ ALERTA: Usant credencials per defecte.")
-            cred = credentials.ApplicationDefault()
-            firebase_admin.initialize_app(cred)     
-    except Exception as e:
-        print(f"⚠️ Error initializing Firebase: {e}")
-
+# 🔥 Ja no inicialitzem firebase_admin aquí. Assumim que main.py ja ho ha fet.
 db = firestore.client()
 
 class DatabaseService:

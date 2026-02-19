@@ -13,23 +13,20 @@ from pydantic import BaseModel
 from typing import Optional, List, Any
 from collections import Counter
 import os
+from core.config import settings
 import tempfile
 import base64
 from openai import OpenAI
 import json
 from datetime import datetime
 from firebase_admin import firestore
-import stripe
 import time
 import random
 
 router = APIRouter()
 
 # Inicialitzem client DB localment per gestionar els comptadors
-db = firestore.client()
-
-# --- CONFIGURACIÓ STRIPE ---
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+from app.services.db import db
 
 # --- MODELS DE DADES ---
 
@@ -86,10 +83,6 @@ class CoachAnalysis(BaseModel):
 class AdRewardRequest(BaseModel):
     user_id: str
 
-class CheckoutRequest(BaseModel):
-    price_id: str
-    user_id: str
-
 # --- FALLBACK DATA (PER SI TOT FALLA) ---
 FALLBACK_SPEAKING_2 = {
     "text": "[IMAGES]\n1. A busy open-plan office\n2. A person working alone in a quiet library\n3. A construction site team\n\n[CANDIDATE A - INSTRUCTION]\nLook at the pictures. They show people working in different environments. I’d like you to compare two of the pictures and say why people might choose to work in these places, and what challenges they might face.\n\n[CANDIDATE B - SHORT RESPONSE]\nWhich of these places would you prefer to work in?",
@@ -121,7 +114,7 @@ def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool =
         # 3. 🔴 GESTIÓ D'IMATGES FORÇADA (Speaking Part 2 - 3 IMATGES)
         # Si és Speaking 2, generem 3 imatges d'alta qualitat.
         if exercise_type == "speaking2":
-            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            client = OpenAI(api_key=settings.OPENAI_API_KEY)
             topic = exercise_data.get('title', 'General Topic').replace("Speaking Part 2: ", "")
             
             # Assegurem que tenim una llista per guardar les URLs
@@ -192,7 +185,7 @@ def generate_exercise_endpoint(request: GenerateRequest):
     if request.type == "speaking1":
         # ... (Codi de Speaking 1 igual que abans) ...
         try:
-            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            client = OpenAI(api_key=settings.OPENAI_API_KEY)
             topic_str = request.topic if request.topic else "General Life"
             extra_instr = f"Note: {request.instructions}" if request.instructions else ""
 
@@ -227,7 +220,7 @@ def generate_exercise_endpoint(request: GenerateRequest):
     # =================================================================
     elif request.type == "speaking2":
         try:
-            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            client = OpenAI(api_key=settings.OPENAI_API_KEY)
             topic_str = request.topic if request.topic else "Risk & Achievement"
             
             # 1. GENERAR TEXT
@@ -319,7 +312,8 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
         user_id = request.user_id
         ex_type = request.exercise_type
         
-        # --- LÒGICA DEL COMPTADOR DIARI ---
+        # --- 1. LLEGIR DADES ---
+        from app.services.db import db # (O com tinguis importat db)
         user_ref = db.collection("users").document(user_id)
         user_doc = user_ref.get()
         user_data = user_doc.to_dict() if user_doc.exists else {}
@@ -331,8 +325,15 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
             usage_data = {"date": today_str, "counts": {}}
             
         current_count = usage_data.get("counts", {}).get(ex_type, 0)
+        
+        # --- 2. VALIDAR ---
         if not is_vip and current_count >= 3:
             raise HTTPException(status_code=429, detail="DAILY_LIMIT")
+
+        # ✅ 3. ACTUALITZAR IMMEDIATAMENT (Abans de generar res per evitar doble-clic)
+        if not is_vip:
+            usage_data["counts"][ex_type] = current_count + 1
+            user_ref.set({"daily_usage": usage_data}, merge=True)
 
         # ----------------------------------------
         existing = DatabaseService.get_existing_exercise(request.level, request.exercise_type, request.completed_ids)
@@ -467,7 +468,7 @@ def transcribe_audio(file: UploadFile = File(...)):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
         tmp.write(file.file.read())
         path = tmp.name
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
     with open(path, "rb") as f:
         t = client.audio.transcriptions.create(model="whisper-1", file=f)
     os.unlink(path)
@@ -507,7 +508,7 @@ def analyze_weaknesses(user_id: str):
         return {"analysis": "Keep practicing! I need a few more mistakes to analyze your weak points.", "tags": []}
     mistakes_text = "\n".join([f"- Type: {m['type']}, Q: {m['question']}, User said: {m['user_answer']}, Correct: {m['correct_answer']}" for m in mistakes[-10:]])
     prompt = f"""You are an expert Cambridge C1 Tutor. Analyze these recent student mistakes:\n{mistakes_text}\n1. Identify the top 3 linguistic weaknesses.\n2. Give 1 short paragraph of advice.\nOUTPUT JSON: {{ "weaknesses": [...], "advice": "..." }}"""
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
     response = client.chat.completions.create(model="gpt-4o", messages=[{"role": "system", "content": prompt}], response_format={"type": "json_object"})
     return json.loads(response.choices[0].message.content)
 
@@ -515,50 +516,3 @@ def analyze_weaknesses(user_id: str):
 def ad_reward(request: AdRewardRequest):
     DatabaseService.reward_ad_view(request.user_id)
     return {"status": "rewarded"}
-
-# ... STRIPE ...
-@router.post("/create-checkout-session")
-def create_checkout_session(request: CheckoutRequest):
-    try:
-        session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            line_items=[{'price': request.price_id, 'quantity': 1}],
-            mode='subscription',
-            automatic_tax={'enabled': True},
-            allow_promotion_codes=True, 
-            success_url='https://getaidvanced.com/profile?success=true',
-            cancel_url='https://getaidvanced.com/pricing?canceled=true',
-            client_reference_id=request.user_id,
-            metadata={"user_id": request.user_id}
-        )
-        return {"url": session.url}
-    except Exception as e:
-        print(f"Error Stripe Checkout: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/stripe-webhook")
-async def stripe_webhook(request: Request, stripe_signature: str = Header(None)):
-    payload = await request.body()
-    endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
-    try:
-        event = stripe.Webhook.construct_event(payload, stripe_signature, endpoint_secret)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid payload/signature")
-    
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        user_id = session.get("client_reference_id")
-        subscription_id = session.get("subscription")
-        if user_id:
-            db.collection("users").document(user_id).update({
-                "is_vip": True, "subscription_status": "active", "subscription_id": subscription_id, "updated_at": datetime.now()
-            })
-    elif event['type'] in ['customer.subscription.deleted', 'customer.subscription.updated']:
-        subscription = event['data']['object']
-        status = subscription.get('status')
-        if event['type'] == 'customer.subscription.deleted' or status in ['past_due', 'canceled', 'unpaid']:
-            users_ref = db.collection("users")
-            query = users_ref.where("subscription_id", "==", subscription.get('id')).stream()
-            for doc in query:
-                doc.reference.update({"is_vip": False, "subscription_status": "inactive"})
-    return {"status": "success"}

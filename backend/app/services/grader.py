@@ -1,11 +1,8 @@
-from openai import OpenAI
-import os
 import json
-from dotenv import load_dotenv
+from openai import OpenAI
+from core.config import settings
 
-load_dotenv()
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 class CorrectionService:  # 👈 ABANS ES DEIA 'Grader'
     

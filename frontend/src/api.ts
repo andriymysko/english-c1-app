@@ -33,7 +33,6 @@ const C1_TOPICS = [
 // --- EXERCISES ---
 export async function fetchExercise(type: string, userId: string, level: string = "C1") {
   
-  // 🔥 FIX: Fem servir userId en un log per evitar l'error de TypeScript "unused variable"
   console.log(`[API] Fetching ${type} for user: ${userId} at level ${level}`);
 
   // ---------------------------------------------------------
@@ -43,10 +42,11 @@ export async function fetchExercise(type: string, userId: string, level: string 
     const randomTopic = C1_TOPICS[Math.floor(Math.random() * C1_TOPICS.length)];
     
     try {
-        // Fem servir GET i passem el topic com a paràmetre query
-        const response = await fetch(`${API_URL}/exercise/speaking1?level=${level}&topic=${encodeURIComponent(randomTopic)}`, {
-            method: "GET",
+        // ✅ FIX: Fem servir POST cap a /generate en lloc de GET
+        const response = await fetch(`${API_URL}/generate`, {
+            method: "POST",
             headers: await getHeaders(),
+            body: JSON.stringify({ type: "speaking1", level: level, topic: randomTopic })
         });
 
         if (!response.ok) throw new Error("Failed to generate speaking task");
@@ -135,10 +135,16 @@ export async function fetchExercise(type: string, userId: string, level: string 
   // 🚀 EXERCICIS ESTÀNDARD (LISTENING, READING) - NOU BACKEND
   // ---------------------------------------------------------
   try {
-    // ⚠️ CRÍTIC: Canviat de POST /get_exercise/ a GET /exercise/{type}
-    const response = await fetch(`${API_URL}/exercise/${type}?level=${level}`, {
-        method: "GET",
+    // ✅ FIX: Tornem al POST de /get_exercise/ enviant dades pel body (Pool system)
+    const response = await fetch(`${API_URL}/get_exercise/`, {
+        method: "POST",
         headers: await getHeaders(),
+        body: JSON.stringify({
+            user_id: userId,
+            exercise_type: type,
+            level: level,
+            completed_ids: [] // Preparat per enviar l'historial més endavant
+        })
     });
 
     if (response.status === 429) throw new Error("DAILY_LIMIT");
@@ -159,11 +165,16 @@ export async function fetchExercise(type: string, userId: string, level: string 
 
 export async function preloadExercise(type: string, level: string = "C1") {
   try {
-    // Simplement despertem l'endpoint GET perquè el backend faci la seva màgia de pool (background generation)
-    // No esperem la resposta (fire and forget)
-    fetch(`${API_URL}/exercise/${type}?level=${level}`, {
-        method: "GET",
+    // ✅ FIX: Apunta al nou endpoint de background al router.py
+    fetch(`${API_URL}/preload_exercise/`, {
+        method: "POST",
         headers: await getHeaders(),
+        body: JSON.stringify({
+            user_id: "preload_system",
+            exercise_type: type,
+            level: level,
+            completed_ids: []
+        })
     }).then(() => console.log("🔄 Preload triggered for:", type)).catch(() => {});
   } catch (err) { 
       console.warn("Preload warning:", err); 
@@ -171,8 +182,7 @@ export async function preloadExercise(type: string, level: string = "C1") {
 }
 
 export async function generateFullExam(userId: string, level: string = "C1") {
-  // Assumint que tens /generate_full_exam implementat o simulat
-  const response = await fetch(`${API_URL}/generate_full_exam`, {
+  const response = await fetch(`${API_URL}/generate_full_exam/`, {
     method: "POST",
     headers: await getHeaders(),
     body: JSON.stringify({ user_id: userId, level: level }),
@@ -206,7 +216,7 @@ export const getUserStats = async (userId: string) => {
     return await response.json();
   } catch (error) {
     console.error("Error getting stats:", error);
-    return { xp: 0, streak: 0, completed: 0 }; // No facis "throw", retorna valors per defecte
+    return { xp: 0, streak: 0, completed: 0 }; 
   }
 };
 
@@ -241,8 +251,8 @@ export async function transcribeAudio(audioBlob: Blob) {
   const formData = new FormData();
   formData.append("file", audioBlob, "recording.webm");
   
-  // Nota: FormData posa automàticament el Content-Type correcte, no l'hem de posar manualment
-  const response = await fetch(`${API_URL}/transcribe`, { 
+  // ✅ FIX: El backend es diu /transcribe_audio/
+  const response = await fetch(`${API_URL}/transcribe_audio/`, { 
       method: "POST", 
       body: formData 
   });
@@ -252,7 +262,8 @@ export async function transcribeAudio(audioBlob: Blob) {
 
 export async function fetchAudio(text: string) {
   try {
-    const response = await fetch(`${API_URL}/tts`, {
+    // ✅ FIX: El backend es diu /generate_audio/ i li passem json POST
+    const response = await fetch(`${API_URL}/generate_audio/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
@@ -260,10 +271,7 @@ export async function fetchAudio(text: string) {
 
     if (!response.ok) throw new Error("TTS Failed");
 
-    // ⚠️ IMPORTANT: Ara rebem un BLOB (binari), no un JSON
     const blob = await response.blob();
-    
-    // Creem una URL temporal per a aquest fitxer binari
     return URL.createObjectURL(blob);
   } catch (error) {
     console.error("TTS Error:", error);
@@ -272,7 +280,8 @@ export async function fetchAudio(text: string) {
 }
 
 export async function gradeWriting(userId: string, task: string, text: string) {
-    const response = await fetch(`${API_URL}/grade/writing`, {
+    // ✅ FIX: Sincronitzat amb els endpoints del teu router.py
+    const response = await fetch(`${API_URL}/grade_writing/`, {
         method: "POST",
         headers: await getHeaders(),
         body: JSON.stringify({ user_id: userId, task_prompt: task, user_text: text, level: "C1" }),
@@ -282,10 +291,11 @@ export async function gradeWriting(userId: string, task: string, text: string) {
 }
 
 export async function gradeSpeaking(userId: string, task: string, text: string) {
-    const response = await fetch(`${API_URL}/grade/speaking`, {
+    // ✅ FIX: Sincronitzat amb els endpoints del teu router.py
+    const response = await fetch(`${API_URL}/grade_speaking/`, {
         method: "POST",
         headers: await getHeaders(),
-        body: JSON.stringify({ user_id: userId, task_prompt: task, transcript_text: text, level: "C1" }),
+        body: JSON.stringify({ user_id: userId, task_prompt: task, user_text: text, level: "C1" }), // Utilitza user_text com el WritingSubmission model requereix
     });
     if (!response.ok) throw new Error("Failed");
     return response.json();
@@ -322,7 +332,7 @@ export const getCoachAnalysis = async (userId: string) => {
 };
 
 export async function reportIssue(userId: string, exerciseData: any, questionIndex: number, reason: string) {
-  await fetch(`${API_URL}/report_issue`, {
+  await fetch(`${API_URL}/report_issue/`, {
     method: "POST",
     headers: await getHeaders(),
     body: JSON.stringify({
