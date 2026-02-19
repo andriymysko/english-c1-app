@@ -9,8 +9,8 @@ from app.core.config import settings # Utilitzem el teu config.py per a variable
 
 # --- IMPORTACIONS DELS TEUS ROUTERS ---
 # ⚠️ NOTA: Ajusta l'estructura 'app.routers...' segons on tinguis els arxius realment
-from api.router import router as exercises_router 
-from routers.payment import payment_router 
+from app.api.router import router as exercises_router 
+from app.routers.payment import payment_router 
 
 # ==========================================
 # 1. CONFIGURACIÓ FIREBASE (L'ÚNIC LLOC ON S'INICIALITZA)
