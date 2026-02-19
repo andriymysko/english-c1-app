@@ -252,18 +252,14 @@ class ExerciseFactory:
         elif exercise_type == "listening3":
              type_instructions = """
             - Create a "Listening Part 3: Multiple Choice (Interview)" exercise.
-            - **TEXT LENGTH**: Strictly between 600 and 800 words. This is CRITICAL. The audio should last around 3.5 to 4 minutes.
-            - **FORMAT**: A radio interview featuring a host/interviewer and two experts discussing a C1-level academic or professional topic (e.g., urban planning, ecology, psychology).
-            - **PACING (Cognitive Load)**: Do NOT fire answers rapidly. Space out the 6 answers evenly (roughly one answer every 100-120 words). Experts MUST use anecdotes, digressions, and detailed examples before and after giving the core information. The student needs time to read the 4 long options.
-            - **QUESTIONS**: Create EXACTLY 6 questions.
-            - **QUESTION STYLE**: Questions MUST focus on attitudes, opinions, feelings, agreement/disagreement, and deductions. 
-              Examples of good C1 questions: 
-              - "What is Dr. X's primary point about..."
-              - "How does Mr. Y feel about the social impact of..."
-              - "What does Ms. Z suggest is the most effective way to..."
-              - "When discussing [Topic], both experts agree that..."
-              DO NOT ask for simple objective facts.
-            - **OPTIONS**: Exactly 4 options per question. The options must be long and complex (paraphrasing the audio). NEVER include letters like "A)", "B)" inside the option text.
+            - **TEXT LENGTH (CRITICAL)**: You MUST write between 750 and 850 words. This is non-negotiable. The interview must be long, detailed, and conversational to last around 4 minutes.
+            - **FORMAT**: A radio interview featuring a host/interviewer and two experts discussing a C1-level topic.
+            - **THE ART OF THE DISTRACTOR (CRITICAL C1 SKILL)**: NEVER give the correct answer immediately. The speakers MUST discuss concepts from the INCORRECT options (distractors) to trick the listener before concluding with their true opinion. 
+              *EXAMPLE OF C1 DISTRACTOR LOGIC*: If the correct answer is 'biodiversity', the speaker MUST say something like: "Many argue we need parks to make the concrete jungle look prettier (Distractor 1), and others point to air pollution reduction (Distractor 2). But what really fascinated me wasn't the air quality, but the sudden return of native bird species. Providing these sanctuaries is their true value (Correct Answer)."
+            - **PACING (BREATHING ROOM)**: There are 6 questions. You MUST insert at least 100-130 words of conversational filler, long anecdotes, or secondary examples between each answer cue. The student needs 30-40 seconds of pure listening without answering anything to read the next A, B, C, D options.
+            - **QUESTIONS**: Create EXACTLY 6 questions. 
+            - **QUESTION STYLE**: Focus strictly on attitudes, opinions, feelings, agreement/disagreement, and deductions.
+            - **OPTIONS**: Exactly 4 options per question. Long, complex paraphrasing. No "A)", "B)" labels in the text.
             - **CRITICAL JSON RULES**:
               - 'instructions': MUST BE EXACTLY "You will hear an interview. For questions 15-20, choose the answer (A, B, C or D) which fits best according to what you hear."
             - TIMESTAMPS: Required "MM:SS".

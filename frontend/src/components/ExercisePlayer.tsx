@@ -543,11 +543,12 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                          const cleanCorrectAnswer = cleanOptionText(q.answer);
                          const isCorrect = showAnswers && (userAnswer === cleanCorrectAnswer.toLowerCase() || userAnswer === q.answer.trim().toLowerCase());
                          const isWrong = showAnswers && userAnswer && !isCorrect;
+                         const displayNum = data.type === 'listening3' ? idx + 15 : idx + 1;
                          return (
                             <div key={idx} className={`p-6 rounded-2xl border-2 transition-all ${showAnswers ? (isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100') : 'bg-white border-gray-100 hover:shadow-lg'}`}>
                                 <div className="space-y-6">
                                     <div className="flex gap-4 items-start">
-                                        <span className="font-black text-gray-200 text-3xl">{idx + 1}</span>
+                                        <span className="font-black text-gray-200 text-3xl">{displayNum}</span>
                                         <p className="font-bold text-gray-900 text-lg pt-1">
                                             {q.question.replace(/^\d+[\.\-\)]?\s*/, '')}
                                         </p>
