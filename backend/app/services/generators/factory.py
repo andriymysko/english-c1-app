@@ -280,15 +280,19 @@ class ExerciseFactory:
             - Create a "Listening Part 4: Multiple Matching" exercise.
             - **TEXT LENGTH**: Around 600-750 words total. The text MUST contain 5 distinct monologues from Speaker 1 to Speaker 5.
             - **TASK STRUCTURE (CRITICAL)**: There are TWO simultaneous tasks.
-              - Task 1: Why they started the activity.
-              - Task 2: How they feel about it now.
+              - Task 1: Why they started the activity (8 options: A-H, 5 correct, 3 distractors).
+              - Task 2: How they feel about it now (8 options: A-H, 5 correct, 3 distractors).
+            
+            - **🚨 ADVANCED CAMBRIDGE CALIBRATION (CRITICAL) 🚨**:
+              1. **NO MATRIX PATTERNS (RANDOMIZATION)**: The correct answers MUST be completely randomized. DO NOT assign them in alphabetical order (e.g., Speaker 1 is NOT A, Speaker 2 is NOT B). Furthermore, the answer for Task 1 MUST NOT be the same letter as Task 2 for the same speaker. Example of a good key: Speaker 1 (Task 1=C, Task 2=G), Speaker 2 (Task 1=H, Task 2=A), etc.
+              2. **NO PARROTING (STRICT PARAPHRASING)**: The options (A-H) MUST NEVER use the exact same vocabulary as the audio transcript. This is a C1 Advanced exam. If the audio says "therapeutic and achieving", the option MUST say something like "Stimulated by the continuous learning curve". You MUST use high-level C1 synonyms, idioms, and complex paraphrasing to hide the answers.
+              
             - **QUESTIONS**: Create EXACTLY 10 questions. 
               - Questions 1 to 5 correspond to Speaker 1-5 for Task 1.
               - Questions 6 to 10 correspond to Speaker 1-5 for Task 2.
-            - The 'answer' must strictly be a single letter (e.g., "C", "F").
+            - The 'answer' must strictly be a single uppercase letter (e.g., "C", "F").
             - 'instructions': "You will hear five short extracts. Look at Task 1 and Task 2. You must complete both tasks while you listen."
             """
-             # Deixem això buit perquè les opcions aniran a l'arrel del JSON
              json_fields_example = '"options": [],'
 
         # ==========================================
