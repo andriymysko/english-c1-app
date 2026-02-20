@@ -341,15 +341,23 @@ def get_exercise_data(request: ExerciseRequest, background_tasks: BackgroundTask
             background_tasks.add_task(generate_and_save_exercise, request.level, request.exercise_type)
             final_exercise = existing
         else:
-            print("⚠️ POOL BUIDA. Generant on-demand (Blocking, 3 fotos)...")
-            final_exercise = generate_and_save_exercise(request.level, request.exercise_type, is_public=True)
+            print("⚠️ POOL BUIDA. Generant on-demand...")
             
-            if not final_exercise:
-                if request.exercise_type == "speaking2":
-                    final_exercise = FALLBACK_SPEAKING_2
-                    final_exercise["id"] = "fallback_on_demand"
-                else:
-                    raise HTTPException(status_code=503, detail="Service currently unavailable.")
+            # 🔥 NOU: BUSQUEM ELS PUNTS FEBLES DE L'USUARI
+            weak_words = []
+            if ex_type in ["reading_and_use_of_language1", "reading_and_use_of_language4"]:
+                try:
+                    vocab_ref = db.collection("users").document(user_id).collection("vocabulary")
+                    # Agafem les 3 paraules amb més errors
+                    weak_docs = vocab_ref.order_by("mistakes", direction=firestore.Query.DESCENDING).limit(3).stream()
+                    weak_words = [doc.to_dict().get("word") for doc in weak_docs]
+                    if weak_words:
+                        print(f"🎯 Injectant punts febles al Prompt: {weak_words}")
+                except Exception as e:
+                    print(f"Error llegint vocabulari feble: {e}")
+
+            # Li passem les weak_words a la funció de generar (que modificarem al Pas 3)
+            final_exercise = generate_and_save_exercise(request.level, request.exercise_type, is_public=True, weak_words=weak_words)
 
         # --- 4. NETEJAR EL SENTINEL DE FIREBASE ---
         # (Aquí va la neteja, un cop final_exercise ja té l'exercici a dins!)
@@ -386,17 +394,45 @@ def preload_exercise(request: ExerciseRequest):
         return {"status": "error"}
 
 @router.post("/submit_result/")
-def submit_result(result: UserResult):
+def submit_exercise_result(result: SubmitResultRequest):
     try:
-        simulated_exercise_data = {
-            "id": result.exercise_id,
-            "type": result.exercise_type
-        }
-        gamification = DatabaseService.save_user_result(
-            result.user_id, simulated_exercise_data, result.score, result.total, result.mistakes
-        )
-        return {"status": "saved", "gamification": gamification}
+        # 1. Guardar l'estadística general (el que ja feies)
+        user_ref = db.collection("users").document(result.user_id)
+        user_ref.set({
+            "total_score": firestore.Increment(result.score),
+            "exercises_completed": firestore.Increment(1)
+        }, merge=True)
+        
+        # 🔥 2. NOU: REGISTRAR ELS ERRORS (Només per Use of English)
+        if result.exercise_type in ["reading_and_use_of_language1", "reading_and_use_of_language4"]:
+            if result.mistakes:
+                vocab_ref = user_ref.collection("vocabulary")
+                
+                for mistake in result.mistakes:
+                    # Agafem la resposta correcta (el phrasal verb o paraula)
+                    word = mistake.get("correct_answer", "").strip().lower()
+                    if not word:
+                        continue
+                        
+                    # Fem servir la paraula com a ID del document (traient espais rars)
+                    doc_id = word.replace(" ", "_").replace("/", "_")
+                    word_doc = vocab_ref.document(doc_id)
+                    
+                    doc_snap = word_doc.get()
+                    if doc_snap.exists:
+                        # Si ja existeix, sumem un error
+                        word_doc.update({"mistakes": firestore.Increment(1)})
+                    else:
+                        # Si és el primer cop que la falla, la creem
+                        word_doc.set({
+                            "word": word,
+                            "mistakes": 1,
+                            "added_at": firestore.SERVER_TIMESTAMP
+                        })
+
+        return {"status": "success"}
     except Exception as e:
+        print(f"Error a submit_result: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/generate_full_exam/")

@@ -23,7 +23,7 @@ CRITICAL RULES FOR HIGH QUALITY:
 
 class ExerciseFactory:
     @staticmethod
-    def create_exercise(exercise_type: str, level: str = "C1"):
+    def create_exercise(exercise_type: str, level: str = "C1",weak_words: list = None):
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         
         # Utilitzem gpt-4o per assegurar la màxima capacitat lingüística
@@ -601,6 +601,15 @@ class ExerciseFactory:
             type_instructions = f"- Create a '{exercise_type}' exercise appropriate for Cambridge {level}."
 
         # 2. El Prompt Mestre (AMB INJECCIÓ DINÀMICA DEL JSON)
+        srs_prompt = ""
+        if weak_words and len(weak_words) > 0:
+            srs_prompt = f"""
+            - **🚨 ADAPTIVE LEARNING (CRITICAL) 🚨**:
+              - The user is currently struggling with these specific words/phrasal verbs: {weak_words}.
+              - You MUST include at least one or two of these exact words as CORRECT answers in this exercise to help them practice.
+              - The rest of the exercise should contain new advanced C1 vocabulary.
+            """
+
         prompt = f"""
         {SYSTEM_PROMPT_HARDCORE}
         
@@ -609,6 +618,8 @@ class ExerciseFactory:
         SPECIFIC INSTRUCTIONS:
         {type_instructions}
         
+        {srs_prompt}
+
         CRITICAL OUTPUT RULES:
         1. Return ONLY valid JSON.
         2. Include an 'explanation' field for every question.
