@@ -49,6 +49,10 @@ interface ExerciseData {
   part3_prompts?: string[];
   part3_decision_question?: string;
   part4_questions?: string[];
+  task1_heading?: string;
+  task1_options?: string[];
+  task2_heading?: string;
+  task2_options?: string[];
 }
 
 interface Props {
@@ -99,6 +103,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const isSpeakingPart3 = data.type === "speaking3";
   const isListening = data.type.startsWith("listening");
   const isListeningPart2 = data.type === "listening2";
+  const isListeningPart4 = data.type === "listening4";
   const isGapFill = ["reading_and_use_of_language1", "reading_and_use_of_language2", "reading_and_use_of_language3"].includes(data.type);
   const isInteractive = !isWriting && !isSpeaking && !isEssayExam && !selectedOption && !isChoiceMode;
 
@@ -381,6 +386,82 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     );
   };
 
+  const renderListeningPart4 = () => {
+    return (
+        <div className="space-y-8 animate-in fade-in">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                {/* TASK 1 */}
+                <div className="bg-white p-6 rounded-2xl border-2 border-gray-200 shadow-sm flex flex-col">
+                    <h4 className="font-black text-blue-900 mb-4">{data.task1_heading || "TASK 1"}</h4>
+                    <ul className="space-y-2 mb-6 flex-1">
+                        {data.task1_options?.map((opt: string, i: number) => (
+                            <li key={i} className="text-gray-700 text-sm font-medium">{opt}</li>
+                        ))}
+                    </ul>
+                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl border">
+                        {[1, 2, 3, 4, 5].map(speakerNum => {
+                            const qIdx = speakerNum - 1; // Preguntes 0-4
+                            const q = data.questions[qIdx];
+                            const qKey = q?.question || qIdx.toString();
+                            const userAnswer = userAnswers[qKey] || "";
+                            const isCorrect = showAnswers && (userAnswer.toUpperCase() === q?.answer.toUpperCase());
+                            const isWrong = showAnswers && userAnswer && !isCorrect;
+
+                            return (
+                                <div key={`t1-s${speakerNum}`} className="flex items-center justify-between">
+                                    <span className="font-bold text-gray-700">Speaker {speakerNum} <span className="text-xs font-black text-gray-400 ml-1">[{20 + speakerNum}]</span></span>
+                                    <div className="flex items-center gap-2">
+                                        <select value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`w-16 p-1 text-center font-bold border-2 rounded outline-none ${showAnswers ? (isCorrect ? "bg-green-100 border-green-500 text-green-700" : "bg-red-100 border-red-500 text-red-700") : "bg-white border-gray-300 focus:border-blue-500"}`}>
+                                            <option value=""></option>
+                                            {['A','B','C','D','E','F','G','H'].map(l => <option key={l} value={l}>{l}</option>)}
+                                        </select>
+                                        {showAnswers && !isCorrect && <span className="text-xs font-black text-green-600 bg-green-100 px-2 py-1 rounded shadow-sm">{q?.answer}</span>}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+
+                {/* TASK 2 */}
+                <div className="bg-white p-6 rounded-2xl border-2 border-gray-200 shadow-sm flex flex-col">
+                    <h4 className="font-black text-purple-900 mb-4">{data.task2_heading || "TASK 2"}</h4>
+                    <ul className="space-y-2 mb-6 flex-1">
+                        {data.task2_options?.map((opt: string, i: number) => (
+                            <li key={i} className="text-gray-700 text-sm font-medium">{opt}</li>
+                        ))}
+                    </ul>
+                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl border">
+                        {[1, 2, 3, 4, 5].map(speakerNum => {
+                            const qIdx = speakerNum + 4; // Preguntes 5-9
+                            const q = data.questions[qIdx];
+                            const qKey = q?.question || qIdx.toString();
+                            const userAnswer = userAnswers[qKey] || "";
+                            const isCorrect = showAnswers && (userAnswer.toUpperCase() === q?.answer.toUpperCase());
+                            const isWrong = showAnswers && userAnswer && !isCorrect;
+
+                            return (
+                                <div key={`t2-s${speakerNum}`} className="flex items-center justify-between">
+                                    <span className="font-bold text-gray-700">Speaker {speakerNum} <span className="text-xs font-black text-gray-400 ml-1">[{25 + speakerNum}]</span></span>
+                                    <div className="flex items-center gap-2">
+                                        <select value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`w-16 p-1 text-center font-bold border-2 rounded outline-none ${showAnswers ? (isCorrect ? "bg-green-100 border-green-500 text-green-700" : "bg-red-100 border-red-500 text-red-700") : "bg-white border-gray-300 focus:border-purple-500"}`}>
+                                            <option value=""></option>
+                                            {['A','B','C','D','E','F','G','H'].map(l => <option key={l} value={l}>{l}</option>)}
+                                        </select>
+                                        {showAnswers && !isCorrect && <span className="text-xs font-black text-green-600 bg-green-100 px-2 py-1 rounded shadow-sm">{q?.answer}</span>}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    )
+  };
+
   if (isChoiceMode && !selectedOption) {
     return (
         <div className="bg-slate-50 min-h-screen p-8 animate-in fade-in">
@@ -510,7 +591,9 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
            <div className={isListening && (!user || !user.is_vip) ? "filter blur-sm pointer-events-none select-none opacity-50" : ""}>
               {isSpeakingPart3 ? (
                   renderSpeakingPart3()
-              ) : isListeningPart2 ? (
+              ): isListeningPart4 ? ( // <--- AFEGEIX AQUESTA LÍNIA
+                  renderListeningPart4()
+              ): isListeningPart2 ? (
                   <>
                     {renderListeningPart2()}
                     {showTranscript && (
