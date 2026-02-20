@@ -22,6 +22,11 @@ from datetime import datetime
 from firebase_admin import firestore
 import time
 import random
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+
+
+
 
 router = APIRouter()
 
@@ -37,6 +42,13 @@ class ExerciseRequest(BaseModel):
     completed_ids: List[str] = []
     topic: Optional[str] = None
     instructions: Optional[str] = None
+
+class SubmitResultRequest(BaseModel):
+    user_id: str
+    exercise_type: str
+    score: int
+    total: Optional[int] = None
+    mistakes: Optional[List[Dict[str, Any]]] = []
 
 class GenerateRequest(BaseModel):
     type: str
