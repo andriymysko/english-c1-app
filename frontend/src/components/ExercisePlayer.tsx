@@ -277,8 +277,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
             if (!question) return <span key={index}>[{part}]</span>;
             const qKey = question.question || index.toString();
             const userAnswer = userAnswers[qKey] || "";
-            const isCorrect = showAnswers && (userAnswer.toLowerCase() === cleanOptionText(question.answer).toLowerCase());
-            const isWrong = showAnswers && !isCorrect;
+            //const isCorrect = showAnswers && (userAnswer.toLowerCase() === cleanOptionText(question.answer).toLowerCase());
             return (
               <span key={index} className="group relative inline-block">
                 <span className="inline-flex items-center align-middle mx-1 my-1 rounded-md border shadow-sm bg-white">
@@ -295,7 +294,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                     <input type="text" value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} autoComplete="off" className="outline-none bg-transparent px-2 py-1 min-w-[80px]" />
                   )}
                 </span>
-                {isWrong && <span className="absolute -bottom-8 left-0 z-20 bg-gray-900 text-white text-xs px-2 py-1 rounded">✓ {cleanOptionText(question.answer)}</span>}
               </span>
             );
           }
@@ -319,7 +317,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                 const userAnswer = userAnswers[qKey] || "";
                 const cleanCorrectAnswer = cleanOptionText(q.answer);
                 const isCorrect = showAnswers && (userAnswer.toLowerCase() === cleanCorrectAnswer.toLowerCase());
-                const isWrong = showAnswers && !isCorrect;
                 
                 return (
                     <div key={idx} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -334,9 +331,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                                         {part}
                                         {i < parts.length - 1 && (
                                             <span className="inline-block mx-2 relative">
-                                                <input type="text" value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`border-b-2 outline-none px-2 py-1 w-48 text-center transition-colors ${showAnswers ? (isCorrect ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50") : "border-gray-300 focus:border-blue-500"}`} />
-                                                {isWrong && <div className="absolute top-full left-0 w-full text-center text-xs text-green-700 font-bold mt-1 bg-green-100 px-1 rounded shadow-sm z-10"><CheckCircle className="w-3 h-3 inline mr-1"/>{cleanCorrectAnswer}</div>}
-                                            </span>
+                                                <input type="text" value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`border-b-2 outline-none px-2 py-1 w-48 text-center transition-colors ${showAnswers ? (isCorrect ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50") : "border-gray-300 focus:border-blue-500"}`} />                                            </span>
                                         )}
                                     </span>
                                 ))}
@@ -439,7 +434,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                             const qKey = q?.question || qIdx.toString();
                             const userAnswer = userAnswers[qKey] || "";
                             const isCorrect = showAnswers && (userAnswer.toUpperCase() === q?.answer.toUpperCase());
-                            const isWrong = showAnswers && userAnswer && !isCorrect;
+                            //const isWrong = showAnswers && userAnswer && !isCorrect;
 
                             return (
                                 <div key={`t2-s${speakerNum}`} className="flex items-center justify-between">
