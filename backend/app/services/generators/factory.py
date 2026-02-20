@@ -278,48 +278,18 @@ class ExerciseFactory:
         elif exercise_type == "listening4":
              type_instructions = """
             - Create a "Listening Part 4: Multiple Matching" exercise.
-            - **TEXT LENGTH**: Around 600-750 words total.
-            - **FORMAT**: Five short monologues (Speaker 1 to Speaker 5) talking about a related theme (e.g., a recent new experience, a career change, moving abroad).
+            - **TEXT LENGTH**: Around 600-750 words total. The text MUST contain 5 distinct monologues from Speaker 1 to Speaker 5.
             - **TASK STRUCTURE (CRITICAL)**: There are TWO simultaneous tasks.
               - Task 1: Why they started the activity.
               - Task 2: How they feel about it now.
-            - **OPTIONS (A-H)**: You must create exactly 8 options for Task 1, and 8 options for Task 2. Format them as "A. [Text]", "B. [Text]", etc. (3 distractors per task).
             - **QUESTIONS**: Create EXACTLY 10 questions. 
               - Questions 1 to 5 correspond to Speaker 1-5 for Task 1.
               - Questions 6 to 10 correspond to Speaker 1-5 for Task 2.
-            - The answers must strictly be just the single letter (e.g., "C", "F").
-            - **CRITICAL JSON RULES**:
-              - 'instructions': "You will hear five short extracts. Look at Task 1 and Task 2. You must complete both tasks while you listen."
-            - TIMESTAMPS: Required "MM:SS".
+            - The 'answer' must strictly be a single letter (e.g., "C", "F").
+            - 'instructions': "You will hear five short extracts. Look at Task 1 and Task 2. You must complete both tasks while you listen."
             """
-             json_fields_example = """
-                    "task1_heading": "TASK 1: Reason for starting the activity",
-                    "task1_options": [
-                        "A. To connect with family roots.",
-                        "B. To process a difficult period in life.",
-                        "C. To make a practical contribution.",
-                        "D. To improve a necessary daily skill.",
-                        "E. To react to a disturbing piece of media.",
-                        "F. To meet new people in the local area.",
-                        "G. To prepare for a career change.",
-                        "H. To overcome a childhood fear."
-                    ],
-                    "task2_heading": "TASK 2: How they feel about it now",
-                    "task2_options": [
-                        "A. A deep sense of inner calm.",
-                        "B. Pride in their own progress.",
-                        "C. A profound connection to their identity.",
-                        "D. Renewed purpose and empathy.",
-                        "E. A rewarding connection to the natural world.",
-                        "F. Frustrated by the lack of time.",
-                        "G. Surprised by the financial benefits.",
-                        "H. Overwhelmed by the responsibility."
-                    ],
-                    "questions": [
-                        {"question": "21", "answer": "C"},
-                        {"question": "22", "answer": "B"}
-                    ]
-             """
+             # Deixem això buit perquè les opcions aniran a l'arrel del JSON
+             json_fields_example = '"options": [],'
 
         # ==========================================
         #               WRITING
@@ -637,22 +607,27 @@ class ExerciseFactory:
         
         CRITICAL OUTPUT RULES:
         1. Return ONLY valid JSON.
-        2. Include an 'explanation' field for every question, explaining the linguistic logic (collocation, idiom, etc.).
+        2. Include an 'explanation' field for every question.
         3. LISTENING ONLY: You MUST include a 'timestamp' field (format "MM:SS").
+        4. NO PLACEHOLDERS: You MUST generate REAL content. Do NOT copy the placeholder text.
         
         JSON Structure (Generic/Specific):
         {{
             "type": "{exercise_type}",
-            "title": "Generated Task",
-            "instructions": "Follow the instructions carefully.",
-            "text": "Full text content...",
+            "title": "[Create a real descriptive title for this specific task]",
+            "instructions": "[Write the specific exam instructions here]",
+            "text": "[MANDATORY: Write the FULL audio script or reading text here. Never leave this empty]",
             "image_prompts": ["Prompt 1", "Prompt 2", "Prompt 3"], 
+            "task1_heading": "[Only for Part 4] TASK 1: Reason for starting",
+            "task1_options": ["[Only for Part 4] A. Option 1", "B. Option 2", "C. Option 3", "D.", "E.", "F.", "G.", "H."],
+            "task2_heading": "[Only for Part 4] TASK 2: How they feel now",
+            "task2_options": ["[Only for Part 4] A. Option 1", "B. Option 2", "C. Option 3", "D.", "E.", "F.", "G.", "H."],
             "questions": [
                 {{
-                    "question": "1",
+                    "question": "[Write the actual question sentence here]",
                     {json_fields_example}
-                    "answer": "Correct Answer",
-                    "explanation": "Detailed explanation.",
+                    "answer": "[The correct option/text or letter]",
+                    "explanation": "[Detailed explanation of why it is correct]",
                     "timestamp": "01:15"
                 }}
             ]
