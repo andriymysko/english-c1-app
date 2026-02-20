@@ -401,7 +401,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                             const qKey = q?.question || qIdx.toString();
                             const userAnswer = userAnswers[qKey] || "";
                             const isCorrect = showAnswers && (userAnswer.toUpperCase() === q?.answer.toUpperCase());
-                            const isWrong = showAnswers && userAnswer && !isCorrect;
+                            //const isWrong = showAnswers && userAnswer && !isCorrect;
 
                             return (
                                 <div key={`t1-s${speakerNum}`} className="flex items-center justify-between">
