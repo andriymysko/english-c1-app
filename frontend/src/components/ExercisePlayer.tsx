@@ -586,9 +586,21 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
            <div className={isListening && (!user || !user.is_vip) ? "filter blur-sm pointer-events-none select-none opacity-50" : ""}>
               {isSpeakingPart3 ? (
                   renderSpeakingPart3()
-              ): isListeningPart4 ? ( // <--- AFEGEIX AQUESTA LÍNIA
-                  renderListeningPart4()
-              ): isListeningPart2 ? (
+              ) : isListeningPart4 ? (
+                  <>
+                      {renderListeningPart4()}
+                      {showTranscript && (
+                          <div className="mt-8 prose max-w-none bg-gray-50 p-8 rounded-2xl border-2 border-gray-200 shadow-inner animate-in fade-in">
+                              <h4 className="font-bold text-gray-400 mb-6 uppercase tracking-widest text-sm border-b pb-4">
+                                  Transcript
+                              </h4>
+                              <p className="whitespace-pre-line text-gray-800 text-lg leading-relaxed">
+                                  {data.text || "Transcript not available."}
+                              </p>
+                          </div>
+                      )}
+                  </>
+              ) : isListeningPart2 ? (
                   <>
                     {renderListeningPart2()}
                     {showTranscript && (
