@@ -133,6 +133,15 @@ class ExerciseFactory:
 
             - **QUESTION FORMAT (CRITICAL)**: The 'question' field MUST contain the actual question sentence (e.g., 'What is the speaker's main point about...?'). You are STRICTLY FORBIDDEN from putting just a number in the 'question' field.
             """
+             json_fields_example = """
+                    "question": "[MANDATORY: Write the FULL question sentence here. Do NOT write the number]",
+                    "options": [
+                        "Option A text",
+                        "Option B text",
+                        "Option C text",
+                        "Option D text"
+                    ],
+              """
 
         elif exercise_type == "reading_and_use_of_language6":
              type_instructions = """
