@@ -160,7 +160,17 @@ class ExerciseFactory:
             
             - ANSWER KEY: The answer must be just the letter (A, B, C, or D).
             - CRITICAL JSON RULE: In 'options', provide [A, B, C, D]. The 'answer' must be one of these letters.
+              - **QUESTION FORMAT (CRITICAL)**: The 'question' field MUST contain the actual question sentence (e.g., 'What is the speaker's main point about...?'). You are STRICTLY FORBIDDEN from putting just a number in the 'question' field.
             """
+             json_fields_example = """
+                    "question": "[MANDATORY: Write the FULL question sentence here. Do NOT write the number]",
+                    "options": [
+                        "Option A text",
+                        "Option B text",
+                        "Option C text",
+                        "Option D text"
+                    ],
+              """
 
         elif exercise_type == "reading_and_use_of_language7":
              type_instructions = """
@@ -170,7 +180,17 @@ class ExerciseFactory:
             - VISUAL FORMAT: Mark removal points clearly as "[41]", "[42]", etc. on their own lines.
             - MISSING PARAGRAPHS: Provide 7 paragraphs labeled A-G (6 correct + 1 distractor).
             - LOGIC: The link between the paragraph and the gap must depend on cohesive devices (reference words like 'this', 'such', 'the latter') or thematic development.
+              - **QUESTION FORMAT (CRITICAL)**: The 'question' field MUST contain the actual question sentence (e.g., 'What is the speaker's main point about...?'). You are STRICTLY FORBIDDEN from putting just a number in the 'question' field.
             """
+             json_fields_example = """
+                    "question": "[MANDATORY: Write the FULL question sentence here. Do NOT write the number]",
+                    "options": [
+                        "Option A text",
+                        "Option B text",
+                        "Option C text",
+                        "Option D text"
+                    ],
+              """
 
         elif exercise_type == "reading_and_use_of_language8":
              type_instructions = """
@@ -187,7 +207,17 @@ class ExerciseFactory:
             - DISTRACTORS: Ensure keywords from Question 47 appear in Section B, but the *answer* is in Section A.
             - ANSWER KEY: The answer must be just the letter (A, B, C, D, E).
             - CRITICAL JSON RULE: In 'options', provide [A, B, C, D, (E)]. The 'answer' must be the letter.
+              - **QUESTION FORMAT (CRITICAL)**: The 'question' field MUST contain the actual question sentence (e.g., 'What is the speaker's main point about...?'). You are STRICTLY FORBIDDEN from putting just a number in the 'question' field.
             """
+             json_fields_example = """
+                    "question": "[MANDATORY: Write the FULL question sentence here. Do NOT write the number]",
+                    "options": [
+                        "Option A text",
+                        "Option B text",
+                        "Option C text",
+                        "Option D text"
+                    ],
+              """
 
         # ==========================================
         #             LISTENING
