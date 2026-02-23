@@ -107,7 +107,7 @@ FALLBACK_SPEAKING_2 = {
 }
 
 # --- HELPER FUNCTION (AMB GENERACIÓ DE 3 IMATGES) ---
-def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool = True):
+def generate_and_save_exercise(level: str, exercise_type: str, is_public: bool = True, weak_words: list = None):
     print(f"⚙️ BACKGROUND: Iniciant generació per {exercise_type}...")
     try:
         # 1. Generem el text base (Factory)
