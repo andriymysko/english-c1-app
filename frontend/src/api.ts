@@ -349,3 +349,16 @@ export async function reportIssue(userId: string, exerciseData: any, questionInd
 export const generateExercise = async (type: string, level: string = "C1") => {
   return fetchExercise(type, "default", level);
 };
+
+export const fetchUserVocabulary = async (userId: string) => {
+  const API_URL = import.meta.env.VITE_API_URL || "https://english-c1-api.onrender.com";
+  try {
+    const response = await fetch(`${API_URL}/vocabulary/${userId}`);
+    if (!response.ok) throw new Error("Error fetching vocabulary");
+    const data = await response.json();
+    return data.vocabulary;
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+};

@@ -563,3 +563,25 @@ def analyze_weaknesses(user_id: str):
 def ad_reward(request: AdRewardRequest):
     DatabaseService.reward_ad_view(request.user_id)
     return {"status": "rewarded"}
+
+@router.get("/vocabulary/{user_id}")
+def get_user_vocabulary(user_id: str):
+    try:
+        # Anem a la col·lecció de l'usuari i ordenem de més a menys errors
+        vocab_ref = db.collection("users").document(user_id).collection("vocabulary")
+        docs = vocab_ref.order_by("mistakes", direction=firestore.Query.DESCENDING).stream()
+        
+        vocab_list = []
+        for doc in docs:
+            data = doc.to_dict()
+            vocab_list.append({
+                "word": data.get("word", ""),
+                "mistakes": data.get("mistakes", 0),
+                # Firebase retorna un objecte Datetime, el passem a string
+                "added_at": data.get("added_at").isoformat() if data.get("added_at") else None
+            })
+            
+        return {"vocabulary": vocab_list}
+    except Exception as e:
+        print(f"Error llegint vocabulari: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
