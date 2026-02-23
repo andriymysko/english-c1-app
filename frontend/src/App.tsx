@@ -8,6 +8,7 @@ import Landing from './components/Landing';
 import Legal from './components/Legal';
 import ExtrasPage from './components/ExtrasPage'; 
 import { Loader2 } from 'lucide-react';
+import VocabularyDeck from './components/VocabularyDeck';
 
 function AppContent() {
   const { user, loading } = useAuth();
