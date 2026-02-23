@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   BookOpen, PenTool, Mic, Headphones, 
   Loader2, Play, BarChart2, GraduationCap, 
-  Brain, Layout, LogOut, Download, Zap, ShoppingBag, Crown, Lock
+  Brain, Layout, LogOut, Download, Zap, ShoppingBag, Crown, Lock, Flame // <-- Icona Flame afegida
 } from 'lucide-react';
 import ExercisePlayer from './ExercisePlayer';
 import ExamPlayer from './ExamPlayer';
@@ -79,15 +79,16 @@ type SkillKey = keyof typeof SKILLS;
 
 interface Props {
   onOpenExtras?: () => void;
+  onOpenVocabulary: () => void;
 }
 
-export default function ExerciseGenerator({ onOpenExtras }: Props) {
+// 👇 CORRECCIÓ: Afegim onOpenVocabulary aquí als paràmetres!
+export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Props) {
   const { user, logout } = useAuth();
    
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [activeSkill, setActiveSkill] = useState<SkillKey>('reading');
    
-  // ⚡ MILLORA: loadingPartId en lloc de loading genèric
   const [loadingPartId, setLoadingPartId] = useState<string | null>(null);
   
   const [examLoading, setExamLoading] = useState(false);
@@ -174,7 +175,6 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
         return;
     }
 
-    // ⚡ MILLORA: Activem spinner només per aquesta part
     setLoadingPartId(partId);
     setError(null);
     try {
@@ -275,7 +275,7 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
         />
       )}
 
-      {/* SIDEBAR */}
+      {/* SIDEBAR DESKTOP */}
       <aside className="hidden lg:flex w-64 bg-white/90 backdrop-blur-xl border-r border-white/20 shadow-2xl flex-col justify-between fixed h-full z-20">
         <div>
           <div className="p-8 flex items-center gap-3">
@@ -293,6 +293,11 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
             
             <button onClick={onOpenExtras} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-gray-500 hover:bg-gray-50 hover:text-purple-600">
               <GraduationCap className="w-5 h-5" /> <span>Grammar Lab</span>
+            </button>
+
+            {/* 👇 AFEGIT: Botó del Vocabulary Vault per a Desktop */}
+            <button onClick={onOpenVocabulary} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-gray-500 hover:bg-red-50 hover:text-red-600">
+              <Flame className="w-5 h-5" /> <span>Vocab Vault</span>
             </button>
 
             <button onClick={() => setCurrentView('profile')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${currentView === 'profile' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-500 hover:bg-gray-50'}`}>
@@ -377,19 +382,17 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
                     <button 
                         key={part.id} 
                         onClick={() => handlePartClick(part.id, part.isPremium)} 
-                        disabled={loadingPartId !== null} // Bloquegem si n'hi ha algun carregant
+                        disabled={loadingPartId !== null} 
                         className="group relative flex items-center p-4 bg-white border border-gray-100 rounded-xl hover:border-blue-400 hover:shadow-md transition-all text-left disabled:opacity-50"
                     >
                         <div className="flex-1">
                             <h4 className="font-bold text-gray-800 group-hover:text-blue-700 transition-colors text-sm lg:text-base flex items-center gap-2">
                                 {part.name}
-                                {/* Si no és VIP i és premium, mostrem l'etiqueta PRO */}
                                 {!isVip && part.isPremium && <span className="text-xs bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded flex items-center gap-1"><Zap className="w-3 h-3"/> PRO</span>}
                             </h4>
                             <p className="text-xs lg:text-sm text-gray-500">{part.desc}</p>
                         </div>
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${!isVip && part.isPremium ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
-                            {/* ⚡ MILLORA: Spinner només si aquest ID coincideix */}
                             {loadingPartId === part.id ? <Loader2 className="w-4 h-4 animate-spin"/> : (
                                 !isVip && part.isPremium ? <Lock className="w-4 h-4"/> : <Play className="w-4 h-4 fill-current"/>
                             )}
@@ -402,9 +405,14 @@ export default function ExerciseGenerator({ onOpenExtras }: Props) {
         )}
       </main>
 
+      {/* MOBILE NAVBAR */}
       <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center p-3 lg:hidden z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
          <button onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center gap-1 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-gray-400'}`}><Layout className="w-6 h-6" /><span className="text-[10px] font-bold">Home</span></button>
          <button onClick={onOpenExtras} className="flex flex-col items-center gap-1 text-gray-400 hover:text-purple-600"><GraduationCap className="w-6 h-6" /><span className="text-[10px] font-bold">Grammar</span></button>
+         
+         {/* 👇 AFEGIT: Botó del Vocabulary Vault per a Mòbil */}
+         <button onClick={onOpenVocabulary} className="flex flex-col items-center gap-1 text-gray-400 hover:text-red-600"><Flame className="w-6 h-6" /><span className="text-[10px] font-bold">Vocab</span></button>
+         
          <button onClick={() => setCurrentView('pricing')} className={`flex flex-col items-center gap-1 ${currentView === 'pricing' ? 'text-yellow-600' : 'text-gray-400'}`}><Crown className="w-6 h-6" /><span className="text-[10px] font-bold">Store</span></button>
          <button onClick={() => setCurrentView('profile')} className={`flex flex-col items-center gap-1 ${currentView === 'profile' ? 'text-blue-600' : 'text-gray-400'}`}><BarChart2 className="w-6 h-6" /><span className="text-[10px] font-bold">Profile</span></button>
       </nav>

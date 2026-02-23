@@ -15,8 +15,8 @@ function AppContent() {
   // Estat per a la navegació PÚBLICA (No loguejat)
   const [publicView, setPublicView] = useState<'landing' | 'login' | 'privacy' | 'terms'>('landing');
 
-  // Estat per a la navegació PRIVADA (Loguejat)
-  const [privateView, setPrivateView] = useState<'generator' | 'extras'>('generator');
+  // LÒGICA ACTUALITZADA: Afegim 'vocabulary' a les vistes permeses
+  const [privateView, setPrivateView] = useState<'generator' | 'extras' | 'vocabulary'>('generator');
 
   // --- LOADING ---
   if (loading) return (
@@ -27,21 +27,25 @@ function AppContent() {
 
   // --- USUARI LOGUEJAT (ZONA PRIVADA) ---
   if (user) {
-    // Si l'usuari ha triat anar a Extras, mostrem la pàgina d'Extras
     if (privateView === 'extras') {
       return <ExtrasPage onBack={() => setPrivateView('generator')} />;
     }
 
-    // Si no, mostrem el Generador (Dashboard)
+    // LÒGICA ACTUALITZADA: Renderitzem la baralla de vocabulari si l'estat coincideix
+    if (privateView === 'vocabulary') {
+      return <VocabularyDeck onBack={() => setPrivateView('generator')} />;
+    }
+
+    // LÒGICA ACTUALITZADA: Passem una nova prop 'onOpenVocabulary' al generador
     return (
         <ExerciseGenerator 
             onOpenExtras={() => setPrivateView('extras')} 
+            onOpenVocabulary={() => setPrivateView('vocabulary')}
         />
     );
   }
 
   // --- USUARI NO LOGUEJAT (ZONA PÚBLICA) ---
-
   if (publicView === 'login') {
     return <Login onBack={() => setPublicView('landing')} />;
   }
