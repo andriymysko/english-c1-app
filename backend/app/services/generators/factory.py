@@ -130,6 +130,8 @@ class ExerciseFactory:
             
             - CRITICAL JSON RULE: Do NOT put labels (A., B.) in the text of the options.
             - The 'answer' field must match the EXACT TEXT of the correct option.
+
+            - **QUESTION FORMAT (CRITICAL)**: The 'question' field MUST contain the actual question sentence (e.g., 'What is the speaker's main point about...?'). You are STRICTLY FORBIDDEN from putting just a number in the 'question' field.
             """
 
         elif exercise_type == "reading_and_use_of_language6":
