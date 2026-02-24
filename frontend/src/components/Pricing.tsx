@@ -5,7 +5,6 @@ import { useState } from 'react';
 export default function Pricing() {
   const { user } = useAuth();
   
-  // 🔥 LLEGIM L'ESTAT VIP DIRECTAMENT (Sense retards gràcies al teu AuthContext)
   const isVip = user?.is_vip || false;
 
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -55,127 +54,123 @@ export default function Pricing() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12 animate-in fade-in duration-700">
+    <div className="max-w-6xl mx-auto px-4 md:px-8 py-12 animate-in fade-in duration-700 bg-stone-50 min-h-screen">
       
       {/* --- HEADER CONDICIONAL --- */}
-      <div className="text-center mb-12 space-y-4">
+      <div className="text-center mb-16 space-y-4">
         {isVip ? (
             <>
-                <h2 className="text-4xl font-black text-gray-900 tracking-tight">Your Subscription</h2>
-                <p className="text-xl text-gray-500 max-w-2xl mx-auto">
-                    You are currently a <span className="text-yellow-600 font-bold">VIP Member</span>. Enjoy your unlimited access!
+                <h2 className="text-4xl md:text-5xl font-serif font-black text-slate-900 tracking-tight">Your Subscription</h2>
+                <p className="text-lg text-stone-500 max-w-2xl mx-auto font-medium">
+                    You are currently a <span className="text-slate-900 font-bold">VIP Member</span>. Enjoy your unlimited access!
                 </p>
             </>
         ) : (
             <>
-                <h2 className="text-4xl font-black text-gray-900 tracking-tight">Upgrade your Plan</h2>
-                <p className="text-xl text-gray-500 max-w-2xl mx-auto">
+                <h2 className="text-4xl md:text-5xl font-serif font-black text-slate-900 tracking-tight">Upgrade your Plan</h2>
+                <p className="text-lg text-stone-500 max-w-2xl mx-auto font-medium">
                     Choose the best option to ace your C1 Exam. Unlocking full access increases your passing rate by 40%.
                 </p>
             </>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+      <div className="flex flex-col md:flex-row justify-center gap-8 items-stretch max-w-4xl mx-auto">
       
         {/* --- WEEKLY PLAN (Només el mostrem si NO ets VIP) --- */}
         {!isVip && (
-            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl hover:shadow-2xl transition-all duration-300 flex flex-col relative group">
-              <div className="absolute top-0 left-0 w-full h-2 bg-gray-200 rounded-t-3xl"></div>
-              <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <Zap className="w-5 h-5 text-gray-400" /> Cramming Week
+            <div className="flex-1 bg-white p-8 md:p-10 rounded-sm border border-stone-200 shadow-sm transition-all hover:border-slate-900 flex flex-col relative group">
+              <h3 className="text-xl font-serif font-bold text-slate-900 flex items-center gap-3">
+                <Zap className="w-5 h-5 text-stone-400" /> Cramming Week
               </h3>
-              <div className="my-6">
-                <span className="text-4xl font-black text-gray-900">3.49€</span>
-                <span className="text-gray-500 font-medium"> / week</span>
+              <div className="mt-8 mb-6">
+                <span className="text-4xl font-serif font-black text-slate-900">3.49€</span>
               </div>
-              <p className="text-gray-500 mb-8 leading-relaxed">Perfect for last-minute exam prep. Cancel anytime.</p>
+              <p className="text-stone-500 text-sm mb-10 leading-relaxed font-medium">Perfect for last-minute exam prep. Cancel anytime.</p>
               
               <button 
                   onClick={() => handleBuy(PRODUCT_TYPES.WEEKLY)} 
                   disabled={loadingId !== null}
-                  className="w-full py-3.5 border-2 border-gray-900 text-gray-900 font-bold rounded-xl hover:bg-gray-900 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                  className="w-full mt-auto py-4 border border-slate-900 text-slate-900 font-bold uppercase tracking-widest text-xs rounded-sm hover:bg-slate-900 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
               >
-                  {loadingId === PRODUCT_TYPES.WEEKLY ? <Loader2 className="animate-spin w-5 h-5"/> : "Buy 1 Week"}
+                  {loadingId === PRODUCT_TYPES.WEEKLY ? <Loader2 className="animate-spin w-4 h-4"/> : "Buy 1 Week"}
               </button>
             </div>
         )}
 
         {/* --- SEASON PASS (VIP) --- */}
-        {/* Canviem l'estil si està actiu: Fons blanc amb vora daurada en lloc de fons negre */}
-        <div className={`p-8 rounded-3xl shadow-2xl transform md:-translate-y-4 relative flex flex-col ring-4 
-            ${isVip ? 'bg-white border-2 border-yellow-400 ring-yellow-100' : 'bg-gray-900 border border-gray-800 ring-yellow-400/30'}`}>
+        <div className={`flex-[1.2] p-8 md:p-10 rounded-sm shadow-md relative flex flex-col
+            ${isVip ? 'bg-stone-100 border border-stone-200' : 'bg-slate-900 border border-slate-800'}`}>
           
-          <div className="absolute top-0 right-0 bg-gradient-to-r from-yellow-400 to-amber-500 text-xs font-black px-4 py-1.5 rounded-bl-2xl rounded-tr-2xl text-black shadow-lg uppercase tracking-wider">
+          <div className="absolute top-0 right-0 bg-stone-200 text-[10px] font-black px-4 py-2 text-slate-900 uppercase tracking-widest">
             {isVip ? 'CURRENT PLAN' : 'BEST VALUE'}
           </div>
           
-          <h3 className={`text-xl font-bold flex items-center gap-2 ${isVip ? 'text-gray-900' : 'text-white'}`}>
-            <Crown className="w-6 h-6 text-yellow-400" /> Season Pass
+          <h3 className={`text-2xl font-serif font-bold flex items-center gap-3 ${isVip ? 'text-slate-900' : 'text-white'}`}>
+            <Crown className={`w-6 h-6 ${isVip ? 'text-stone-400' : 'text-stone-300'}`} /> Season Pass
           </h3>
-          <div className="my-6">
-            <span className={`text-5xl font-black ${isVip ? 'text-gray-900' : 'text-white'}`}>29.99€</span>
-            <span className="text-gray-400 font-medium"> / 3 mo</span>
+          <div className="mt-8 mb-6">
+            <span className={`text-5xl font-serif font-black ${isVip ? 'text-slate-900' : 'text-white'}`}>29.99€</span>
           </div>
-          <p className="text-gray-400 mb-8 text-sm">Full access for the whole term. Includes everything you need.</p>
+          <p className={`text-sm mb-10 font-medium ${isVip ? 'text-stone-500' : 'text-stone-400'}`}>Full access for the whole term. Includes everything you need.</p>
           
-          <ul className="space-y-4 mb-8 flex-grow">
-              {/* Canviem el color del text de la llista segons el fons */}
-              <li className={`flex gap-3 items-start ${isVip ? 'text-gray-700' : 'text-gray-200'}`}>
-                  <div className="bg-green-500/20 p-1 rounded-full"><Check className="w-3 h-3 text-green-500"/></div>
-                  <span className="font-medium">Unlimited Exercises</span>
+          <ul className="space-y-4 mb-10 flex-grow">
+              <li className={`flex gap-4 items-center text-sm font-medium ${isVip ? 'text-slate-700' : 'text-stone-300'}`}>
+                  <div className={`p-1 rounded-sm ${isVip ? 'bg-stone-200 text-slate-900' : 'bg-slate-800 text-white'}`}><Check className="w-3 h-3"/></div>
+                  <span>Unlimited Exercises</span>
               </li>
-              <li className={`flex gap-3 items-start ${isVip ? 'text-gray-700' : 'text-gray-200'}`}>
-                  <div className="bg-green-500/20 p-1 rounded-full"><Check className="w-3 h-3 text-green-500"/></div>
-                  <span className="font-medium">15 Premium AI Corrections</span>
+              <li className={`flex gap-4 items-center text-sm font-medium ${isVip ? 'text-slate-700' : 'text-stone-300'}`}>
+                  <div className={`p-1 rounded-sm ${isVip ? 'bg-stone-200 text-slate-900' : 'bg-slate-800 text-white'}`}><Check className="w-3 h-3"/></div>
+                  <span>15 Premium AI Corrections</span>
               </li>
-              <li className={`flex gap-3 items-start ${isVip ? 'text-gray-700' : 'text-gray-200'}`}>
-                  <div className="bg-green-500/20 p-1 rounded-full"><Check className="w-3 h-3 text-green-500"/></div>
-                  <span className="font-medium">No Ads & Priority Support</span>
+              <li className={`flex gap-4 items-center text-sm font-medium ${isVip ? 'text-slate-700' : 'text-stone-300'}`}>
+                  <div className={`p-1 rounded-sm ${isVip ? 'bg-stone-200 text-slate-900' : 'bg-slate-800 text-white'}`}><Check className="w-3 h-3"/></div>
+                  <span>No Ads & Priority Support</span>
               </li>
           </ul>
           
           {/* BOTÓ CONDICIONAL */}
           {isVip ? (
-              <button disabled className="w-full py-4 bg-green-100 text-green-700 font-bold text-lg rounded-xl flex justify-center items-center gap-2 cursor-default border border-green-200">
-                  <ShieldCheck className="w-6 h-6"/> PLAN ACTIVE
-              </button>
+              <div className="w-full mt-auto py-4 bg-stone-200 text-stone-500 font-bold uppercase tracking-widest text-xs rounded-sm flex justify-center items-center gap-2 cursor-default border border-stone-300">
+                  <ShieldCheck className="w-4 h-4"/> PLAN ACTIVE
+              </div>
           ) : (
               <button 
                   onClick={() => handleBuy(PRODUCT_TYPES.SEASON)}
                   disabled={loadingId !== null}
-                  className="w-full py-4 bg-gradient-to-r from-yellow-400 to-amber-500 text-black font-black text-lg rounded-xl hover:shadow-[0_0_20px_rgba(251,191,36,0.4)] hover:scale-[1.02] transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+                  className="w-full mt-auto py-4 bg-white text-slate-900 font-black uppercase tracking-widest text-xs rounded-sm hover:bg-stone-100 transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
               >
-                  {loadingId === PRODUCT_TYPES.SEASON ? <Loader2 className="animate-spin w-6 h-6"/> : "GET SEASON PASS"}
+                  {loadingId === PRODUCT_TYPES.SEASON ? <Loader2 className="animate-spin w-4 h-4"/> : "GET SEASON PASS"}
               </button>
           )}
         </div>
 
         {/* --- CORRECTION PACK (Sempre visible) --- */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl hover:shadow-2xl transition-all duration-300 flex flex-col relative">
-          <div className="absolute top-0 left-0 w-full h-2 bg-purple-200 rounded-t-3xl"></div>
-          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <Star className="w-5 h-5 text-purple-400" /> Correction Pack
+        <div className="flex-1 bg-white p-8 md:p-10 rounded-sm border border-stone-200 shadow-sm transition-all hover:border-slate-900 flex flex-col relative">
+          <h3 className="text-xl font-serif font-bold text-slate-900 flex items-center gap-3">
+            <Star className="w-5 h-5 text-stone-400" /> Correction Pack
           </h3>
-          <div className="my-6">
-            <span className="text-4xl font-black text-gray-900">4.99€</span>
+          <div className="mt-8 mb-6">
+            <span className="text-4xl font-serif font-black text-slate-900">4.99€</span>
           </div>
-          <p className="text-gray-500 mb-8 leading-relaxed">5 extra professional corrections for Writing & Speaking tasks.</p>
+          <p className="text-stone-500 text-sm mb-10 leading-relaxed font-medium">5 extra professional corrections for Writing & Speaking tasks.</p>
           
           <button 
               onClick={() => handleBuy(PRODUCT_TYPES.PACK5)}
               disabled={loadingId !== null}
-              className="w-full py-3.5 border-2 border-purple-600 text-purple-700 font-bold rounded-xl hover:bg-purple-50 transition-all disabled:opacity-50 flex justify-center items-center gap-2 mt-auto"
+              className="w-full mt-auto py-4 border border-slate-900 text-slate-900 font-bold uppercase tracking-widest text-xs rounded-sm hover:bg-slate-900 hover:text-white transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
           >
-              {loadingId === PRODUCT_TYPES.PACK5 ? <Loader2 className="animate-spin w-5 h-5"/> : "Buy 5 Credits"}
+              {loadingId === PRODUCT_TYPES.PACK5 ? <Loader2 className="animate-spin w-4 h-4"/> : "Buy 5 Credits"}
           </button>
         </div>
 
       </div>
       
-      <p className="text-center text-gray-400 text-sm mt-12">
-        Secure payment powered by Stripe. {isVip ? "Manage your subscription in your profile." : "You can cancel subscriptions at any time."}
-      </p>
+      <div className="mt-16 text-center border-t border-stone-200 pt-8">
+        <p className="text-stone-400 text-xs font-medium uppercase tracking-widest">
+            Secure payment powered by Stripe. {isVip ? "Manage your subscription in your profile." : "You can cancel subscriptions at any time."}
+        </p>
+      </div>
     </div>
   );
 }
