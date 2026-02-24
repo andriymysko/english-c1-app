@@ -325,11 +325,9 @@ export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Pr
           {/* EL SEGELL ETHERNALS */}
           <div className="pt-4 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-400 opacity-60 hover:opacity-100 transition-opacity cursor-default">
             <svg className="w-3.5 h-3.5" viewBox="0 0 26 26" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square">
-  {/* Línia superior esquerra fins a baix */}
-  <polyline points="13 5 5 13 13 21" />
-  {/* Línia inferior dreta fins a dalt (desconnectada per crear un portal/infinit) */}
-  <polyline points="13 21 21 13 13 5" />
-</svg>
+              {/* Coordenades pures de Fibonacci: 5, 13 i 21 */}
+              <polygon points="13 5 5 13 13 21 21 13" />
+            </svg>
             <span className="text-[8px] tracking-[0.2em] font-black uppercase mt-0.5">
               An Ethernals Company
             </span>
