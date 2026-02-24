@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   BookOpen, PenTool, Mic, Headphones, 
   Loader2, Play, BarChart2, GraduationCap, 
-  Brain, Layout, LogOut, Download, Zap, ShoppingBag, Crown, Lock, Flame // <-- Icona Flame afegida
+  Layout, LogOut, Download, Zap, ShoppingBag, Crown, Lock, Flame
 } from 'lucide-react';
 import ExercisePlayer from './ExercisePlayer';
 import ExamPlayer from './ExamPlayer';
@@ -82,7 +82,6 @@ interface Props {
   onOpenVocabulary: () => void;
 }
 
-// 👇 CORRECCIÓ: Afegim onOpenVocabulary aquí als paràmetres!
 export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Props) {
   const { user, logout } = useAuth();
    
@@ -242,7 +241,7 @@ export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Pr
   if (examData) return <ExamPlayer examData={examData} onExit={() => setExamData(null)} />;
    
   if (exerciseData) return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="min-h-screen bg-stone-50 flex flex-col">
         <div className="flex-1 max-w-5xl mx-auto w-full p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
            <ExercisePlayer 
                 data={exerciseData} 
@@ -257,7 +256,7 @@ export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Pr
   );
 
   return (
-    <div className="flex min-h-screen font-sans text-slate-800 bg-slate-50">
+    <div className="flex min-h-screen font-sans text-slate-800 bg-stone-50">
        
       <AdGateModal 
           isOpen={showAdGate}
@@ -276,105 +275,121 @@ export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Pr
       )}
 
       {/* SIDEBAR DESKTOP */}
-      <aside className="hidden lg:flex w-64 bg-white/90 backdrop-blur-xl border-r border-white/20 shadow-2xl flex-col justify-between fixed h-full z-20">
+      <aside className="hidden lg:flex w-64 bg-white border-r border-stone-200 shadow-sm flex-col justify-between fixed h-full z-20">
         <div>
+          {/* IDENTITAT EDITORIAL */}
           <div className="p-8 flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-              <Brain className="w-6 h-6" />
+            <div className="w-10 h-10 bg-slate-900 rounded-sm flex items-center justify-center text-white">
+              <span className="font-serif font-bold text-xl">C1</span>
             </div>
-            <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-700 to-purple-700 bg-clip-text text-transparent">
-              C1 Master
-            </span>
+            <div className="flex flex-col">
+              <span className="text-xl font-serif font-black text-slate-900 tracking-tight leading-none">
+                getaidvanced
+              </span>
+              <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-1">
+                Cambridge Simulator
+              </span>
+            </div>
           </div>
+
           <nav className="mt-6 px-4 space-y-2">
-            <button onClick={() => setCurrentView('dashboard')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${currentView === 'dashboard' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-500 hover:bg-gray-50'}`}>
+            <button onClick={() => setCurrentView('dashboard')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${currentView === 'dashboard' ? 'bg-stone-100 text-slate-900 font-semibold' : 'text-stone-500 hover:bg-stone-50'}`}>
               <Layout className="w-5 h-5" /> <span>Dashboard</span>
             </button>
             
-            <button onClick={onOpenExtras} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-gray-500 hover:bg-gray-50 hover:text-purple-600">
+            <button onClick={onOpenExtras} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-stone-500 hover:bg-stone-50 hover:text-slate-900">
               <GraduationCap className="w-5 h-5" /> <span>Grammar Lab</span>
             </button>
 
-            {/* 👇 AFEGIT: Botó del Vocabulary Vault per a Desktop */}
-            <button onClick={onOpenVocabulary} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-gray-500 hover:bg-red-50 hover:text-red-600">
+            <button onClick={onOpenVocabulary} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-stone-500 hover:bg-stone-50 hover:text-slate-900">
               <Flame className="w-5 h-5" /> <span>Vocab Vault</span>
             </button>
 
-            <button onClick={() => setCurrentView('profile')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${currentView === 'profile' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-500 hover:bg-gray-50'}`}>
+            <button onClick={() => setCurrentView('profile')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${currentView === 'profile' ? 'bg-stone-100 text-slate-900 font-semibold' : 'text-stone-500 hover:bg-stone-50'}`}>
               <BarChart2 className="w-5 h-5" /> <span>Stats & Profile</span>
             </button>
-            <button onClick={() => setCurrentView('pricing')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${currentView === 'pricing' ? 'bg-yellow-50 text-yellow-700 font-semibold' : 'text-gray-500 hover:bg-yellow-50'}`}>
+            <button onClick={() => setCurrentView('pricing')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${currentView === 'pricing' ? 'bg-stone-100 text-slate-900 font-semibold' : 'text-stone-500 hover:bg-stone-50'}`}>
               <ShoppingBag className="w-5 h-5" /> <span>Upgrade / Store</span>
             </button>
-             <button onClick={handleDownloadPack} disabled={downloadingPack} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-gray-500 hover:bg-gray-50">
+             <button onClick={handleDownloadPack} disabled={downloadingPack} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-stone-500 hover:bg-stone-50">
               {downloadingPack ? <Loader2 className="w-5 h-5 animate-spin"/> : <Download className="w-5 h-5" />} <span>Offline Pack</span>
             </button>
           </nav>
         </div>
-        <div className="p-4 border-t border-gray-100">
-          <button onClick={logout} className="w-full flex items-center gap-4 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+
+        <div className="p-4 flex flex-col gap-4">
+          <button onClick={logout} className="w-full flex items-center gap-4 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors">
             <LogOut className="w-5 h-5" /> <span className="font-medium">Log Out</span>
           </button>
+          
+          {/* EL SEGELL ETHERNALS */}
+          <div className="pt-4 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-400 opacity-60 hover:opacity-100 transition-opacity cursor-default">
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square">
+              <polygon points="12 2 2 12 12 22 22 12" />
+            </svg>
+            <span className="text-[8px] tracking-[0.2em] font-black uppercase mt-0.5">
+              An Ethernals Company
+            </span>
+          </div>
         </div>
       </aside>
 
       <main className="flex-1 lg:ml-64 p-4 lg:p-10 pb-24 lg:pb-10 relative w-full">
+        {/* MOBILE HEADER */}
         <div className="lg:hidden flex justify-between items-center mb-6">
             <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white"><Brain className="w-4 h-4" /></div>
-                <span className="font-bold text-lg">C1 Master</span>
+                <div className="w-8 h-8 bg-slate-900 rounded-sm flex items-center justify-center text-white"><span className="font-serif font-bold text-sm">C1</span></div>
+                <span className="font-serif font-bold text-lg text-slate-900 tracking-tight">getaidvanced</span>
             </div>
             <div className="flex gap-2">
-                 <button onClick={() => setCurrentView('pricing')} className="p-2 bg-yellow-100 rounded-full shadow-sm text-yellow-600"><Crown className="w-5 h-5" /></button>
-                 <button onClick={logout} className="p-2 bg-white rounded-full shadow-sm text-red-500"><LogOut className="w-5 h-5" /></button>
+                 <button onClick={() => setCurrentView('pricing')} className="p-2 bg-stone-100 rounded-full shadow-sm text-slate-900"><Crown className="w-5 h-5" /></button>
+                 <button onClick={logout} className="p-2 bg-white rounded-full shadow-sm text-red-600"><LogOut className="w-5 h-5" /></button>
             </div>
         </div>
 
         {currentView === 'pricing' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4">
-                <button onClick={() => setCurrentView('dashboard')} className="flex items-center gap-2 text-gray-600 mb-6 hover:text-gray-900"><Layout className="w-4 h-4" /> Back to Dashboard</button>
+                <button onClick={() => setCurrentView('dashboard')} className="flex items-center gap-2 text-stone-600 mb-6 hover:text-slate-900"><Layout className="w-4 h-4" /> Back to Dashboard</button>
                 <Pricing />
             </div>
         ) : (
             <>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                     <div>
-                        <h1 className="text-2xl lg:text-4xl font-extrabold text-gray-900">Hello, <span className="text-blue-600">{user?.email?.split('@')[0]}</span></h1>
-                        <p className="text-gray-500 mt-1">Ready to ace your Cambridge C1 Exam?</p>
+                        <h1 className="text-2xl lg:text-4xl font-serif font-black text-slate-900">Hello, <span className="text-slate-500">{user?.email?.split('@')[0]}</span></h1>
+                        <p className="text-stone-500 mt-2 font-medium">Ready to ace your Cambridge C1 Exam?</p>
                         {isVip && (
-                            <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full border border-yellow-200">
+                            <span className="inline-flex items-center gap-1 mt-3 px-2 py-1 bg-stone-200 text-slate-800 text-xs font-bold rounded-sm uppercase tracking-wider">
                                 <Crown className="w-3 h-3 fill-current" /> VIP MEMBER
                             </span>
                         )}
                     </div>
                     
-                    <button onClick={handleStartExam} disabled={examLoading} className={`w-full md:w-auto flex items-center justify-center gap-3 px-6 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition-all active:scale-95 disabled:opacity-70 ${isVip ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+                    <button onClick={handleStartExam} disabled={examLoading} className={`w-full md:w-auto flex items-center justify-center gap-3 px-6 py-3 rounded-sm font-bold shadow-sm transition-all disabled:opacity-70 ${isVip ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-stone-200 text-stone-500 cursor-not-allowed'}`}>
                         {examLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : <GraduationCap className="w-5 h-5" />} 
                         Mock Exam {!isVip && <Lock className="w-4 h-4 ml-1" />}
                     </button>
                 </div>
 
-                {error && <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-3"><Zap className="w-4 h-4"/><span className="font-medium text-sm">{error}</span></div>}
+                {error && <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-sm flex items-center gap-3"><Zap className="w-4 h-4"/><span className="font-medium text-sm">{error}</span></div>}
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-8">
                 {(Object.keys(SKILLS) as SkillKey[]).map((key) => {
                     const skill = SKILLS[key];
                     const isActive = activeSkill === key;
                     return (
-                    <button key={key} onClick={() => setActiveSkill(key)} className={`relative overflow-hidden p-3 lg:p-4 rounded-2xl border transition-all duration-300 text-left group ${isActive ? 'bg-white border-blue-200 shadow-xl ring-2 ring-blue-500 scale-[1.02]' : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-md'}`}>
-                        <div className={`absolute top-0 right-0 p-16 rounded-full bg-gradient-to-br ${skill.color} opacity-5 blur-xl`} />
-                        <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center mb-3 ${skill.bg}`}>{skill.icon}</div>
-                        <h3 className={`font-bold text-sm lg:text-lg ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>{skill.label}</h3>
-                        <p className="text-[10px] lg:text-xs text-gray-400 mt-1 line-clamp-1">{skill.desc}</p>
+                    <button key={key} onClick={() => setActiveSkill(key)} className={`p-4 rounded-sm border transition-all duration-200 text-left ${isActive ? 'bg-white border-slate-900 shadow-sm ring-1 ring-slate-900' : 'bg-white border-stone-200 hover:border-stone-400'}`}>
+                        <div className={`w-10 h-10 rounded-sm flex items-center justify-center mb-4 ${isActive ? 'bg-slate-900 text-white' : 'bg-stone-100 text-stone-600'}`}>{skill.icon}</div>
+                        <h3 className={`font-serif font-bold text-sm lg:text-lg ${isActive ? 'text-slate-900' : 'text-stone-700'}`}>{skill.label}</h3>
+                        <p className="text-[10px] lg:text-xs text-stone-400 mt-1 uppercase tracking-wider">{skill.desc}</p>
                     </button>
                     );
                 })}
                 </div>
 
-                <div className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-3xl p-4 lg:p-8 shadow-xl animate-in fade-in zoom-in-95 duration-500">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className={`p-2 rounded-lg ${SKILLS[activeSkill].bg}`}>{SKILLS[activeSkill].icon}</div>
-                    <div><h2 className="text-xl lg:text-2xl font-bold text-gray-800">{SKILLS[activeSkill].fullLabel}</h2><p className="text-xs lg:text-sm text-gray-500">Select a part to generate a new exercise</p></div>
+                <div className="bg-white border border-stone-200 rounded-sm p-4 lg:p-8 shadow-sm animate-in fade-in duration-300">
+                <div className="flex items-center gap-4 mb-8 border-b border-stone-100 pb-6">
+                    <div><h2 className="text-xl lg:text-2xl font-serif font-bold text-slate-900">{SKILLS[activeSkill].fullLabel}</h2><p className="text-xs lg:text-sm text-stone-500 mt-1">Select a part to generate a new exercise</p></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
                     {SKILLS[activeSkill].parts.map((part: any) => (
@@ -383,16 +398,16 @@ export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Pr
                         key={part.id} 
                         onClick={() => handlePartClick(part.id, part.isPremium)} 
                         disabled={loadingPartId !== null} 
-                        className="group relative flex items-center p-4 bg-white border border-gray-100 rounded-xl hover:border-blue-400 hover:shadow-md transition-all text-left disabled:opacity-50"
+                        className="group relative flex items-center p-4 bg-stone-50 border border-stone-200 rounded-sm hover:border-slate-900 hover:bg-white transition-all text-left disabled:opacity-50"
                     >
                         <div className="flex-1">
-                            <h4 className="font-bold text-gray-800 group-hover:text-blue-700 transition-colors text-sm lg:text-base flex items-center gap-2">
+                            <h4 className="font-bold text-slate-900 text-sm lg:text-base flex items-center gap-2">
                                 {part.name}
-                                {!isVip && part.isPremium && <span className="text-xs bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded flex items-center gap-1"><Zap className="w-3 h-3"/> PRO</span>}
+                                {!isVip && part.isPremium && <span className="text-[10px] bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded-sm uppercase tracking-wider flex items-center gap-1"><Zap className="w-3 h-3"/> PRO</span>}
                             </h4>
-                            <p className="text-xs lg:text-sm text-gray-500">{part.desc}</p>
+                            <p className="text-xs lg:text-sm text-stone-500 mt-1">{part.desc}</p>
                         </div>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${!isVip && part.isPremium ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
+                        <div className={`w-8 h-8 rounded-sm flex items-center justify-center transition-colors ${!isVip && part.isPremium ? 'bg-stone-200 text-stone-400' : 'bg-stone-200 text-slate-900 group-hover:bg-slate-900 group-hover:text-white'}`}>
                             {loadingPartId === part.id ? <Loader2 className="w-4 h-4 animate-spin"/> : (
                                 !isVip && part.isPremium ? <Lock className="w-4 h-4"/> : <Play className="w-4 h-4 fill-current"/>
                             )}
@@ -406,15 +421,14 @@ export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Pr
       </main>
 
       {/* MOBILE NAVBAR */}
-      <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center p-3 lg:hidden z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
-         <button onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center gap-1 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-gray-400'}`}><Layout className="w-6 h-6" /><span className="text-[10px] font-bold">Home</span></button>
-         <button onClick={onOpenExtras} className="flex flex-col items-center gap-1 text-gray-400 hover:text-purple-600"><GraduationCap className="w-6 h-6" /><span className="text-[10px] font-bold">Grammar</span></button>
+      <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-stone-200 flex justify-around items-center p-3 lg:hidden z-50">
+         <button onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center gap-1 ${currentView === 'dashboard' ? 'text-slate-900' : 'text-stone-400'}`}><Layout className="w-6 h-6" /><span className="text-[10px] font-bold">Home</span></button>
+         <button onClick={onOpenExtras} className="flex flex-col items-center gap-1 text-stone-400 hover:text-slate-900"><GraduationCap className="w-6 h-6" /><span className="text-[10px] font-bold">Grammar</span></button>
          
-         {/* 👇 AFEGIT: Botó del Vocabulary Vault per a Mòbil */}
-         <button onClick={onOpenVocabulary} className="flex flex-col items-center gap-1 text-gray-400 hover:text-red-600"><Flame className="w-6 h-6" /><span className="text-[10px] font-bold">Vocab</span></button>
+         <button onClick={onOpenVocabulary} className="flex flex-col items-center gap-1 text-stone-400 hover:text-slate-900"><Flame className="w-6 h-6" /><span className="text-[10px] font-bold">Vocab</span></button>
          
-         <button onClick={() => setCurrentView('pricing')} className={`flex flex-col items-center gap-1 ${currentView === 'pricing' ? 'text-yellow-600' : 'text-gray-400'}`}><Crown className="w-6 h-6" /><span className="text-[10px] font-bold">Store</span></button>
-         <button onClick={() => setCurrentView('profile')} className={`flex flex-col items-center gap-1 ${currentView === 'profile' ? 'text-blue-600' : 'text-gray-400'}`}><BarChart2 className="w-6 h-6" /><span className="text-[10px] font-bold">Profile</span></button>
+         <button onClick={() => setCurrentView('pricing')} className={`flex flex-col items-center gap-1 ${currentView === 'pricing' ? 'text-slate-900' : 'text-stone-400'}`}><Crown className="w-6 h-6" /><span className="text-[10px] font-bold">Store</span></button>
+         <button onClick={() => setCurrentView('profile')} className={`flex flex-col items-center gap-1 ${currentView === 'profile' ? 'text-slate-900' : 'text-stone-400'}`}><BarChart2 className="w-6 h-6" /><span className="text-[10px] font-bold">Profile</span></button>
       </nav>
     </div>
   );

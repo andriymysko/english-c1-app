@@ -4,6 +4,18 @@
 /* 2. SEGON: Tailwind (v4) */
 @import "tailwindcss";
 
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap');
+
+html, body {
+  font-family: 'Inter', sans-serif;
+  background-color: #FAFAF9; /* Un to stone-50 molt elegant, l'efecte "paper" */
+}
+
+/* Utilitat per cridar la font acadèmica quan calgui */
+.font-serif {
+  font-family: 'Merriweather', serif;
+}
+
 @layer base {
   body {
     /* Tailwind v4 ja aplica font-sans per defecte.
