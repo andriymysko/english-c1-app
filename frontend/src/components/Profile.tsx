@@ -3,8 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { getUserStats, generateReview, getCoachAnalysis } from "../api";
 import { 
   BarChart, Trophy, AlertTriangle, ArrowLeft, Sparkles, Loader2, 
-  Zap, Star, Brain, AlertCircle, CheckCircle, Crown, ShieldCheck, 
-  User, Calendar, Clock 
+  Zap, Star, Brain, AlertCircle, CheckCircle, Crown, ShieldCheck, Calendar, Clock 
 } from "lucide-react";
 import Flashcards from "./Flashcards"; 
 
