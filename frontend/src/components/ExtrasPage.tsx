@@ -2,7 +2,7 @@ import { useState } from "react";
 import { 
   BookOpen, Dumbbell, ArrowRight, Lightbulb, ArrowLeft, 
   Layers, Shuffle, AlertTriangle, MessageCircle, Settings,
-  Link, Anchor, Puzzle, Hourglass, Lock, Zap,Loader2
+  Link, Anchor, Puzzle, Hourglass, Lock, Zap, Loader2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ExercisePlayer from "./ExercisePlayer";
@@ -21,12 +21,14 @@ import { prepositionsTheory } from "../data/prepositionsTheory";
 import { collocationsTheory } from "../data/collocationsTheory";
 import { wishesTheory } from "../data/wishesTheory";
 
-// CONFIGURACIÓ MESTRA DELS TEMES (SENSE COLORS PASTEL)
+// CONFIGURACIÓ MESTRA DELS TEMES (AMB PALETA ACADÈMICA PREMIUM)
 const TOPICS = {
   conditionals: {
     title: "Advanced Conditionals",
     desc: "Mixed types, inversions, and 'if' alternatives.",
     icon: <Shuffle className="w-5 h-5" />,
+    iconColor: "text-indigo-800",
+    iconBg: "bg-indigo-50",
     theory: conditionalsTheory,
     apiType: "grammar_conditionals",
     isPremium: false 
@@ -35,6 +37,8 @@ const TOPICS = {
     title: "Inversion & Emphasis",
     desc: "Negative adverbials, 'Little did I know', 'So/Such'.",
     icon: <AlertTriangle className="w-5 h-5" />,
+    iconColor: "text-amber-700",
+    iconBg: "bg-amber-50",
     theory: inversionTheory,
     apiType: "grammar_inversion",
     isPremium: true 
@@ -43,6 +47,8 @@ const TOPICS = {
     title: "C1 Phrasal Verbs",
     desc: "3-part verbs, abstract meanings, and collocations.",
     icon: <Layers className="w-5 h-5" />,
+    iconColor: "text-emerald-800",
+    iconBg: "bg-emerald-50",
     theory: phrasalVerbsTheory,
     apiType: "grammar_phrasal_verbs",
     isPremium: false 
@@ -51,6 +57,8 @@ const TOPICS = {
     title: "Idiomatic Expressions",
     desc: "Speak like a native: 'See eye to eye', 'Cut corners'.",
     icon: <MessageCircle className="w-5 h-5" />,
+    iconColor: "text-rose-800",
+    iconBg: "bg-rose-50",
     theory: idiomsTheory,
     apiType: "grammar_idioms",
     isPremium: true 
@@ -59,6 +67,8 @@ const TOPICS = {
     title: "Advanced Passives",
     desc: "Causatives (Have it done) & Impersonal structures.",
     icon: <Settings className="w-5 h-5" />,
+    iconColor: "text-slate-700",
+    iconBg: "bg-slate-100",
     theory: passiveTheory,
     apiType: "grammar_passive",
     isPremium: true 
@@ -67,6 +77,8 @@ const TOPICS = {
     title: "Linkers & Cohesion",
     desc: "Structuring Essays: 'Nevertheless', 'Albeit', 'Thus'.",
     icon: <Link className="w-5 h-5" />,
+    iconColor: "text-blue-800",
+    iconBg: "bg-blue-50",
     theory: linkersTheory,
     apiType: "grammar_linkers",
     isPremium: false 
@@ -75,6 +87,8 @@ const TOPICS = {
     title: "Dependent Prepositions",
     desc: "The silent killer: 'Object TO', 'Capable OF', 'Insist ON'.",
     icon: <Anchor className="w-5 h-5" />,
+    iconColor: "text-red-800",
+    iconBg: "bg-red-50",
     theory: prepositionsTheory,
     apiType: "grammar_prepositions",
     isPremium: true 
@@ -83,6 +97,8 @@ const TOPICS = {
     title: "Advanced Collocations",
     desc: "Word partnerships: 'Bitterly disappointed', 'Torrential rain'.",
     icon: <Puzzle className="w-5 h-5" />,
+    iconColor: "text-teal-800",
+    iconBg: "bg-teal-50",
     theory: collocationsTheory,
     apiType: "grammar_collocations",
     isPremium: true 
@@ -91,6 +107,8 @@ const TOPICS = {
     title: "Wishes & Regrets",
     desc: "'I wish I had known', 'It's high time we left'.",
     icon: <Hourglass className="w-5 h-5" />,
+    iconColor: "text-violet-800",
+    iconBg: "bg-violet-50",
     theory: wishesTheory,
     apiType: "grammar_wishes",
     isPremium: false 
@@ -170,8 +188,9 @@ export default function ExtrasPage({ onBack }: { onBack: () => void }) {
                 `}
                 >
                 <div className="flex justify-between items-start mb-6 w-full">
+                    {/* APLIQUEM LA PALETA ACADÈMICA NOMÉS A LA ICONA */}
                     <div className={`w-10 h-10 rounded-sm flex items-center justify-center transition-colors
-                        ${isLocked ? 'bg-stone-200 text-stone-400' : 'bg-stone-100 text-stone-600 group-hover:bg-slate-900 group-hover:text-white'}`}>
+                        ${isLocked ? 'bg-stone-200 text-stone-400' : `${topic.iconBg} ${topic.iconColor} group-hover:bg-slate-900 group-hover:text-white`}`}>
                         {isLocked ? <Lock className="w-5 h-5" /> : topic.icon}
                     </div>
 
