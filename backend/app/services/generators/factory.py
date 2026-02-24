@@ -425,6 +425,16 @@ class ExerciseFactory:
                  - Use "Had it not been for" for Past specific events.
                  
             - JSON RULE: Options must be A, B, C, D. Explain WHY the answer is correct based on the conditional type.
+            - **QUESTION FORMAT (CRITICAL)**: The 'question' field MUST contain the full standalone sentence with a gap (e.g., "I couldn't [______] what he was saying in the dark."). You are STRICTLY FORBIDDEN from putting just a number in this field.
+            """
+            json_fields_example = """
+                  "question": "[MANDATORY: Write the full sentence with a gap here. Do NOT write just the number]",
+                  "options": [
+                      "Option A text",
+                      "Option B text",
+                      "Option C text",
+                      "Option D text"
+                  ],
             """
         
         elif exercise_type == "grammar_inversion":
@@ -532,6 +542,16 @@ class ExerciseFactory:
               
             - DISTRACTOR LOGIC: 
               - Distractors must be semantically related nouns/verbs (e.g., shapes for 'box', round things for 'loop') but wrong for the fixed phrase.
+            - **QUESTION FORMAT (CRITICAL)**: The 'question' field MUST contain the full standalone sentence with a gap (e.g., "I couldn't [______] what he was saying in the dark."). You are STRICTLY FORBIDDEN from putting just a number in this field.
+            """
+            json_fields_example = """
+                  "question": "[MANDATORY: Write the full sentence with a gap here. Do NOT write just the number]",
+                  "options": [
+                      "Option A text",
+                      "Option B text",
+                      "Option C text",
+                      "Option D text"
+                  ],
             """
 
         elif exercise_type == "grammar_passive":
@@ -562,6 +582,16 @@ class ExerciseFactory:
                 - **MANDATORY DISTRACTORS**: Use active infinitives ('to wash') or incorrect forms ('being washed', 'wash').
                 
               - **Trap 4**: For Subjunctive questions (insisted/suggested that...), ensure the answer is the bare infinitive 'BE' or 'BE DONE', not 'was' or 'should be'.
+            - **QUESTION FORMAT (CRITICAL)**: The 'question' field MUST contain the full standalone sentence with a gap (e.g., "I couldn't [______] what he was saying in the dark."). You are STRICTLY FORBIDDEN from putting just a number in this field.
+            """
+            json_fields_example = """
+                  "question": "[MANDATORY: Write the full sentence with a gap here. Do NOT write just the number]",
+                  "options": [
+                      "Option A text",
+                      "Option B text",
+                      "Option C text",
+                      "Option D text"
+                  ],
             """
 
         elif exercise_type == "grammar_linkers":
@@ -591,6 +621,16 @@ class ExerciseFactory:
                  - **Rule**: If the answer is "Consequently", do NOT use "However" as a distractor unless the context creates a logical contradiction.
 
               3. **"Thereby" Syntax**: Ensure it is followed immediately by an -ING form (e.g., "thereby reducing").
+            - **QUESTION FORMAT (CRITICAL)**: The 'question' field MUST contain the full standalone sentence with a gap (e.g., "I couldn't [______] what he was saying in the dark."). You are STRICTLY FORBIDDEN from putting just a number in this field.
+            """
+            json_fields_example = """
+                  "question": "[MANDATORY: Write the full sentence with a gap here. Do NOT write just the number]",
+                  "options": [
+                      "Option A text",
+                      "Option B text",
+                      "Option C text",
+                      "Option D text"
+                  ],
             """
 
         elif exercise_type == "grammar_prepositions":
@@ -621,6 +661,16 @@ class ExerciseFactory:
               - Distractors must be plausible prepositions that confuse non-natives.
               - E.g., for "Devoid OF": distractors [from, without, in].
               - E.g., for "Deter FROM": distractors [to, against, of].
+            - **QUESTION FORMAT (CRITICAL)**: The 'question' field MUST contain the full standalone sentence with a gap (e.g., "I couldn't [______] what he was saying in the dark."). You are STRICTLY FORBIDDEN from putting just a number in this field.
+            """
+            json_fields_example = """
+                  "question": "[MANDATORY: Write the full sentence with a gap here. Do NOT write just the number]",
+                  "options": [
+                      "Option A text",
+                      "Option B text",
+                      "Option C text",
+                      "Option D text"
+                  ],
             """
 
         elif exercise_type == "grammar_collocations":
@@ -638,6 +688,16 @@ class ExerciseFactory:
             - **CRITICAL FIXES (BUGS)**:
               1. **The 'Pose' Trap**: If the answer is "posed", the text MUST be "The project _____ a threat". Do NOT write "The project posed a _____ threat".
               2. **Rain Rule**: The target MUST be "Torrential". Do not accept "Heavy" as the correct answer (it's too easy).
+            - **QUESTION FORMAT (CRITICAL)**: The 'question' field MUST contain the full standalone sentence with a gap (e.g., "I couldn't [______] what he was saying in the dark."). You are STRICTLY FORBIDDEN from putting just a number in this field.
+            """
+            json_fields_example = """
+                  "question": "[MANDATORY: Write the full sentence with a gap here. Do NOT write just the number]",
+                  "options": [
+                      "Option A text",
+                      "Option B text",
+                      "Option C text",
+                      "Option D text"
+                  ],
             """
 
         elif exercise_type == "grammar_wishes":
