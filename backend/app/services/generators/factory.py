@@ -455,6 +455,16 @@ class ExerciseFactory:
                  - Use "So [adjective]... that" or "Such [noun]... that".
             
             - JSON RULE: Options must be A, B, C, D. Explain specifically why the distractors are wrong (e.g., "Hardly requires 'when', not 'than'").
+            - **QUESTION FORMAT (CRITICAL)**: The 'question' field MUST contain the full standalone sentence with a gap (e.g., "I couldn't [______] what he was saying in the dark."). You are STRICTLY FORBIDDEN from putting just a number in this field.
+            """
+            json_fields_example = """
+                  "question": "[MANDATORY: Write the full sentence with a gap here. Do NOT write just the number]",
+                  "options": [
+                      "Option A text",
+                      "Option B text",
+                      "Option C text",
+                      "Option D text"
+                  ],
             """
 
         elif exercise_type == "grammar_phrasal_verbs":
