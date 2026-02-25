@@ -208,7 +208,10 @@ class DatabaseService:
         try:
             u_doc = db.collection('users').document(user_id).get()
             if not u_doc.exists:
-                return {"xp": 0, "streak": 0, "completed": 0, "is_vip": False}
+                return {
+                    "xp": 0, "streak": 0, "level": 1, "is_vip": False, 
+                    "exercises_completed": 0, "mistakes_pool": []
+                }
             
             u_data = u_doc.to_dict()
             vip_expiry = u_data.get('vip_expiry')
@@ -216,6 +219,11 @@ class DatabaseService:
             if vip_expiry:
                 expiry_date = vip_expiry.replace(tzinfo=None) if hasattr(vip_expiry, 'replace') else vip_expiry
                 is_vip_active = expiry_date > datetime.now()
+                
+            # Calculem la mitjana per al perfil de manera segura
+            total_score = u_data.get('total_score', 0)
+            completed = u_data.get('exercises_completed', 0)
+            avg = round((total_score / (completed * 8)) * 100) if completed > 0 else 0
 
             return {
                 "xp": u_data.get('xp', 0),
@@ -223,9 +231,15 @@ class DatabaseService:
                 "level": u_data.get('level', 1),
                 "is_vip": is_vip_active,
                 "correction_credits": u_data.get('correction_credits', 0),
-                "daily_gen_count": u_data.get('daily_gen_count', 0)
+                "daily_gen_count": u_data.get('daily_gen_count', 0),
+                # 🔥 ELS NOUS CAMPS CRÍTICS PER AL PERFIL:
+                "exercises_completed": completed,
+                "average_score": min(avg, 100), # Limitem a 100%
+                "mistakes_pool": u_data.get('mistakes_pool', []) 
             }
-        except: return None
+        except Exception as e:
+            print(f"Error a get_user_stats: {e}")
+            return None
 
     @staticmethod
     def save_user_result(user_id: str, exercise_data: dict, score: int, total: int, mistakes: list):
