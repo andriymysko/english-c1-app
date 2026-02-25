@@ -709,7 +709,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                          const userAnswer = userAnswers[key];
                          const cleanCorrectAnswer = cleanOptionText(q.answer);
                          const isCorrect = showAnswers && (userAnswer === cleanCorrectAnswer.toLowerCase() || userAnswer === q.answer.trim().toLowerCase());
-                         const isWrong = showAnswers && userAnswer && !isCorrect;
                          const displayNum = data.type === 'listening3' ? idx + 15 : idx + 1;
                          return (
                             <div key={idx} className={`p-8 rounded-sm border transition-all ${showAnswers ? (isCorrect ? 'bg-stone-50 border-stone-200' : 'bg-white border-red-200 shadow-sm') : 'bg-white border-stone-200 shadow-sm hover:border-slate-900'}`}>
