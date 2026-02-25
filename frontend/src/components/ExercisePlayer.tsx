@@ -64,13 +64,6 @@ interface Props {
 export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const { user } = useAuth();
 
-  // -----------------------------------------------------------
-  // 🔍 DEBUGGING LOGS
-  // -----------------------------------------------------------
-  useEffect(() => {
-    console.log("🚀 [ExercisePlayer] Iniciat tipus:", data.type);
-  }, [data.type]);
-
   const isChoiceMode = data.type === 'writing_choice';
   const [selectedOption, setSelectedOption] = useState<any>(null);
   const isEssayExam = data.id === 'writing1' || data.type === 'essay' || (data.type === 'writing1' && data.content);
@@ -97,7 +90,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const [showTranscript, setShowTranscript] = useState(false);
   const [part3Phase, setPart3Phase] = useState<'discussion' | 'decision' | 'part4'>('discussion');
 
-  // FLAGS
   const isWriting = data.type.startsWith("writing") && !isChoiceMode; 
   const isSpeaking = data.type.startsWith("speaking");
   const isSpeakingPart3 = data.type === "speaking3";
@@ -107,7 +99,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const isGapFill = ["reading_and_use_of_language1", "reading_and_use_of_language2", "reading_and_use_of_language3"].includes(data.type);
   const isInteractive = !isWriting && !isSpeaking && !isEssayExam && !selectedOption && !isChoiceMode;
 
-  // HANDLERS
   const handleDownloadPDF = async () => {
     if (isDownloading) return;
     setIsDownloading(true);
@@ -244,24 +235,43 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const checkScore = async () => {
     let correct = 0;
     const mistakes: any[] = [];
+    
     data.questions.forEach((q, idx) => {
       const key = q.question || idx.toString();
       const userAns = (userAnswers[key] || "").trim().toLowerCase();
       const cleanCorrectAnswer = cleanOptionText(q.answer).toLowerCase();
       const isCorrect = (userAns === cleanCorrectAnswer || userAns === q.answer.trim().toLowerCase());
-      if (isCorrect) correct++;
-      else mistakes.push({
-        question: q.question, user_answer: userAnswers[key] || "", correct_answer: q.answer
-      });
+      
+      if (isCorrect) {
+          correct++;
+      } else {
+          // AQUI ESTÁ A CORREÇÃO: Capturamos o Type e o Stem para que o backend grave a informação
+          mistakes.push({
+            type: data.type, 
+            question: q.question, 
+            stem: q.stem || q.original_sentence || (data.text ? data.text.substring(0, 150) + "..." : "Context unavailable"),
+            user_answer: userAnswers[key] || "[Empty]", 
+            correct_answer: q.answer
+          });
+      }
     });
+    
     setScore(correct);
     setShowAnswers(true);
+    
     if (correct > (data.questions.length / 2)) {
       playSuccessSound();
       confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-    } else { playErrorSound(); }
+    } else { 
+      playErrorSound(); 
+    }
+    
     if (user) {
-      submitResult({ user_id: user.uid, exercise_type: data.type, score: correct, total: data.questions.length, mistakes: mistakes });
+      try {
+          await submitResult({ user_id: user.uid, exercise_type: data.type, score: correct, total: data.questions.length, mistakes: mistakes });
+      } catch (err) {
+          console.error("Failed to submit result:", err);
+      }
     }
   };
 
@@ -269,29 +279,41 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     if (!data.text) return null;
     const parts = data.text.split(/\[\s*(\d+)\s*\]/g);
     return (
-      <div className="leading-loose text-lg text-gray-800 font-serif text-justify">
+      <div className="leading-loose text-lg text-slate-800 font-serif text-justify">
         {parts.map((part, index) => {
           if (!isNaN(Number(part)) && part.trim() !== "") {
             const questionNumString = part.trim();
             const question = data.questions.find(q => q.question === questionNumString) || data.questions[parseInt(questionNumString) - 1];
             if (!question) return <span key={index}>[{part}]</span>;
+            
             const qKey = question.question || index.toString();
             const userAnswer = userAnswers[qKey] || "";
-            //const isCorrect = showAnswers && (userAnswer.toLowerCase() === cleanOptionText(question.answer).toLowerCase());
+            const isCorrect = showAnswers && (userAnswer.toLowerCase() === cleanOptionText(question.answer).toLowerCase());
+            const isWrong = showAnswers && !isCorrect;
+
+            let baseClass = "inline-flex items-center align-middle mx-1 my-1 rounded-sm border shadow-sm transition-colors ";
+            if (showAnswers) {
+                baseClass += isCorrect ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200";
+            } else {
+                baseClass += "bg-white border-stone-200";
+            }
+
             return (
               <span key={index} className="group relative inline-block">
-                <span className="inline-flex items-center align-middle mx-1 my-1 rounded-md border shadow-sm bg-white">
-                  <span className="px-2 py-1.5 text-xs font-bold border-r bg-slate-100 text-slate-500">{questionNumString}</span>
+                <span className={baseClass}>
+                  <span className={`px-2 py-1 text-[10px] font-black uppercase border-r ${showAnswers ? (isCorrect ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200') : 'bg-stone-100 text-stone-500 border-stone-200'}`}>
+                      {questionNumString}
+                  </span>
                   {data.type === "reading_and_use_of_language1" && question.options ? (
                     <div className="relative">
-                      <select value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className="outline-none bg-transparent px-2 py-1 appearance-none pr-6">
-                        <option value="">Choose...</option>
+                      <select value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`outline-none bg-transparent px-2 py-1 text-sm font-bold appearance-none pr-6 cursor-pointer ${showAnswers && isWrong ? 'text-red-900' : 'text-slate-900'}`}>
+                        <option value=""></option>
                         {question.options.map((opt: any, i: number) => (<option key={i} value={cleanOptionText(opt)}>{cleanOptionText(opt)}</option>))}
                       </select>
                       <ChevronDown className="w-3 h-3 absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none opacity-40"/>
                     </div>
                   ) : (
-                    <input type="text" value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} autoComplete="off" className="outline-none bg-transparent px-2 py-1 min-w-[80px]" />
+                    <input type="text" value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} autoComplete="off" className={`outline-none bg-transparent px-2 py-1 text-sm font-bold min-w-[80px] ${showAnswers && isWrong ? 'text-red-900' : 'text-slate-900'}`} />
                   )}
                 </span>
               </span>
@@ -305,38 +327,40 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
 
   const renderListeningPart2 = () => {
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {data.questions.map((q, idx) => {
-                // 👇 1. Netejem el text perquè no comenci per números ("1. ", "2-", etc.)
                 const cleanStem = (q.stem || q.question).replace(/^\d+[\.\-\)]?\s*/, '');
-                
-                // 👇 2. Partim el text netejat per trobar els forats
                 const parts = cleanStem.split(/\[_*\]|\[\d+\]|________/); 
-                
                 const qKey = q.question || idx.toString();
                 const userAnswer = userAnswers[qKey] || "";
                 const cleanCorrectAnswer = cleanOptionText(q.answer);
                 const isCorrect = showAnswers && (userAnswer.toLowerCase() === cleanCorrectAnswer.toLowerCase());
                 
                 return (
-                    <div key={idx} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div key={idx} className="bg-white p-6 rounded-sm border border-stone-200 shadow-sm">
                         <div className="flex items-start gap-4">
-                            {/* 👇 3. Forcem que el cercle només mostri el número visual (1, 2, 3...) */}
-                            <div className="bg-orange-100 text-orange-800 font-bold rounded-lg w-8 h-8 flex items-center justify-center flex-shrink-0 mt-1">
+                            <div className="bg-stone-100 text-stone-500 font-bold text-xs rounded-sm w-8 h-8 flex items-center justify-center flex-shrink-0 mt-1">
                                 {idx + 7}
                             </div>
-                            <div className="leading-loose text-lg text-gray-800 font-serif flex-1">
+                            <div className="leading-loose text-lg text-slate-800 font-serif flex-1">
                                 {parts.map((part, i) => (
                                     <span key={i}>
                                         {part}
                                         {i < parts.length - 1 && (
                                             <span className="inline-block mx-2 relative">
-                                                <input type="text" value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`border-b-2 outline-none px-2 py-1 w-48 text-center transition-colors ${showAnswers ? (isCorrect ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50") : "border-gray-300 focus:border-blue-500"}`} />                                            </span>
+                                                <input type="text" value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`border-b-2 font-sans font-bold text-sm outline-none px-2 py-1 w-48 text-center transition-colors ${showAnswers ? (isCorrect ? "border-green-500 bg-green-50 text-green-900" : "border-red-500 bg-red-50 text-red-900") : "border-stone-300 focus:border-slate-900 bg-transparent"}`} />
+                                            </span>
                                         )}
                                     </span>
                                 ))}
                             </div>
                         </div>
+                        {showAnswers && !isCorrect && (
+                            <div className="mt-4 pt-4 border-t border-stone-100">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Correct Answer</p>
+                                <p className="font-bold text-slate-900">{cleanCorrectAnswer}</p>
+                            </div>
+                        )}
                     </div>
                 )
             })}
@@ -348,32 +372,32 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     return (
       <div className="space-y-8 animate-in fade-in">
         <div className="flex justify-center mb-6">
-            <div className="bg-gray-100 p-1 rounded-full flex text-sm font-medium">
-                <button onClick={() => setPart3Phase('discussion')} className={`px-4 py-2 rounded-full ${part3Phase === 'discussion' ? 'bg-white shadow text-blue-700' : 'text-gray-500'}`}>1. Discussion</button>
-                <button onClick={() => setPart3Phase('decision')} className={`px-4 py-2 rounded-full ${part3Phase === 'decision' ? 'bg-white shadow text-purple-700' : 'text-gray-500'}`}>2. Decision</button>
-                <button onClick={() => setPart3Phase('part4')} className={`px-4 py-2 rounded-full ${part3Phase === 'part4' ? 'bg-white shadow text-emerald-700' : 'text-gray-500'}`}>3. Part 4</button>
+            <div className="bg-stone-100 p-1 rounded-sm flex text-xs font-bold uppercase tracking-widest">
+                <button onClick={() => setPart3Phase('discussion')} className={`px-4 py-2 rounded-sm transition-colors ${part3Phase === 'discussion' ? 'bg-white shadow-sm text-slate-900' : 'text-stone-400'}`}>1. Discussion</button>
+                <button onClick={() => setPart3Phase('decision')} className={`px-4 py-2 rounded-sm transition-colors ${part3Phase === 'decision' ? 'bg-white shadow-sm text-slate-900' : 'text-stone-400'}`}>2. Decision</button>
+                <button onClick={() => setPart3Phase('part4')} className={`px-4 py-2 rounded-sm transition-colors ${part3Phase === 'part4' ? 'bg-white shadow-sm text-slate-900' : 'text-stone-400'}`}>3. Part 4</button>
             </div>
         </div>
         {part3Phase === 'discussion' && (
-            <div className="bg-white p-8 rounded-2xl border-2 border-blue-100 text-center shadow-lg">
-                <h3 className="font-bold text-gray-400 mb-6 uppercase tracking-widest text-sm">Collaborative Task (2 mins)</h3>
-                <div className="text-2xl font-black text-blue-600 mb-8 leading-tight">{data.part3_central_question}</div>
+            <div className="bg-white p-8 rounded-sm border border-stone-200 text-center shadow-sm">
+                <h3 className="font-bold text-stone-400 mb-6 uppercase tracking-widest text-xs">Collaborative Task (2 mins)</h3>
+                <div className="text-2xl font-serif font-black text-slate-900 mb-8 leading-tight">{data.part3_central_question}</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {data.part3_prompts?.map((p,i) => <div key={i} className="bg-blue-50 p-4 rounded-xl border border-blue-200 font-medium text-blue-900">{p}</div>)}
+                    {data.part3_prompts?.map((p,i) => <div key={i} className="bg-stone-50 p-4 rounded-sm border border-stone-200 font-medium text-slate-700 text-sm">{p}</div>)}
                 </div>
             </div>
         )}
         {part3Phase === 'decision' && (
-            <div className="bg-purple-50 p-8 rounded-2xl border-2 border-purple-100 text-center shadow-lg animate-in zoom-in-95">
-                <h3 className="font-bold text-purple-400 mb-6 uppercase tracking-widest text-sm">Decision Phase (1 min)</h3>
-                <p className="text-xl font-bold text-purple-900 leading-relaxed italic">"{data.part3_decision_question}"</p>
+            <div className="bg-slate-900 p-8 rounded-sm text-center shadow-sm animate-in zoom-in-95">
+                <h3 className="font-bold text-stone-400 mb-6 uppercase tracking-widest text-xs">Decision Phase (1 min)</h3>
+                <p className="text-xl font-serif font-bold text-white leading-relaxed italic">"{data.part3_decision_question}"</p>
             </div>
         )}
         {part3Phase === 'part4' && (
-            <div className="bg-emerald-50 p-8 rounded-2xl border-2 border-emerald-100 shadow-lg">
-                <h3 className="font-bold text-emerald-600 mb-6 flex items-center gap-2 uppercase tracking-widest text-sm"><Users className="w-5 h-5"/> Part 4: Discussion</h3>
+            <div className="bg-white p-8 rounded-sm border border-stone-200 shadow-sm">
+                <h3 className="font-bold text-slate-900 mb-6 flex items-center gap-2 uppercase tracking-widest text-xs"><Users className="w-4 h-4"/> Part 4: Discussion</h3>
                 <ul className="space-y-4">
-                    {data.part4_questions?.map((q,i) => <li key={i} className="flex gap-3 text-emerald-900 font-medium bg-white/50 p-3 rounded-lg"><span className="text-emerald-400 font-black">{i+1}.</span> {q}</li>)}
+                    {data.part4_questions?.map((q,i) => <li key={i} className="flex gap-3 text-slate-700 font-medium bg-stone-50 border border-stone-100 p-4 rounded-sm"><span className="text-stone-400 font-black">{i+1}.</span> {q}</li>)}
                 </ul>
             </div>
         )}
@@ -384,34 +408,32 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   const renderListeningPart4 = () => {
     return (
         <div className="space-y-8 animate-in fade-in">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
-                {/* TASK 1 */}
-                <div className="bg-white p-6 rounded-2xl border-2 border-gray-200 shadow-sm flex flex-col">
-                    <h4 className="font-black text-blue-900 mb-4">{data.task1_heading || "TASK 1"}</h4>
-                    <ul className="space-y-2 mb-6 flex-1">
+                <div className="bg-white p-8 rounded-sm border border-stone-200 shadow-sm flex flex-col">
+                    <h4 className="font-serif font-black text-slate-900 mb-4">{data.task1_heading || "TASK 1"}</h4>
+                    <ul className="space-y-3 mb-8 flex-1">
                         {data.task1_options?.map((opt: string, i: number) => (
-                            <li key={i} className="text-gray-700 text-sm font-medium">{opt}</li>
+                            <li key={i} className="text-stone-600 text-sm font-medium">{opt}</li>
                         ))}
                     </ul>
-                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl border">
+                    <div className="space-y-3 bg-stone-50 p-5 rounded-sm border border-stone-200">
                         {[1, 2, 3, 4, 5].map(speakerNum => {
-                            const qIdx = speakerNum - 1; // Preguntes 0-4
+                            const qIdx = speakerNum - 1; 
                             const q = data.questions[qIdx];
                             const qKey = q?.question || qIdx.toString();
                             const userAnswer = userAnswers[qKey] || "";
                             const isCorrect = showAnswers && (userAnswer.toUpperCase() === q?.answer.toUpperCase());
-                            //const isWrong = showAnswers && userAnswer && !isCorrect;
 
                             return (
                                 <div key={`t1-s${speakerNum}`} className="flex items-center justify-between">
-                                    <span className="font-bold text-gray-700">Speaker {speakerNum} <span className="text-xs font-black text-gray-400 ml-1">[{20 + speakerNum}]</span></span>
-                                    <div className="flex items-center gap-2">
-                                        <select value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`w-16 p-1 text-center font-bold border-2 rounded outline-none ${showAnswers ? (isCorrect ? "bg-green-100 border-green-500 text-green-700" : "bg-red-100 border-red-500 text-red-700") : "bg-white border-gray-300 focus:border-blue-500"}`}>
+                                    <span className="font-bold text-slate-800 text-sm">Speaker {speakerNum} <span className="text-[10px] font-black text-stone-400 ml-1">[{20 + speakerNum}]</span></span>
+                                    <div className="flex items-center gap-3">
+                                        <select value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`w-14 p-1.5 text-center font-bold text-sm border rounded-sm outline-none cursor-pointer ${showAnswers ? (isCorrect ? "bg-green-50 border-green-300 text-green-800" : "bg-red-50 border-red-300 text-red-800") : "bg-white border-stone-300 focus:border-slate-900"}`}>
                                             <option value=""></option>
                                             {['A','B','C','D','E','F','G','H'].map(l => <option key={l} value={l}>{l}</option>)}
                                         </select>
-                                        {showAnswers && !isCorrect && <span className="text-xs font-black text-green-600 bg-green-100 px-2 py-1 rounded shadow-sm">{q?.answer}</span>}
+                                        {showAnswers && !isCorrect && <span className="text-xs font-black text-slate-900 bg-stone-200 px-2 py-1 rounded-sm shadow-sm">{q?.answer}</span>}
                                     </div>
                                 </div>
                             )
@@ -419,32 +441,30 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                     </div>
                 </div>
 
-                {/* TASK 2 */}
-                <div className="bg-white p-6 rounded-2xl border-2 border-gray-200 shadow-sm flex flex-col">
-                    <h4 className="font-black text-purple-900 mb-4">{data.task2_heading || "TASK 2"}</h4>
-                    <ul className="space-y-2 mb-6 flex-1">
+                <div className="bg-white p-8 rounded-sm border border-stone-200 shadow-sm flex flex-col">
+                    <h4 className="font-serif font-black text-slate-900 mb-4">{data.task2_heading || "TASK 2"}</h4>
+                    <ul className="space-y-3 mb-8 flex-1">
                         {data.task2_options?.map((opt: string, i: number) => (
-                            <li key={i} className="text-gray-700 text-sm font-medium">{opt}</li>
+                            <li key={i} className="text-stone-600 text-sm font-medium">{opt}</li>
                         ))}
                     </ul>
-                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl border">
+                    <div className="space-y-3 bg-stone-50 p-5 rounded-sm border border-stone-200">
                         {[1, 2, 3, 4, 5].map(speakerNum => {
-                            const qIdx = speakerNum + 4; // Preguntes 5-9
+                            const qIdx = speakerNum + 4; 
                             const q = data.questions[qIdx];
                             const qKey = q?.question || qIdx.toString();
                             const userAnswer = userAnswers[qKey] || "";
                             const isCorrect = showAnswers && (userAnswer.toUpperCase() === q?.answer.toUpperCase());
-                            //const isWrong = showAnswers && userAnswer && !isCorrect;
 
                             return (
                                 <div key={`t2-s${speakerNum}`} className="flex items-center justify-between">
-                                    <span className="font-bold text-gray-700">Speaker {speakerNum} <span className="text-xs font-black text-gray-400 ml-1">[{25 + speakerNum}]</span></span>
-                                    <div className="flex items-center gap-2">
-                                        <select value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`w-16 p-1 text-center font-bold border-2 rounded outline-none ${showAnswers ? (isCorrect ? "bg-green-100 border-green-500 text-green-700" : "bg-red-100 border-red-500 text-red-700") : "bg-white border-gray-300 focus:border-purple-500"}`}>
+                                    <span className="font-bold text-slate-800 text-sm">Speaker {speakerNum} <span className="text-[10px] font-black text-stone-400 ml-1">[{25 + speakerNum}]</span></span>
+                                    <div className="flex items-center gap-3">
+                                        <select value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`w-14 p-1.5 text-center font-bold text-sm border rounded-sm outline-none cursor-pointer ${showAnswers ? (isCorrect ? "bg-green-50 border-green-300 text-green-800" : "bg-red-50 border-red-300 text-red-800") : "bg-white border-stone-300 focus:border-slate-900"}`}>
                                             <option value=""></option>
                                             {['A','B','C','D','E','F','G','H'].map(l => <option key={l} value={l}>{l}</option>)}
                                         </select>
-                                        {showAnswers && !isCorrect && <span className="text-xs font-black text-green-600 bg-green-100 px-2 py-1 rounded shadow-sm">{q?.answer}</span>}
+                                        {showAnswers && !isCorrect && <span className="text-xs font-black text-slate-900 bg-stone-200 px-2 py-1 rounded-sm shadow-sm">{q?.answer}</span>}
                                     </div>
                                 </div>
                             )
@@ -459,16 +479,16 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
 
   if (isChoiceMode && !selectedOption) {
     return (
-        <div className="bg-slate-50 min-h-screen p-8 animate-in fade-in">
+        <div className="bg-stone-50 min-h-screen p-8 animate-in fade-in">
              <div className="max-w-4xl mx-auto">
-                <button onClick={onBack} className="flex items-center gap-2 text-gray-500 mb-8"><ArrowLeft className="w-5 h-5" /> Back</button>
-                <h1 className="text-3xl font-black mb-8">Choose Your Writing Task</h1>
+                <button onClick={onBack} className="flex items-center gap-2 text-stone-500 mb-8 font-bold text-xs uppercase tracking-widest hover:text-slate-900 transition-colors"><ArrowLeft className="w-4 h-4" /> Back</button>
+                <h1 className="text-4xl font-serif font-black text-slate-900 mb-8">Choose Your Writing Task</h1>
                 <div className="grid gap-6">
                     {data.options?.map((opt) => (
-                        <button key={opt.id} onClick={() => setSelectedOption(opt)} className="bg-white p-6 rounded-2xl border-2 hover:border-blue-500 text-left transition-all group shadow-sm">
-                            <h3 className="text-xl font-bold mb-2 group-hover:text-blue-600">{opt.title}</h3>
-                            <p className="text-gray-600 mb-4">{opt.text}</p>
-                            <span className="text-sm font-bold text-blue-500 flex items-center gap-2"><LayoutList className="w-4 h-4"/> Tip: {opt.tips}</span>
+                        <button key={opt.id} onClick={() => setSelectedOption(opt)} className="bg-white p-8 rounded-sm border border-stone-200 hover:border-slate-900 text-left transition-all group shadow-sm">
+                            <h3 className="text-xl font-serif font-bold text-slate-900 mb-3">{opt.title}</h3>
+                            <p className="text-stone-500 mb-6 leading-relaxed">{opt.text}</p>
+                            <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2 bg-stone-100 w-fit px-3 py-1.5 rounded-sm"><LayoutList className="w-3 h-3"/> {opt.tips}</span>
                         </button>
                     ))}
                 </div>
@@ -481,49 +501,67 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
     const taskTitle = selectedOption ? selectedOption.title : data.title;
     const taskContent = selectedOption ? selectedOption.text : (data.content?.input_text || data.text);
     return (
-      <div className="bg-white min-h-screen flex flex-col animate-in fade-in">
+      <div className="bg-stone-50 min-h-screen flex flex-col animate-in fade-in">
         {feedback && (
-            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-8 relative">
-                    <button onClick={() => setFeedback(null)} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full"><XCircle className="w-6 h-6"/></button>
-                    <div className="flex items-center justify-between mb-8 border-b pb-6">
-                        <h2 className="text-3xl font-black">Assessment Result</h2>
-                        <div className="text-5xl font-black text-blue-600">{feedback.score}/20</div>
+            <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-white rounded-sm shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-10 relative">
+                    <button onClick={() => setFeedback(null)} className="absolute top-6 right-6 p-2 text-stone-400 hover:text-slate-900 transition-colors"><XCircle className="w-6 h-6"/></button>
+                    <div className="flex items-center justify-between mb-8 border-b border-stone-200 pb-6">
+                        <h2 className="text-3xl font-serif font-black text-slate-900">Assessment Result</h2>
+                        <div className="text-4xl font-serif font-black text-slate-900">{feedback.score}/20</div>
                     </div>
-                    <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 mb-8"><h4 className="font-bold text-blue-900 mb-2">Examiner Feedback</h4><p className="text-blue-800 leading-relaxed whitespace-pre-wrap">{feedback.feedback}</p></div>
+                    <div className="bg-stone-50 p-8 rounded-sm border border-stone-200 mb-8">
+                        <h4 className="font-bold text-slate-900 text-sm uppercase tracking-widest mb-4">Examiner Feedback</h4>
+                        <p className="text-stone-700 leading-relaxed font-serif whitespace-pre-wrap">{feedback.feedback}</p>
+                    </div>
                     {feedback.corrections?.length > 0 && (
-                        <div className="space-y-4">
-                            <h4 className="font-bold text-lg border-b pb-2">Key Improvements</h4>
+                        <div className="space-y-4 mb-8">
+                            <h4 className="font-bold text-sm text-slate-900 uppercase tracking-widest border-b border-stone-200 pb-3">Key Improvements</h4>
                             {feedback.corrections.map((corr: any, i: number) => (
-                                <div key={i} className="bg-white border-l-4 border-red-400 p-4 shadow-sm rounded-r-lg">
-                                    <div className="flex gap-4 mb-2">
-                                        <div className="flex-1 bg-red-50 p-2 rounded line-through text-red-700">{corr.original}</div>
-                                        <div className="flex-1 bg-green-50 p-2 rounded text-green-700 font-bold">{corr.correction}</div>
+                                <div key={i} className="bg-white border border-stone-200 p-5 shadow-sm rounded-sm">
+                                    <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                        <div className="flex-1 bg-red-50 p-3 rounded-sm line-through text-red-700 font-serif">{corr.original}</div>
+                                        <div className="flex-1 bg-green-50 p-3 rounded-sm text-green-800 font-bold font-serif">{corr.correction}</div>
                                     </div>
-                                    <p className="text-sm text-gray-500 italic">💡 {corr.explanation}</p>
+                                    <p className="text-sm text-stone-500 italic">💡 {corr.explanation}</p>
                                 </div>
                             ))}
                         </div>
                     )}
-                    {feedback.model_answer && <div className="mt-8 bg-emerald-50 p-6 rounded-2xl border border-emerald-100"><h4 className="font-bold text-emerald-900 flex items-center gap-2 mb-4"><Sparkles className="w-5 h-5"/> Model Answer (C1 Level)</h4><div className="text-emerald-800 font-serif leading-relaxed whitespace-pre-wrap">{feedback.model_answer}</div></div>}
-                    <button onClick={onBack} className="mt-8 w-full py-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition shadow-lg">Main Menu</button>
+                    {feedback.model_answer && (
+                        <div className="bg-slate-900 p-8 rounded-sm text-white">
+                            <h4 className="font-bold text-stone-300 text-sm uppercase tracking-widest flex items-center gap-2 mb-6"><Sparkles className="w-4 h-4"/> Model Answer (C1 Level)</h4>
+                            <div className="font-serif text-lg leading-relaxed whitespace-pre-wrap">{feedback.model_answer}</div>
+                        </div>
+                    )}
+                    <button onClick={onBack} className="mt-8 w-full py-4 bg-white border border-slate-900 text-slate-900 uppercase tracking-widest text-xs font-bold rounded-sm hover:bg-slate-900 hover:text-white transition-colors">Main Menu</button>
                 </div>
             </div>
         )}
-        <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
-            <button onClick={() => selectedOption ? setSelectedOption(null) : onBack()} className="flex items-center gap-2 text-gray-500"><ArrowLeft className="w-5 h-5" /> Back</button>
-            <h2 className="font-bold text-lg truncate max-w-md">{taskTitle}</h2>
-            <div className="text-sm font-bold bg-gray-100 px-3 py-1 rounded-full text-gray-600 flex items-center gap-2"><Clock className="w-4 h-4" /> 45:00</div>
+        <div className="bg-white border-b border-stone-200 px-8 py-5 flex items-center justify-between shadow-sm">
+            <button onClick={() => selectedOption ? setSelectedOption(null) : onBack()} className="flex items-center gap-2 text-stone-500 font-bold text-xs uppercase tracking-widest hover:text-slate-900 transition-colors"><ArrowLeft className="w-4 h-4" /> Back</button>
+            <h2 className="font-serif font-black text-xl truncate max-w-md text-slate-900">{taskTitle}</h2>
+            <div className="text-xs font-bold bg-stone-100 px-3 py-1.5 rounded-sm text-slate-900 flex items-center gap-2 uppercase tracking-widest"><Clock className="w-3.5 h-3.5" /> 45:00</div>
         </div>
-        <div className="flex-1 max-w-7xl mx-auto w-full p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 overflow-hidden">
-            <div className="overflow-y-auto pr-2 space-y-6">
-                <div className="bg-blue-50 p-4 rounded-xl flex gap-3 text-blue-800 text-sm border border-blue-100"><AlertCircle className="w-5 h-5 flex-shrink-0"/><p>{data.instruction || "Follow the task instructions below."}</p></div>
-                <div className="bg-white border-2 rounded-2xl p-8 shadow-sm font-serif leading-relaxed text-lg whitespace-pre-line text-gray-800">{taskContent}</div>
+        <div className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 overflow-hidden">
+            <div className="overflow-y-auto pr-4 space-y-6 custom-scrollbar">
+                <div className="bg-stone-900 p-6 rounded-sm flex gap-4 text-stone-300 shadow-sm">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 text-white"/>
+                    <p className="text-sm font-medium leading-relaxed">{data.instruction || "Follow the task instructions below."}</p>
+                </div>
+                <div className="bg-white border border-stone-200 rounded-sm p-8 shadow-sm font-serif leading-relaxed text-lg whitespace-pre-line text-slate-800">{taskContent}</div>
             </div>
-            <div className="flex flex-col bg-white rounded-2xl border-2 shadow-xl overflow-hidden">
-                <div className="bg-gray-50 p-4 border-b flex justify-between items-center text-sm font-bold text-gray-500 uppercase tracking-widest"><div className="flex items-center gap-2"><PenTool className="w-4 h-4"/> Your Response</div><div className={wordCount >= 220 && wordCount <= 260 ? "text-green-600" : "text-gray-400"}>{wordCount} words</div></div>
-                <textarea className="flex-1 p-8 outline-none resize-none font-serif text-xl leading-relaxed" placeholder="Start typing your answer here..." value={essayAnswer} onChange={handleEssayChange} spellCheck={false} />
-                <div className="p-4 bg-gray-50 border-t"><button onClick={submitWritingTask} disabled={loadingGrade} className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:shadow-xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:scale-100">{loadingGrade ? <Loader2 className="animate-spin mx-auto w-6 h-6" /> : "Submit for Grading"}</button></div>
+            <div className="flex flex-col bg-white rounded-sm border border-stone-200 shadow-sm overflow-hidden">
+                <div className="bg-stone-50 p-5 border-b border-stone-200 flex justify-between items-center text-[10px] font-bold text-stone-500 uppercase tracking-widest">
+                    <div className="flex items-center gap-2"><PenTool className="w-3.5 h-3.5"/> Your Response</div>
+                    <div className={wordCount >= 220 && wordCount <= 260 ? "text-green-600 bg-green-50 px-2 py-1 rounded-sm border border-green-200" : "bg-white px-2 py-1 border border-stone-200 rounded-sm"}>{wordCount} words</div>
+                </div>
+                <textarea className="flex-1 p-8 outline-none resize-none font-serif text-xl leading-relaxed text-slate-900" placeholder="Start typing your answer here..." value={essayAnswer} onChange={handleEssayChange} spellCheck={false} />
+                <div className="p-6 bg-stone-50 border-t border-stone-200">
+                    <button onClick={submitWritingTask} disabled={loadingGrade} className="w-full py-4 bg-slate-900 text-white rounded-sm font-bold uppercase tracking-widest text-xs hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center">
+                        {loadingGrade ? <Loader2 className="animate-spin w-5 h-5" /> : "Submit for Evaluation"}
+                    </button>
+                </div>
             </div>
         </div>
       </div>
@@ -531,70 +569,74 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto bg-white min-h-screen shadow-2xl rounded-xl overflow-hidden flex flex-col animate-in fade-in duration-500">
-      <div className={`p-6 flex justify-between items-center sticky top-0 z-10 shadow-md text-white ${isSpeaking ? 'bg-purple-900' : isWriting ? 'bg-emerald-900' : isListening ? 'bg-orange-800' : 'bg-gray-900'}`}>
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft className="w-6 h-6" /></button>
-          <div><h2 className="text-xl font-bold">{data.title}</h2><p className="text-white/70 text-sm">C1 Advanced</p></div>
+    <div className="max-w-4xl mx-auto bg-white min-h-screen shadow-sm border-x border-stone-200 flex flex-col animate-in fade-in duration-500">
+      <div className="p-6 md:p-8 flex justify-between items-center sticky top-0 z-10 bg-slate-900 text-white shadow-md">
+        <div className="flex items-center gap-5">
+          <button onClick={onBack} className="text-stone-400 hover:text-white transition-colors"><ArrowLeft className="w-5 h-5" /></button>
+          <div>
+              <h2 className="text-xl font-serif font-black tracking-wide">{data.title}</h2>
+              <p className="text-stone-400 text-[10px] uppercase font-bold tracking-widest mt-1">C1 Advanced</p>
+          </div>
         </div>
-        <button onClick={handleDownloadPDF} disabled={isDownloading} className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition-all border border-white/20">
-          {isDownloading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Download className="w-4 h-4" />} PDF
+        <button onClick={handleDownloadPDF} disabled={isDownloading} className="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-sm hover:bg-slate-700 transition-colors border border-slate-700 font-bold uppercase tracking-widest text-[10px]">
+          {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Download className="w-3.5 h-3.5" />} PDF
         </button>
       </div>
 
-      <div className="p-8 md:p-12 space-y-8 overflow-y-auto flex-1 relative custom-scrollbar">
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg text-blue-900 leading-relaxed shadow-sm">
-          <h3 className="font-bold mb-2 flex items-center gap-2 uppercase tracking-wider text-xs"><AlertCircle className="w-4 h-4" /> Instructions</h3>
-          {data.instructions}
+      <div className="p-8 md:p-12 space-y-8 overflow-y-auto flex-1 relative custom-scrollbar bg-stone-50">
+        
+        <div className="bg-white border-l-4 border-slate-900 p-6 rounded-sm text-slate-800 leading-relaxed shadow-sm">
+          <h3 className="font-bold mb-3 flex items-center gap-2 uppercase tracking-widest text-[10px] text-stone-400"><AlertCircle className="w-3.5 h-3.5" /> Instructions</h3>
+          <p className="font-medium text-sm">{data.instructions}</p>
         </div>
 
         {data.image_urls && data.image_urls.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {data.image_urls.map((url, i) => (
-              <div key={i} className="rounded-xl overflow-hidden shadow-lg border-2 border-gray-100 hover:scale-105 transition-transform"><img src={url} alt="Task" className="w-full h-full object-cover aspect-square" /></div>
+              <div key={i} className="rounded-sm overflow-hidden shadow-sm border border-stone-200"><img src={url} alt="Task" className="w-full h-full object-cover aspect-square" /></div>
             ))}
           </div>
         )}
 
         {isListening && (
-          <div className="bg-orange-50 p-6 rounded-2xl border-2 border-orange-100 shadow-sm flex flex-col items-center gap-4 sticky top-0 z-20">
-            <div className="flex items-center gap-2 text-orange-800 font-bold text-lg"><Volume2 className="w-6 h-6" /> Audio Track</div>
+          <div className="bg-white p-6 rounded-sm border border-stone-200 shadow-sm flex flex-col items-center gap-4 sticky top-0 z-20">
+            <div className="flex items-center gap-2 text-slate-900 font-serif font-bold text-lg"><Volume2 className="w-5 h-5 text-stone-400" /> Audio Track</div>
             {loadingAudio ? (
-              <div className="flex items-center gap-2 text-orange-600 font-medium"><Loader2 className="animate-spin w-5 h-5" /> Generating...</div>
+              <div className="flex items-center gap-2 text-stone-500 text-xs font-bold uppercase tracking-widest"><Loader2 className="animate-spin w-4 h-4" /> Generating...</div>
             ) : audioUrl ? (
               <AudioPlayerLocked isVip={user?.is_vip || false} audioUrl={audioUrl} onUnlock={onOpenPricing} />
-            ) : <p className="text-red-500 text-sm">Error loading audio.</p>}
+            ) : <p className="text-red-500 text-sm font-bold">Error loading audio.</p>}
             
-            <button onClick={() => setShowTranscript(!showTranscript)} className="text-sm font-bold text-orange-700 underline flex items-center gap-1 hover:text-orange-900 mt-2">
-                <FileText className="w-4 h-4" /> {showTranscript ? "Hide Transcript" : "Show Transcript"}
+            <button onClick={() => setShowTranscript(!showTranscript)} className="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center gap-1 hover:text-slate-900 transition-colors mt-2">
+                <FileText className="w-3.5 h-3.5" /> {showTranscript ? "Hide Transcript" : "Show Transcript"}
             </button>
           </div>
         )}
 
         <div className="relative">
            {isListening && (!user || !user.is_vip) && (
-              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-white/70 backdrop-blur-[2px] rounded-2xl">
-                  <div className="bg-white p-8 rounded-3xl shadow-2xl border-2 border-orange-100 max-w-sm text-center animate-in zoom-in-95">
-                      <div className="bg-orange-100 p-5 rounded-full mb-5 w-20 h-20 flex items-center justify-center mx-auto shadow-inner"><Lock className="w-10 h-10 text-orange-600" /></div>
-                      <h3 className="font-black text-gray-900 text-2xl mb-3">Listening Locked</h3>
-                      <p className="text-gray-600 mb-8 leading-relaxed">Upgrade to the <strong>Season Pass</strong> to unlock tracks.</p>
-                      <button onClick={onOpenPricing} className="w-full py-4 bg-gradient-to-r from-orange-600 to-red-600 text-white font-bold rounded-xl hover:scale-105 transition shadow-xl">Unlock Now</button>
+              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-white/60 backdrop-blur-sm">
+                  <div className="bg-white p-10 rounded-sm shadow-xl border border-stone-200 max-w-sm text-center animate-in zoom-in-95">
+                      <div className="bg-stone-100 p-5 rounded-sm mb-6 w-16 h-16 flex items-center justify-center mx-auto"><Lock className="w-6 h-6 text-slate-900" /></div>
+                      <h3 className="font-serif font-black text-slate-900 text-2xl mb-3">Listening Locked</h3>
+                      <p className="text-stone-500 text-sm mb-8 leading-relaxed font-medium">Upgrade to the <strong>Season Pass</strong> to unlock tracks.</p>
+                      <button onClick={onOpenPricing} className="w-full py-4 bg-slate-900 text-white font-bold uppercase tracking-widest text-xs rounded-sm hover:bg-slate-800 transition-colors shadow-sm">Unlock Now</button>
                   </div>
               </div>
            )}
 
-           <div className={isListening && (!user || !user.is_vip) ? "filter blur-sm pointer-events-none select-none opacity-50" : ""}>
+           <div className={isListening && (!user || !user.is_vip) ? "filter blur-md pointer-events-none select-none opacity-40" : ""}>
               {isSpeakingPart3 ? (
                   renderSpeakingPart3()
               ) : isListeningPart4 ? (
                   <>
                       {renderListeningPart4()}
                       {showTranscript && (
-                          <div className="mt-8 prose max-w-none bg-gray-50 p-8 rounded-2xl border-2 border-gray-200 shadow-inner animate-in fade-in">
-                              <h4 className="font-bold text-gray-400 mb-6 uppercase tracking-widest text-sm border-b pb-4">
+                          <div className="mt-8 prose max-w-none bg-white p-8 rounded-sm border border-stone-200 shadow-sm animate-in fade-in">
+                              <h4 className="font-bold text-stone-400 mb-6 uppercase tracking-widest text-[10px] border-b border-stone-100 pb-4">
                                   Transcript
                               </h4>
-                              <p className="whitespace-pre-line text-gray-800 text-lg leading-relaxed">
+                              <p className="whitespace-pre-line text-slate-800 font-serif leading-relaxed">
                                   {data.text || "Transcript not available."}
                               </p>
                           </div>
@@ -604,29 +646,64 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                   <>
                     {renderListeningPart2()}
                     {showTranscript && (
-                        <div className="mt-8 prose max-w-none bg-gray-50 p-8 rounded-2xl border-2 border-gray-200 shadow-inner">
-        <h4 className="font-bold text-gray-400 mb-6 uppercase tracking-widest text-sm border-b pb-4">
-            Transcript
-        </h4>
-        {/* 🔥 ASSEGURA'T QUE ÉS AIXÍ: */}
-        <p className="whitespace-pre-line text-gray-800">
-            {data.text || (data as any).script || "Transcript not available."}
-        </p>
-    </div>
+                        <div className="mt-8 prose max-w-none bg-white p-8 rounded-sm border border-stone-200 shadow-sm">
+                            <h4 className="font-bold text-stone-400 mb-6 uppercase tracking-widest text-[10px] border-b border-stone-100 pb-4">
+                                Transcript
+                            </h4>
+                            <p className="whitespace-pre-line text-slate-800 font-serif leading-relaxed">
+                                {data.text || (data as any).script || "Transcript not available."}
+                            </p>
+                        </div>
                     )}
                   </>
               ) : isGapFill ? (
-                <div className="bg-white p-8 rounded-2xl border-2 border-gray-100 shadow-sm">{renderInteractiveText()}</div>
+                <div className="bg-white p-8 md:p-12 rounded-sm border border-stone-200 shadow-sm">
+                    {renderInteractiveText()}
+                    
+                    {/* 👇 EXPLANATIONS PEDAGÒGIQUES PER AL GAP FILL 👇 */}
+                    {showAnswers && data.questions.some(q => q.explanation) && (
+                        <div className="mt-12 pt-8 border-t border-stone-200 animate-in fade-in">
+                            <h4 className="font-serif font-black text-xl text-slate-900 mb-6 flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-stone-400"/> Examiner Feedback
+                            </h4>
+                            <div className="space-y-4">
+                                {data.questions.map((q, i) => {
+                                    const qKey = q.question || i.toString();
+                                    const userAnswer = (userAnswers[qKey] || "").toLowerCase();
+                                    const isCorrect = userAnswer === cleanOptionText(q.answer).toLowerCase();
+                                    return (
+                                        <div key={i} className={`p-5 rounded-sm border ${isCorrect ? 'bg-stone-50 border-stone-200' : 'bg-white border-red-200 shadow-sm'}`}>
+                                            <div className="flex gap-4 items-start">
+                                                <span className={`font-black text-lg ${isCorrect ? 'text-stone-300' : 'text-red-400'}`}>{q.question}</span>
+                                                <div>
+                                                    <div className="flex items-center gap-3 mb-2">
+                                                        <span className="font-bold text-slate-900 text-sm uppercase tracking-widest">Correct: {q.answer}</span>
+                                                        {!isCorrect && <span className="text-xs font-bold text-red-700 bg-red-50 border border-red-100 px-2 py-1 rounded-sm">You: {userAnswers[qKey] || "Empty"}</span>}
+                                                    </div>
+                                                    {q.explanation ? (
+                                                        <p className="text-stone-500 text-sm leading-relaxed">{q.explanation}</p>
+                                                    ) : (
+                                                        <p className="text-stone-400 text-sm italic">No specific feedback provided.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
               ) : (
                 <>
                   {data.text && (!isListening || showTranscript) && (
-                    <div className="prose max-w-none bg-gray-50 p-8 rounded-2xl border-2 border-gray-200 leading-relaxed font-serif text-xl text-gray-800 shadow-inner">
+                    <div className="prose max-w-none bg-white p-8 md:p-12 rounded-sm border border-stone-200 leading-loose font-serif text-lg text-slate-800 shadow-sm">
                         {data.text}
                     </div>
                   )}
 
                   {isInteractive && (
-                    <div className="space-y-8 mt-8">
+                    <div className="space-y-6 mt-8">
                       {data.questions.map((q, idx) => {
                          const key = q.question || idx.toString();
                          const userAnswer = userAnswers[key];
@@ -635,46 +712,55 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                          const isWrong = showAnswers && userAnswer && !isCorrect;
                          const displayNum = data.type === 'listening3' ? idx + 15 : idx + 1;
                          return (
-                            <div key={idx} className={`p-6 rounded-2xl border-2 transition-all ${showAnswers ? (isCorrect ? 'bg-green-50 border-green-200' : isWrong ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100') : 'bg-white border-gray-100 hover:shadow-lg'}`}>
+                            <div key={idx} className={`p-8 rounded-sm border transition-all ${showAnswers ? (isCorrect ? 'bg-stone-50 border-stone-200' : 'bg-white border-red-200 shadow-sm') : 'bg-white border-stone-200 shadow-sm hover:border-slate-900'}`}>
                                 <div className="space-y-6">
-                                    <div className="flex gap-4 items-start">
-                                        <span className="font-black text-gray-200 text-3xl">{displayNum}</span>
-                                        <p className="font-bold text-gray-900 text-lg pt-1">
+                                    <div className="flex gap-4 items-start border-b border-stone-100 pb-4">
+                                        <span className="font-serif font-black text-stone-300 text-3xl">{displayNum}</span>
+                                        <p className="font-serif font-bold text-slate-900 text-xl pt-1 leading-relaxed">
                                             {q.question.replace(/^\d+[\.\-\)]?\s*/, '')}
                                         </p>
                                     </div>
                                     {data.type === "reading_and_use_of_language4" && q.original_sentence && (
-                                        <div className="mb-4 bg-slate-50 p-4 rounded-lg border">
-                                            <p className="text-gray-900 font-medium mb-3">{q.original_sentence}</p>
-                                            <div className="bg-gray-900 text-white px-3 py-1 rounded-md font-bold text-sm tracking-wider uppercase shadow-sm w-fit mb-3">{q.keyword}</div>
-                                            <p className="text-gray-800">{q.second_sentence}</p>
+                                        <div className="mb-6 bg-stone-50 p-6 rounded-sm border border-stone-200">
+                                            <p className="text-slate-800 font-serif text-lg mb-4 leading-relaxed">{q.original_sentence}</p>
+                                            <div className="bg-slate-900 text-white px-3 py-1.5 rounded-sm font-bold text-[10px] tracking-widest uppercase shadow-sm w-fit mb-4">{q.keyword}</div>
+                                            <p className="text-stone-500 font-serif">{q.second_sentence}</p>
                                         </div>
                                     )}
 
                                     {q.options && q.options.length > 0 ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {q.options.map((opt, i) => {
                                                 const text = cleanOptionText(opt);
                                                 const isSelected = userAnswer === text.toLowerCase();
                                                 const isTheCorrectOption = text.toLowerCase() === cleanCorrectAnswer.toLowerCase();
-                                                let optClass = "p-4 border-2 rounded-xl cursor-pointer transition-all flex justify-between items-center select-none ";
+                                                let optClass = "p-5 border rounded-sm cursor-pointer transition-colors flex justify-between items-center select-none font-medium ";
                                                 if (showAnswers) {
-                                                    if (isTheCorrectOption) optClass += "bg-green-100 border-green-500 font-bold text-green-900";
-                                                    else if (isSelected) optClass += "bg-red-100 border-red-400 text-red-800";
-                                                    else optClass += "opacity-40 grayscale-[0.5]";
+                                                    if (isTheCorrectOption) optClass += "bg-stone-100 border-stone-300 font-bold text-slate-900";
+                                                    else if (isSelected) optClass += "bg-red-50 border-red-200 text-red-800";
+                                                    else optClass += "opacity-50 grayscale border-stone-100";
                                                 } else {
-                                                    if (isSelected) optClass += "bg-blue-100 border-blue-600 text-blue-900 shadow-md ring-4 ring-blue-500/10";
-                                                    else optClass += "bg-white hover:bg-gray-50 border-gray-200";
+                                                    if (isSelected) optClass += "bg-slate-900 border-slate-900 text-white shadow-sm";
+                                                    else optClass += "bg-white hover:bg-stone-50 border-stone-200 text-slate-700";
                                                 }
-                                                return (<div key={i} onClick={() => handleSelect(key, text.toLowerCase())} className={optClass}><div className="flex items-center"><span className="font-black mr-3 opacity-30">{String.fromCharCode(65 + i)}.</span>{text}</div>{showAnswers && isTheCorrectOption && <CheckCircle className="w-5 h-5 text-green-700" />}{showAnswers && isSelected && !isTheCorrectOption && <XCircle className="w-5 h-5 text-red-600" />}</div>);
+                                                return (<div key={i} onClick={() => handleSelect(key, text.toLowerCase())} className={optClass}><div className="flex items-center"><span className={`font-black mr-4 text-[10px] uppercase tracking-widest ${isSelected && !showAnswers ? 'text-stone-400' : 'text-stone-300'}`}>{String.fromCharCode(65 + i)}</span>{text}</div>{showAnswers && isTheCorrectOption && <CheckCircle className="w-5 h-5 text-stone-500" />}{showAnswers && isSelected && !isTheCorrectOption && <XCircle className="w-5 h-5 text-red-500" />}</div>);
                                             })}
                                         </div>
                                     ) : (
                                         <div className="relative">
-                                            <input type="text" value={userAnswer || ""} disabled={showAnswers} autoComplete="off" spellCheck="false" onChange={(e) => handleSelect(key, e.target.value)} placeholder="Type answer..." className={`w-full p-4 border-2 rounded-xl outline-none font-bold ${showAnswers ? (isCorrect ? "bg-green-100 border-green-500 text-green-900" : "bg-red-50 border-red-300 text-red-900") : "focus:border-blue-500 bg-gray-50 text-gray-800"}`} />
-                                            {showAnswers && !isCorrect && <div className="mt-3 text-sm font-black text-green-700 flex items-center gap-2"><CheckCircle className="w-4 h-4" /> CORRECT: <span className="uppercase">{cleanCorrectAnswer}</span></div>}
+                                            <input type="text" value={userAnswer || ""} disabled={showAnswers} autoComplete="off" spellCheck="false" onChange={(e) => handleSelect(key, e.target.value)} placeholder="Type your answer..." className={`w-full p-5 border rounded-sm outline-none font-serif text-lg ${showAnswers ? (isCorrect ? "bg-stone-50 border-stone-300 text-slate-900" : "bg-white border-red-300 text-red-900") : "focus:border-slate-900 bg-white text-slate-900 border-stone-200"}`} />
+                                            {showAnswers && !isCorrect && <div className="mt-4 text-[10px] font-bold uppercase tracking-widest text-slate-900 bg-stone-100 px-3 py-2 rounded-sm w-fit border border-stone-200">Correct Output: <span className="font-black ml-1">{cleanCorrectAnswer}</span></div>}
                                         </div>
                                     )}
+
+                                    {/* 👇 EXPLANATIONS PEDAGÒGIQUES PER PREGUNTES ESTÀNDARD 👇 */}
+                                    {showAnswers && q.explanation && (
+                                        <div className="mt-6 p-5 bg-stone-50 border border-stone-200 rounded-sm">
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2 flex items-center gap-2"><Sparkles className="w-3.5 h-3.5" /> Examiner Note</p>
+                                            <p className="text-sm text-stone-600 leading-relaxed font-medium">{q.explanation}</p>
+                                        </div>
+                                    )}
+
                                 </div>
                             </div>
                          );
@@ -690,34 +776,34 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                     {!feedback ? (
                         <>
                             {isSpeaking && (
-                                <div className="flex flex-col items-center justify-center py-6 gap-4">
-                                    <button onClick={toggleRecording} disabled={isTranscribing} className={`w-24 h-24 rounded-full flex items-center justify-center transition-all shadow-2xl ${isRecording ? 'bg-red-500 animate-pulse ring-8 ring-red-100' : 'bg-purple-600 ring-8 ring-purple-100'}`}>
-                                        {isRecording ? <StopCircle className="w-12 h-12 text-white" /> : <Mic className="w-12 h-12 text-white" />}
+                                <div className="flex flex-col items-center justify-center py-10 gap-6">
+                                    <button onClick={toggleRecording} disabled={isTranscribing} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-md ${isRecording ? 'bg-red-600 animate-pulse ring-4 ring-red-100' : 'bg-slate-900 hover:bg-slate-800'}`}>
+                                        {isRecording ? <StopCircle className="w-8 h-8 text-white" /> : <Mic className="w-8 h-8 text-white" />}
                                     </button>
-                                    {isTranscribing && <div className="text-purple-600 font-bold flex items-center gap-2"><Loader2 className="animate-spin w-5 h-5" /> Processing...</div>}
+                                    {isTranscribing && <div className="text-slate-900 font-bold text-xs uppercase tracking-widest flex items-center gap-2"><Loader2 className="animate-spin w-4 h-4" /> Processing...</div>}
                                 </div>
                             )}
-                            <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} disabled={isSpeaking && (!user || !user.is_vip)} placeholder={isSpeaking ? "Transcript will appear here..." : "Write response here..."} className="w-full h-80 p-8 border-2 rounded-3xl outline-none text-xl font-serif leading-relaxed resize-none shadow-inner focus:border-blue-500" />
+                            <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} disabled={isSpeaking && (!user || !user.is_vip)} placeholder={isSpeaking ? "Transcript will appear here..." : "Write response here..."} className="w-full h-80 p-8 border border-stone-200 bg-white rounded-sm outline-none text-xl font-serif leading-relaxed resize-none shadow-sm focus:border-slate-900 text-slate-900" />
                             <div className="flex justify-end pt-4">
-                                <button onClick={handleSubmitCreative} disabled={loadingGrade || inputText.length < 10 || isTranscribing || isRecording} className="flex items-center gap-3 px-10 py-4 rounded-2xl font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-105 transition-all disabled:opacity-50">
-                                    {loadingGrade ? <Loader2 className="animate-spin" /> : <Send className="w-5 h-5" />} Submit for Feedback
+                                <button onClick={handleSubmitCreative} disabled={loadingGrade || inputText.length < 10 || isTranscribing || isRecording} className="flex items-center gap-2 px-8 py-4 rounded-sm font-bold uppercase tracking-widest text-xs text-white bg-slate-900 hover:bg-slate-800 transition-colors disabled:opacity-50 shadow-sm">
+                                    {loadingGrade ? <Loader2 className="animate-spin w-4 h-4" /> : <Send className="w-4 h-4" />} Submit for Evaluation
                                 </button>
                             </div>
                         </>
                     ) : (
                         <div className="animate-in slide-in-from-bottom-10 space-y-6 pb-20">
-                            <div className="bg-white border-2 rounded-3xl p-8 shadow-xl flex items-center justify-between border-blue-50">
-                                <div><h3 className="text-2xl font-black text-gray-900">AI Assessment</h3><p className="text-gray-500">Cambridge C1 criteria</p></div>
-                                <div className="text-right flex flex-col items-center"><div className="text-5xl font-black text-blue-600">{feedback.score}/20</div></div>
+                            <div className="bg-white border border-stone-200 rounded-sm p-8 shadow-sm flex items-center justify-between">
+                                <div><h3 className="text-2xl font-serif font-black text-slate-900">AI Assessment</h3><p className="text-stone-400 text-[10px] font-bold uppercase tracking-widest mt-1">Cambridge C1 criteria</p></div>
+                                <div className="text-right flex flex-col items-center"><div className="text-4xl font-serif font-black text-slate-900">{feedback.score}/20</div></div>
                             </div>
-                            <div className="bg-blue-50 p-8 rounded-3xl border-2 border-blue-100 shadow-inner"><h4 className="font-black text-blue-900 mb-3 flex items-center gap-2"><Sparkles className="w-5 h-5"/> Feedback</h4><p className="text-blue-800 leading-relaxed">{feedback.feedback}</p></div>
+                            <div className="bg-stone-50 p-8 rounded-sm border border-stone-200 shadow-sm"><h4 className="font-bold text-slate-900 text-sm uppercase tracking-widest mb-4 flex items-center gap-2">Examiner Feedback</h4><p className="text-stone-700 font-serif leading-relaxed whitespace-pre-wrap">{feedback.feedback}</p></div>
                             {feedback.model_answer && (
-                                <div className="mt-8 p-8 bg-emerald-50 rounded-3xl border-2 border-emerald-100">
-                                    <h3 className="text-xl font-black text-emerald-900 mb-6 flex items-center gap-2"><Sparkles className="w-6 h-6" /> Perfect Answer</h3>
-                                    <div className="prose text-emerald-900 font-serif text-lg leading-relaxed whitespace-pre-wrap">{feedback.model_answer}</div>
+                                <div className="mt-8 p-8 bg-slate-900 rounded-sm shadow-sm">
+                                    <h3 className="text-sm font-bold text-stone-300 uppercase tracking-widest mb-6 flex items-center gap-2"><Sparkles className="w-4 h-4" /> Model Answer</h3>
+                                    <div className="prose text-white font-serif text-lg leading-relaxed whitespace-pre-wrap">{feedback.model_answer}</div>
                                 </div>
                             )}
-                            <button onClick={onBack} className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold">Main Menu</button>
+                            <button onClick={onBack} className="w-full py-4 bg-white border border-slate-900 text-slate-900 rounded-sm font-bold uppercase tracking-widest text-xs hover:bg-slate-900 hover:text-white transition-colors">Main Menu</button>
                         </div>
                     )}
                 </div>
@@ -727,15 +813,15 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
       </div>
 
       {isInteractive && (
-        <div className="p-6 border-t bg-gray-50/80 backdrop-blur-md flex justify-center sticky bottom-0 z-20">
+        <div className="p-6 border-t border-stone-200 bg-white flex justify-center sticky bottom-0 z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
           {!showAnswers ? (
-            <button onClick={checkScore} disabled={isListening && (!user || !user.is_vip)} className="flex items-center gap-3 px-16 py-4 rounded-2xl font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50">
-              <Eye className="w-5 h-5" /> Check Answers
+            <button onClick={checkScore} disabled={isListening && (!user || !user.is_vip)} className="flex items-center justify-center gap-3 w-full md:w-auto px-16 py-4 rounded-sm font-bold uppercase tracking-widest text-xs text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50">
+              <Eye className="w-4 h-4" /> Check Answers
             </button>
           ) : (
-            <div className="flex flex-col items-center gap-3 w-full">
-              <div className="text-2xl font-black">Score: {score} / {data.questions.length}</div>
-              <button onClick={onBack} className="flex items-center gap-2 px-10 py-3 rounded-full font-black text-gray-600 bg-white border-2 hover:bg-gray-100 transition-all shadow-md">Menu <ArrowRight className="w-5 h-5"/></button>
+            <div className="flex flex-col items-center gap-4 w-full">
+              <div className="text-2xl font-serif font-black text-slate-900">Score: {score} / {data.questions.length}</div>
+              <button onClick={onBack} className="flex items-center justify-center gap-2 w-full md:w-auto px-12 py-3 rounded-sm font-bold uppercase tracking-widest text-xs text-slate-900 bg-white border border-slate-900 hover:bg-stone-50 transition-colors shadow-sm">Main Menu <ArrowRight className="w-4 h-4"/></button>
             </div>
           )}
         </div>
