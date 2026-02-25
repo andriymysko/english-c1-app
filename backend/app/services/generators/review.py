@@ -1,3 +1,4 @@
+import random
 from openai import OpenAI
 import os
 import json
@@ -6,19 +7,62 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class ReviewGenerator:
-    def __init__(self, mistakes: list, target_type: str):
+    def __init__(self, mistakes: list):
         self.mistakes = mistakes
-        self.target_type = target_type
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.selected_mistakes = []
 
     def generate(self, level: str):
-        print(f"🔄 ReviewGenerator: Creant repàs per a {len(self.mistakes)} errors...")
+        print(f"🔄 ReviewGenerator: Creant examen de diagnòstic híbrid...")
         
-        prompt = self.get_prompt(level)
+        # 1. Seleccionem un màxim de 6 errors per evitar fatiga cognitiva
+        self.selected_mistakes = random.sample(self.mistakes, min(6, len(self.mistakes)))
+        
+        # 2. Construïm el context rigorós pel Prompt
+        mistakes_context = ""
+        for i, m in enumerate(self.selected_mistakes):
+            m_type = m.get('type', 'Unknown')
+            m_stem = m.get('stem') or m.get('question', 'Unknown context')
+            m_correct = m.get('correct_answer', 'Unknown')
+            mistakes_context += f"- MISTAKE {i+1} (Original Type: {m_type}):\n  Original Context: {m_stem}\n  Target Answer Needed: {m_correct}\n\n"
+
+        prompt = f"""
+        You are an elite Cambridge C1/C2 tutor. Your task is to generate a "Dynamic Diagnostic Exam" for a student based on their past mistakes.
+        
+        PAST MISTAKES TO TARGET:
+        {mistakes_context}
+        
+        INSTRUCTIONS:
+        1. Generate EXACTLY {len(self.selected_mistakes)} questions. Each question must target ONE of the mistakes above.
+        2. CRITICAL: Do NOT reuse the 'Original Context'. You must create a COMPLETELY NEW sentence/context that forces the student to use the exact same grammar rule or vocabulary word ('Target Answer Needed').
+        
+        QUESTION FORMATTING RULES:
+        - Include the gap "________" in the 'question' field.
+        - If the original mistake was Multiple Choice (Reading Part 1, Collocations, etc.), provide exactly 4 options (A, B, C, D) in the 'options' array.
+        - If the original mistake was an open input (e.g., Word Formation), leave the 'options' array EMPTY []. Put the ROOT word in parentheses at the end of the question.
+        - For Key Word Transformations (Part 4), format the 'question' field like this:
+          "Rewrite using the keyword: [KEYWORD]. Original: [Sentence]. -> [New sentence with ________]"
+          
+        OUTPUT VALID JSON STRUCTURE:
+        {{
+            "type": "review_exam",
+            "title": "Targeted Diagnostic Exam",
+            "instructions": "Answer these questions specifically tailored to target your historical weak points.",
+            "text": "",
+            "questions": [
+                {{
+                    "question": "[The new sentence containing the gap ________]",
+                    "options": ["Option A", "Option B", "Option C", "Option D"], 
+                    "answer": "[The exact correct word/phrase]",
+                    "explanation": "[Brief pedagogical explanation of the underlying rule]"
+                }}
+            ]
+        }}
+        """
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini", 
+                model="gpt-4o", # Utilitzem el model superior per garantir el format JSON híbrid
                 messages=[{"role": "system", "content": prompt}],
                 temperature=0.7,
                 response_format={"type": "json_object"}
@@ -27,7 +71,6 @@ class ReviewGenerator:
             content = response.choices[0].message.content
             data = json.loads(content)
             
-            # Classe simple per compatibilitat amb el router
             class GenericExercise:
                 def __init__(self, data):
                     self.data = data
@@ -37,53 +80,5 @@ class ReviewGenerator:
             return GenericExercise(data)
 
         except Exception as e:
-            print(f"Error generating review: {e}")
+            print(f"Error generating dynamic review: {e}")
             raise e
-
-    def get_prompt(self, level: str) -> str:
-        # 1. Extraiem les paraules CORRECTES que l'usuari havia d'haver posat
-        target_words = []
-        for m in self.mistakes:
-            # Busquem on està la resposta bona
-            word = m.get('correct_answer') or m.get('answer')
-            if word:
-                target_words.append(str(word))
-        
-        # Limitem a 8 paraules per no fer un text infinit
-        keywords_str = ", ".join(target_words[:8])
-        
-        return f"""
-        You are an expert Cambridge C1 English exam creator.
-        
-        GOAL: The student failed these specific words in the past: {keywords_str}.
-        CREATE A "PART 1: MULTIPLE CHOICE CLOZE" text to help them practice these exact words in context.
-        
-        INSTRUCTIONS:
-        1. Write a coherent text (approx 200 words).
-        2. The text MUST have gaps [1], [2], etc. corresponding to the target words list provided above.
-        3. If a word is impossible to fit, use a synonym, but try to use the original errors.
-        4. For each gap, provide 4 options (A, B, C, D). 
-           - One option MUST be the target word (Correct Answer).
-           - The other 3 must be tricky distractors.
-        
-        JSON Structure:
-        {{
-            "type": "reading_and_use_of_language1",
-            "title": "Personalized Review",
-            "instructions": "Read the text below. These gaps correspond to mistakes you made previously.",
-            "text": "Full text with gaps like [1]...",
-            "questions": [
-                {{
-                    "question": "1",
-                    "options": [ 
-                        {{"text": "CorrectWord"}}, 
-                        {{"text": "Distractor1"}}, 
-                        {{"text": "Distractor2"}}, 
-                        {{"text": "Distractor3"}} 
-                    ],
-                    "answer": "CorrectWord",
-                    "explanation": "Contextual explanation."
-                }}
-            ]
-        }}
-        """

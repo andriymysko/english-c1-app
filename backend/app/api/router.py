@@ -408,39 +408,77 @@ def preload_exercise(request: ExerciseRequest):
 @router.post("/submit_result/")
 def submit_exercise_result(result: SubmitResultRequest):
     try:
-        # 1. Guardar l'estadística general (el que ja feies)
         user_ref = db.collection("users").document(result.user_id)
-        user_ref.set({
+        user_doc_snap = user_ref.get()
+        user_data = user_doc_snap.to_dict() if user_doc_snap.exists else {}
+        
+        # 1. Actualitzacions generals
+        updates = {
             "total_score": firestore.Increment(result.score),
             "exercises_completed": firestore.Increment(1)
-        }, merge=True)
+        }
         
-        # 🔥 2. NOU: REGISTRAR ELS ERRORS (Només per Use of English)
+        current_pool = user_data.get("mistakes_pool", [])
+        new_wrong_stems = [m.get("stem") or m.get("question") for m in result.mistakes] if result.mistakes else []
+        
+        # 2. LÒGICA DE LA REGLA DEL 2
+        if result.exercise_type == "review_exam":
+            # L'usuari acaba de retornar l'examen d'errors
+            active_review = user_data.get("active_review_mistakes", [])
+            updated_pool = []
+            
+            for mistake in current_pool:
+                stem = mistake.get("stem") or mistake.get("question")
+                
+                if stem in active_review:
+                    # Aquest error s'ha posat a prova en aquest examen
+                    if stem not in new_wrong_stems:
+                        # L'ha encertat! Sumem nivell de domini
+                        mistake["mastery"] = mistake.get("mastery", 0) + 1
+                    else:
+                        # L'ha tornat a fallar. Tornem a 0
+                        mistake["mastery"] = 0
+                        
+                # Només mantenim els que tinguin domini < 2 
+                if mistake.get("mastery", 0) < 2:
+                    updated_pool.append(mistake)
+                    
+            # Netegem la memòria temporal i guardem
+            updates["active_review_mistakes"] = firestore.DELETE_FIELD
+            updates["mistakes_pool"] = updated_pool
+            
+        else:
+            # Exercici normal: Afegim els nous errors al pou
+            updated_pool = list(current_pool)
+            for new_m in (result.mistakes or []):
+                stem = new_m.get("stem") or new_m.get("question")
+                existing = next((m for m in updated_pool if (m.get("stem") or m.get("question")) == stem), None)
+                
+                if existing:
+                    existing["mastery"] = 0 # Reiniciem el domini
+                else:
+                    new_m["mastery"] = 0
+                    updated_pool.append(new_m)
+                    
+            updates["mistakes_pool"] = updated_pool
+
+        # 3. Guardem el perfil d'usuari
+        user_ref.set(updates, merge=True)
+        
+        # 4. VOCAB VAULT (Mantenim la integració original per a Flashcards)
         if result.exercise_type in ["reading_and_use_of_language1", "reading_and_use_of_language4"]:
             if result.mistakes:
                 vocab_ref = user_ref.collection("vocabulary")
-                
                 for mistake in result.mistakes:
-                    # Agafem la resposta correcta (el phrasal verb o paraula)
                     word = mistake.get("correct_answer", "").strip().lower()
-                    if not word:
-                        continue
-                        
-                    # Fem servir la paraula com a ID del document (traient espais rars)
+                    if not word: continue
                     doc_id = word.replace(" ", "_").replace("/", "_")
                     word_doc = vocab_ref.document(doc_id)
                     
-                    doc_snap = word_doc.get()
-                    if doc_snap.exists:
-                        # Si ja existeix, sumem un error
+                    if word_doc.get().exists:
                         word_doc.update({"mistakes": firestore.Increment(1)})
                     else:
-                        # Si és el primer cop que la falla, la creem
-                        word_doc.set({
-                            "word": word,
-                            "mistakes": 1,
-                            "added_at": firestore.SERVER_TIMESTAMP
-                        })
+                        word_doc.set({"word": word, "mistakes": 1, "added_at": firestore.SERVER_TIMESTAMP})
 
         return {"status": "success"}
     except Exception as e:
@@ -468,15 +506,27 @@ def report_issue(report: ReportRequest):
 
 @router.post("/generate_review/{user_id}")
 def generate_review(user_id: str):
-    if not DatabaseService.check_user_quota(user_id, cost=1):
-        raise HTTPException(status_code=429, detail="Daily limit reached.")
-    stats = DatabaseService.get_user_stats(user_id)
-    mistakes = stats.get("mistakes_pool", [])
-    if not mistakes: raise HTTPException(status_code=404, detail="NO_MISTAKES")
-    mistake_types = [m.get('type', 'reading_and_use_of_language1') for m in mistakes]
-    target_type = Counter(mistake_types).most_common(1)[0][0] if mistake_types else "reading_and_use_of_language1"
-    gen = ReviewGenerator(mistakes, target_type)
+    # Respectem la teva comprovació de quota si existeix
+    if hasattr(DatabaseService, 'check_user_quota'):
+        if not DatabaseService.check_user_quota(user_id, cost=1):
+            raise HTTPException(status_code=429, detail="Daily limit reached.")
+            
+    user_ref = db.collection("users").document(user_id)
+    user_doc = user_ref.get()
+    user_data = user_doc.to_dict() if user_doc.exists else {}
+
+    mistakes = user_data.get("mistakes_pool", [])
+    if not mistakes: 
+        raise HTTPException(status_code=404, detail="NO_MISTAKES")
+        
+    # 1. Generem l'examen híbrid
+    gen = ReviewGenerator(mistakes)
     ex = gen.generate("C1").model_dump()
+    
+    # 2. TRACKING INTEL·LIGENT: Guardem a Firestore QUINS errors concrets estem avaluant ara mateix
+    active_stems = [m.get("stem") or m.get("question") for m in gen.selected_mistakes]
+    user_ref.set({"active_review_mistakes": active_stems}, merge=True)
+    
     ex['id'] = DatabaseService.save_exercise(ex, is_public=False)
     return ex
 
