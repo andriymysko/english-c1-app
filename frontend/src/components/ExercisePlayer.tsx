@@ -245,6 +245,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
       if (isCorrect) {
           correct++;
       } else {
+          // 🔥 EL FIX CRÍTIC: Construïm l'error complet pel teu AI Backend
           mistakes.push({
             type: data.type, 
             question: q.question, 
@@ -265,11 +266,19 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
       playErrorSound(); 
     }
     
+    // 🔥 L'ENVIAMENT SEGUR
     if (user) {
       try {
-          await submitResult({ user_id: user.uid, exercise_type: data.type, score: correct, total: data.questions.length, mistakes: mistakes });
+          await submitResult({ 
+              user_id: user.uid, 
+              exercise_type: data.type, 
+              score: correct, 
+              total: data.questions.length, 
+              mistakes: mistakes 
+          });
+          console.log("✅ Objectiu: Errors enviats a la BD ->", mistakes);
       } catch (err) {
-          console.error("Failed to submit result:", err);
+          console.error("❌ Fallida crítica de connexió en guardar els resultats:", err);
       }
     }
   };
