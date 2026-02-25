@@ -4,7 +4,7 @@ import { getUserStats, generateReview, getCoachAnalysis } from "../api";
 import { 
   BarChart, Trophy, AlertTriangle, ArrowLeft, Sparkles, Loader2, 
   Zap, Star, Brain, AlertCircle, CheckCircle, Crown, ShieldCheck, 
-  Calendar, Clock, Target
+  Calendar, Target
 } from "lucide-react";
 
 // Helper per formatar dates
