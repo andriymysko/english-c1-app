@@ -245,7 +245,6 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
       if (isCorrect) {
           correct++;
       } else {
-          // AQUI ESTÁ A CORREÇÃO: Capturamos o Type e o Stem para que o backend grave a informação
           mistakes.push({
             type: data.type, 
             question: q.question, 
@@ -291,29 +290,29 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
             const isCorrect = showAnswers && (userAnswer.toLowerCase() === cleanOptionText(question.answer).toLowerCase());
             const isWrong = showAnswers && !isCorrect;
 
-            let baseClass = "inline-flex items-center align-middle mx-1 my-1 rounded-sm border shadow-sm transition-colors ";
+            let baseClass = "inline-flex items-center align-middle mx-1 my-1 rounded-sm border transition-colors ";
             if (showAnswers) {
-                baseClass += isCorrect ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200";
+                baseClass += isCorrect ? "bg-green-50 border-green-300 shadow-sm" : "bg-red-50 border-red-300 shadow-sm";
             } else {
-                baseClass += "bg-white border-stone-200";
+                baseClass += "bg-white border-stone-300 shadow-sm";
             }
 
             return (
               <span key={index} className="group relative inline-block">
                 <span className={baseClass}>
-                  <span className={`px-2 py-1 text-[10px] font-black uppercase border-r ${showAnswers ? (isCorrect ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200') : 'bg-stone-100 text-stone-500 border-stone-200'}`}>
+                  <span className={`px-2 py-1.5 text-[10px] font-black uppercase border-r ${showAnswers ? (isCorrect ? 'border-green-300 text-green-800' : 'border-red-300 text-red-800') : 'bg-stone-50 text-stone-500 border-stone-300'}`}>
                       {questionNumString}
                   </span>
                   {data.type === "reading_and_use_of_language1" && question.options ? (
                     <div className="relative">
-                      <select value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`outline-none bg-transparent px-2 py-1 text-sm font-bold appearance-none pr-6 cursor-pointer ${showAnswers && isWrong ? 'text-red-900' : 'text-slate-900'}`}>
+                      <select value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} className={`outline-none bg-transparent px-2 py-1.5 text-sm font-bold appearance-none pr-6 cursor-pointer ${showAnswers && isWrong ? 'text-red-900' : 'text-slate-900'}`}>
                         <option value=""></option>
                         {question.options.map((opt: any, i: number) => (<option key={i} value={cleanOptionText(opt)}>{cleanOptionText(opt)}</option>))}
                       </select>
                       <ChevronDown className="w-3 h-3 absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none opacity-40"/>
                     </div>
                   ) : (
-                    <input type="text" value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} autoComplete="off" className={`outline-none bg-transparent px-2 py-1 text-sm font-bold min-w-[80px] ${showAnswers && isWrong ? 'text-red-900' : 'text-slate-900'}`} />
+                    <input type="text" value={userAnswer} onChange={(e) => handleSelect(qKey, e.target.value)} disabled={showAnswers} autoComplete="off" className={`outline-none bg-transparent px-2 py-1.5 text-sm font-bold min-w-[80px] ${showAnswers && isWrong ? 'text-red-900' : 'text-slate-900'}`} />
                   )}
                 </span>
               </span>
@@ -570,7 +569,9 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
 
   return (
     <div className="max-w-4xl mx-auto bg-white min-h-screen shadow-sm border-x border-stone-200 flex flex-col animate-in fade-in duration-500">
-      <div className="p-6 md:p-8 flex justify-between items-center sticky top-0 z-10 bg-slate-900 text-white shadow-md">
+      
+      {/* HEADER */}
+      <div className="p-6 md:p-8 flex justify-between items-center sticky top-0 z-30 bg-slate-900 text-white shadow-md">
         <div className="flex items-center gap-5">
           <button onClick={onBack} className="text-stone-400 hover:text-white transition-colors"><ArrowLeft className="w-5 h-5" /></button>
           <div>
@@ -583,6 +584,7 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
         </button>
       </div>
 
+      {/* CONTINGUT SCROLLABLE */}
       <div className="p-8 md:p-12 space-y-8 overflow-y-auto flex-1 relative custom-scrollbar bg-stone-50">
         
         <div className="bg-white border-l-4 border-slate-900 p-6 rounded-sm text-slate-800 leading-relaxed shadow-sm">
@@ -808,23 +810,29 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                 </div>
               )}
            </div>
+
+           {/* 👇 ACTION BAR DESENGANXADA I MOGUDA DINS L'SCROLL 👇 */}
+           {isInteractive && (
+             <div className="pt-12 mt-12 border-t border-stone-200 bg-transparent flex flex-col items-center justify-center pb-8">
+               {!showAnswers ? (
+                 <button onClick={checkScore} disabled={isListening && (!user || !user.is_vip)} className="flex items-center justify-center gap-3 w-full md:w-auto px-16 py-4 rounded-sm font-bold uppercase tracking-widest text-xs text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50">
+                   <Eye className="w-4 h-4" /> Check Answers
+                 </button>
+               ) : (
+                 <div className="flex flex-col items-center gap-6 w-full animate-in fade-in slide-in-from-bottom-4">
+                   <div className="text-4xl font-serif font-black text-slate-900 bg-white px-10 py-6 rounded-sm border border-stone-200 shadow-sm">
+                     Score: {score} / {data.questions.length}
+                   </div>
+                   <button onClick={onBack} className="flex items-center justify-center gap-2 w-full md:w-auto px-12 py-4 rounded-sm font-bold uppercase tracking-widest text-xs text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm">
+                     Main Menu <ArrowRight className="w-4 h-4"/>
+                   </button>
+                 </div>
+               )}
+             </div>
+           )}
+
         </div>
       </div>
-
-      {isInteractive && (
-        <div className="p-6 border-t border-stone-200 bg-white flex justify-center sticky bottom-0 z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-          {!showAnswers ? (
-            <button onClick={checkScore} disabled={isListening && (!user || !user.is_vip)} className="flex items-center justify-center gap-3 w-full md:w-auto px-16 py-4 rounded-sm font-bold uppercase tracking-widest text-xs text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50">
-              <Eye className="w-4 h-4" /> Check Answers
-            </button>
-          ) : (
-            <div className="flex flex-col items-center gap-4 w-full">
-              <div className="text-2xl font-serif font-black text-slate-900">Score: {score} / {data.questions.length}</div>
-              <button onClick={onBack} className="flex items-center justify-center gap-2 w-full md:w-auto px-12 py-3 rounded-sm font-bold uppercase tracking-widest text-xs text-slate-900 bg-white border border-slate-900 hover:bg-stone-50 transition-colors shadow-sm">Main Menu <ArrowRight className="w-4 h-4"/></button>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
