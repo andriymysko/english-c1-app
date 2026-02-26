@@ -34,7 +34,7 @@ export default function Landing({ onGetStarted, onShowLegal }: Props) {
       <div className="pt-32 pb-20 px-6 text-center max-w-5xl mx-auto flex flex-col items-center">
         
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-sm bg-white border border-stone-200 text-stone-500 text-[10px] font-bold uppercase tracking-widest mb-8 animate-in fade-in slide-in-from-bottom-4 shadow-sm">
-          <ShieldCheck className="w-3.5 h-3.5" /> Cambridge Assessment Engine
+          <ShieldCheck className="w-3.5 h-3.5" /> C1 Exam Simulation Engine
         </div>
         
         <h1 className="text-5xl md:text-7xl font-serif font-black text-slate-900 leading-tight mb-8 tracking-tight animate-in fade-in slide-in-from-bottom-6 duration-700 max-w-4xl">
@@ -62,7 +62,7 @@ export default function Landing({ onGetStarted, onShowLegal }: Props) {
                   <Brain className="w-4 h-4" /> Adaptive Algorithm
               </div>
               <div className="flex items-center gap-2 text-stone-400 font-bold text-xs uppercase tracking-widest">
-                  <Sparkles className="w-4 h-4" /> Official C1 Rubric
+                  <Sparkles className="w-4 h-4" /> CEFR-Aligned Rubric
               </div>
               <div className="flex items-center gap-2 text-stone-400 font-bold text-xs uppercase tracking-widest">
                   <Target className="w-4 h-4" /> Targeted Diagnostics
@@ -89,7 +89,7 @@ export default function Landing({ onGetStarted, onShowLegal }: Props) {
             <FeatureCard 
               icon={<PenTool className="w-6 h-6" />}
               title="Examiner-Grade Grading"
-              desc="Submit essays and speaking recordings. Get graded instantly from 0 to 20 based on the official Cambridge criteria, including detailed corrections and a perfect C1 model answer."
+              desc="Submit essays and speaking recordings. Get graded instantly from 0 to 20 based on the standard C1 assessment criteria, including detailed corrections and a perfect C1 model answer."
             />
             <FeatureCard 
               icon={<BookOpen className="w-6 h-6" />}
