@@ -6,7 +6,7 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut,
-  signInWithRedirect,      
+  signInWithPopup,      
   GoogleAuthProvider,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -35,7 +35,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<UserCredential>;
   signup: (email: string, password: string) => Promise<UserCredential>;
   logout: () => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<UserCredential>;
   resetPassword: (email: string) => Promise<void>;
   verifyEmail: (userToVerify: FirebaseUser) => Promise<void>;
 }
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithRedirect(auth, provider);
+    return await signInWithPopup(auth, provider);
   };
 
   const resetPassword = async (email: string) => {

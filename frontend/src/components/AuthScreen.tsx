@@ -61,7 +61,7 @@ export default function AuthScreen({ onBack, onShowLegal }: Props) {
       } 
       else if (mode === 'reset') {
         await resetPassword(email);
-        setMessage('Password reset link sent! Check your inbox.');
+        setMessage('If an account exists for this email, a reset link has been sent.');
         setTimeout(() => setMode('login'), 4000);
       }
     } catch (err: any) {
