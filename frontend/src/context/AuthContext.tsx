@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useState } from "react";
-// Importem el tipus ReactNode explícitament
 import type { ReactNode } from "react"; 
 
 import { 
@@ -9,17 +8,20 @@ import {
   signOut,
   signInWithPopup,      
   GoogleAuthProvider,
-  // 👇 FIX: Afegim 'type' aquí perquè això és només una interfície
-  type User as FirebaseUser    
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  type User as FirebaseUser,
+  type UserCredential
 } from "firebase/auth";
 
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase"; 
 
-// Definim el tipus d'usuari complet (Auth + Dades BD)
+// 1. Ampliem la interfície per forçar la comprovació de verificació
 export interface User extends Partial<FirebaseUser> {
   uid: string;
   email: string | null;
+  emailVerified: boolean; // 👈 CAMP CRÍTIC AFEGIT
   is_vip?: boolean;
   daily_usage?: {
     date: string;
@@ -30,19 +32,19 @@ export interface User extends Partial<FirebaseUser> {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<UserCredential>;
+  signup: (email: string, password: string) => Promise<UserCredential>;
   logout: () => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<UserCredential>;
+  resetPassword: (email: string) => Promise<void>;
+  verifyEmail: (userToVerify: FirebaseUser) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 }
 
@@ -50,24 +52,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔥 ELIMINEM EL RETARD (FLICKER)
   useEffect(() => {
-    // 1. Escoltem els canvis de Login/Logout
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         const userDocRef = doc(db, "users", currentUser.uid);
         
-        // 2. 🔥 ESCOLTEM LA BASE DE DADES EN TEMPS REAL 🔥
         const unsubscribeSnapshot = onSnapshot(userDocRef, (userDoc) => {
           let firestoreData = {};
-          if (userDoc.exists()) {
-            firestoreData = userDoc.data();
-          }
+          if (userDoc.exists()) firestoreData = userDoc.data();
 
-          // Qualsevol canvi a Firestore (ex: is_vip passa a true) s'aplica al moment!
           setUser({
             uid: currentUser.uid,
             email: currentUser.email,
+            emailVerified: currentUser.emailVerified, // 👈 CAPTUREM L'ESTAT DEL CORREU
             ...firestoreData,
           });
           setLoading(false);
@@ -76,7 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
         });
 
-        // Quan l'usuari fa logout, tanquem el "tub" de dades
         return () => unsubscribeSnapshot();
       } else {
         setUser(null);
@@ -87,12 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribeAuth();
   }, []);
 
+  // 2. Modifiquem les funcions perquè retornin el UserCredential
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    return await signInWithEmailAndPassword(auth, email, password);
   };
 
   const signup = async (email: string, password: string) => {
-    await createUserWithEmailAndPassword(auth, email, password);
+    return await createUserWithEmailAndPassword(auth, email, password);
   };
 
   const logout = async () => {
@@ -101,21 +98,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    return await signInWithPopup(auth, provider);
   };
 
-  const value = {
-    user,
-    loading,
-    login,
-    signup,
-    logout,
-    loginWithGoogle 
+  const resetPassword = async (email: string) => {
+    return await sendPasswordResetEmail(auth, email);
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+  const verifyEmail = async (userToVerify: FirebaseUser) => {
+    return await sendEmailVerification(userToVerify);
+  };
+
+  const value = { user, loading, login, signup, logout, loginWithGoogle, resetPassword, verifyEmail };
+
+  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 }
