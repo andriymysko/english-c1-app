@@ -80,18 +80,19 @@ export default function Landing({ onGetStarted, onShowLegal }: Props) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* 👇 S'HAN ELIMINAT ELS COLORS FIXOS DE LES ICONES. ARA HERETEN DEL PARE */}
             <FeatureCard 
-              icon={<Target className="w-6 h-6 text-slate-900" />}
+              icon={<Target className="w-6 h-6" />}
               title="Dynamic Error Engine"
               desc="The system logs every grammatical mistake you make. When you are ready, it generates a custom 'Frankenstein' exam forcing you to face your exact weak points in completely new contexts."
             />
             <FeatureCard 
-              icon={<PenTool className="w-6 h-6 text-slate-900" />}
+              icon={<PenTool className="w-6 h-6" />}
               title="Examiner-Grade Grading"
               desc="Submit essays and speaking recordings. Get graded instantly from 0 to 20 based on the official Cambridge criteria, including detailed corrections and a perfect C1 model answer."
             />
             <FeatureCard 
-              icon={<BookOpen className="w-6 h-6 text-slate-900" />}
+              icon={<BookOpen className="w-6 h-6" />}
               title="Infinite Vocabulary Vault"
               desc="Never run out of mock exams. Our AI generates complex Use of English and Listening tasks on demand, utilizing spaced repetition to ensure phrasal verbs and idioms stick."
             />
@@ -126,11 +127,12 @@ export default function Landing({ onGetStarted, onShowLegal }: Props) {
   );
 }
 
+// 👇 LA SOLUCIÓ DE TYPESCRIPT ÉS AQUÍ (SENSE React.cloneElement)
 function FeatureCard({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
   return (
     <div className="p-8 md:p-10 rounded-sm bg-white border border-stone-200 hover:border-slate-900 transition-colors group flex flex-col h-full shadow-sm">
-      <div className="w-14 h-14 bg-stone-50 border border-stone-200 rounded-sm flex items-center justify-center mb-6 group-hover:bg-slate-900 group-hover:text-white transition-colors">
-        {React.cloneElement(icon as React.ReactElement, { className: "w-6 h-6 transition-colors" })}
+      <div className="w-14 h-14 bg-stone-50 border border-stone-200 rounded-sm flex items-center justify-center mb-6 text-slate-900 group-hover:bg-slate-900 group-hover:text-white transition-colors">
+        {icon}
       </div>
       <h3 className="text-2xl font-serif font-black text-slate-900 mb-4">{title}</h3>
       <p className="text-stone-500 leading-relaxed font-medium text-sm flex-grow">
