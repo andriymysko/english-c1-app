@@ -25,7 +25,7 @@ export default function Onboarding({ onComplete }: Props) {
             <div className="p-6 border border-stone-200 rounded-sm bg-stone-50">
                 <Target className="w-5 h-5 text-slate-900 mb-4" />
                 <h3 className="font-bold text-slate-900 text-xs uppercase tracking-widest mb-2">1. The Diagnostic</h3>
-                <p className="text-stone-500 text-sm font-medium leading-relaxed">Complete a standardized simulation to calibrate the system to your current level.</p>
+                <p className="text-stone-500 text-sm font-medium leading-relaxed">Enter the Training Lab and select any 'Reading & Use of English' simulation to calibrate the system to your current level.</p>
             </div>
             <div className="p-6 border border-stone-200 rounded-sm bg-stone-50">
                 <ShieldAlert className="w-5 h-5 text-slate-900 mb-4" />
@@ -38,7 +38,7 @@ export default function Onboarding({ onComplete }: Props) {
             onClick={onComplete}
             className="w-full md:w-auto px-10 py-5 bg-slate-900 text-white font-black uppercase tracking-widest text-xs rounded-sm hover:bg-slate-800 transition-colors shadow-md flex items-center justify-center gap-3 mx-auto"
         >
-            Enter the Console <ArrowRight className="w-4 h-4" />
+            ACCESS TRAINING LAB <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </div>
