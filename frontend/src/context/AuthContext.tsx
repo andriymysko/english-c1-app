@@ -21,8 +21,12 @@ import { auth, db } from "../firebase";
 export interface User extends Partial<FirebaseUser> {
   uid: string;
   email: string | null;
-  emailVerified: boolean; // 👈 CAMP CRÍTIC AFEGIT
+  emailVerified: boolean;
   is_vip?: boolean;
+  exercises_completed?: number; 
+  total_score?: number;         
+  level?: number;               
+  xp?: number;                 
   daily_usage?: {
     date: string;
     counts: Record<string, number>;
