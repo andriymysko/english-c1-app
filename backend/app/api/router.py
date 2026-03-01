@@ -406,7 +406,7 @@ def preload_exercise(request: ExerciseRequest):
         return {"status": "error"}
 
 @router.post("/submit_result/")
-def submit_exercise_result(result: SubmitResultRequest):
+def submit_exercise_result(result: SubmitResultRequest, background_tasks: BackgroundTasks): # 👈 AQUÍ ESTÀ LA SOLUCIÓ
     try:
         user_ref = db.collection("users").document(result.user_id)
         user_doc_snap = user_ref.get()
@@ -423,7 +423,6 @@ def submit_exercise_result(result: SubmitResultRequest):
         
         # 2. LÒGICA DE LA REGLA DEL 2
         if result.exercise_type == "review_exam":
-            # L'usuari acaba de retornar l'examen d'errors
             active_review = user_data.get("active_review_mistakes", [])
             updated_pool = []
             
@@ -431,31 +430,25 @@ def submit_exercise_result(result: SubmitResultRequest):
                 stem = mistake.get("stem") or mistake.get("question")
                 
                 if stem in active_review:
-                    # Aquest error s'ha posat a prova en aquest examen
                     if stem not in new_wrong_stems:
-                        # L'ha encertat! Sumem nivell de domini
                         mistake["mastery"] = mistake.get("mastery", 0) + 1
                     else:
-                        # L'ha tornat a fallar. Tornem a 0
                         mistake["mastery"] = 0
                         
-                # Només mantenim els que tinguin domini < 2 
                 if mistake.get("mastery", 0) < 2:
                     updated_pool.append(mistake)
                     
-            # Netegem la memòria temporal i guardem
             updates["active_review_mistakes"] = firestore.DELETE_FIELD
             updates["mistakes_pool"] = updated_pool
             
         else:
-            # Exercici normal: Afegim els nous errors al pou
             updated_pool = list(current_pool)
             for new_m in (result.mistakes or []):
                 stem = new_m.get("stem") or new_m.get("question")
                 existing = next((m for m in updated_pool if (m.get("stem") or m.get("question")) == stem), None)
                 
                 if existing:
-                    existing["mastery"] = 0 # Reiniciem el domini
+                    existing["mastery"] = 0 
                 else:
                     new_m["mastery"] = 0
                     updated_pool.append(new_m)
@@ -465,20 +458,11 @@ def submit_exercise_result(result: SubmitResultRequest):
         # 3. Guardem el perfil d'usuari
         user_ref.set(updates, merge=True)
         
-        # 4. VOCAB VAULT (Mantenim la integració original per a Flashcards)
+        # 4. VOCAB VAULT (Enriquiment intel·ligent en segon pla)
         if result.exercise_type in ["reading_and_use_of_language1", "reading_and_use_of_language4"]:
             if result.mistakes:
-                vocab_ref = user_ref.collection("vocabulary")
-                for mistake in result.mistakes:
-                    word = mistake.get("correct_answer", "").strip().lower()
-                    if not word: continue
-                    doc_id = word.replace(" ", "_").replace("/", "_")
-                    word_doc = vocab_ref.document(doc_id)
-                    
-                    if word_doc.get().exists:
-                        word_doc.update({"mistakes": firestore.Increment(1)})
-                    else:
-                        word_doc.set({"word": word, "mistakes": 1, "added_at": firestore.SERVER_TIMESTAMP})
+                # El servidor delega la trucada a OpenAI a segon pla i respon a l'usuari a l'instant
+                background_tasks.add_task(process_and_save_vocabulary, result.user_id, result.mistakes)
 
         return {"status": "success"}
     except Exception as e:
@@ -634,4 +618,74 @@ def get_user_vocabulary(user_id: str):
         return {"vocabulary": vocab_list}
     except Exception as e:
         print(f"Error llegint vocabulari: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+def process_and_save_vocabulary(user_id: str, mistakes: list):
+    print(f"🧠 BACKGROUND: A enriquecer {len(mistakes)} erros de vocabulário com IA...")
+    try:
+        words_to_process = []
+        for m in mistakes:
+            word = m.get("correct_answer", "").strip()
+            if word: words_to_process.append(word)
+        
+        if not words_to_process: return
+
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        prompt = f"""
+        You are a Cambridge C1 English expert. A student failed to answer these words/phrases correctly: {words_to_process}.
+        For each item, extract the core vocabulary target (e.g., if it's "has been called off", extract "call off").
+        Categorize it strictly as ONE of: 'Phrasal Verbs', 'Idioms', 'Collocations', 'Grammar', or 'Vocabulary'.
+        Provide a short, clear C1-level definition and one clear example sentence.
+        Return a JSON object with this exact structure:
+        {{
+            "items": [
+                {{
+                    "word": "call off",
+                    "category": "Phrasal Verbs",
+                    "definition": "To cancel an event or agreement.",
+                    "example": "The outdoor concert was called off due to the severe thunderstorm."
+                }}
+            ]
+        }}
+        """
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "system", "content": "Output valid JSON only."}, {"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+        
+        import json
+        data = json.loads(response.choices[0].message.content)
+        enriched_words = data.get("items", [])
+        
+        if enriched_words:
+            # Chama a função que adicionámos ao db.py anteriormente
+            DatabaseService.save_enriched_vocabulary(user_id, enriched_words)
+    except Exception as e:
+        print(f"❌ Erro ao enriquecer vocabulário: {e}")
+
+@router.get("/vocabulary/{user_id}")
+def get_user_vocabulary(user_id: str):
+    try:
+        vocab_ref = db.collection("users").document(user_id).collection("vocabulary")
+        docs = vocab_ref.order_by("mistakes", direction=firestore.Query.DESCENDING).stream()
+        
+        vocab_list = []
+        for doc in docs:
+            data = doc.to_dict()
+            
+            # 🔥 Adicionamos as proteções .get() para não quebrar com erros antigos
+            vocab_list.append({
+                "word": data.get("word", ""),
+                "mistakes": data.get("mistakes", 0),
+                "category": data.get("category", "Vocabulary"),
+                "definition": data.get("definition", ""),
+                "example": data.get("example", ""),
+                # Suporta tanto o formato novo (last_failed) como o antigo (added_at)
+                "added_at": data.get("last_failed", data.get("added_at"))
+            })
+            
+        return {"vocabulary": vocab_list}
+    except Exception as e:
+        print(f"Erro ao ler vocabulário: {e}")
         raise HTTPException(status_code=500, detail=str(e))

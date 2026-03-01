@@ -293,3 +293,38 @@ class DatabaseService:
             docs = db.collection("user_results").where("user_id", "==", user_id).stream()
             return [doc.to_dict().get('exercise_id') for doc in docs if doc.to_dict().get('exercise_id')]
         except: return []
+
+    @staticmethod
+    def save_enriched_vocabulary(user_id: str, enriched_words: list):
+        """
+        Guarda o actualitza el vocabulari enriquit a la subcol·lecció 'vocabulary' de l'usuari.
+        S'espera format: [{"word": "...", "category": "...", "definition": "...", "example": "..."}]
+        """
+        try:
+            vocab_ref = db.collection('users').document(user_id).collection('vocabulary')
+            batch = db.batch()
+            
+            for item in enriched_words:
+                if not item.get('word'):
+                    continue
+                    
+                # 1. Creem un ID únic basat en la paraula per evitar duplicats (ex: "call off" -> "call_off")
+                word_id = item['word'].lower().strip().replace(" ", "_").replace("/", "_")
+                doc_ref = vocab_ref.document(word_id)
+                
+                # 2. Fem l'UPSERT amb 'merge=True' i Increment(1) per al comptador d'errors
+                batch.set(doc_ref, {
+                    "word": item['word'].lower().strip(),
+                    "category": item.get('category', 'Vocabulary'),
+                    "definition": item.get('definition', 'No definition provided.'),
+                    "example": item.get('example', 'No example provided.'),
+                    "mistakes": firestore.Increment(1),
+                    "last_failed": datetime.now()
+                }, merge=True)
+                
+            batch.commit()
+            print(f"✅ Vocabulari enriquit guardat per a l'usuari {user_id}")
+            return True
+        except Exception as e:
+            print(f"❌ Error guardant vocabulari enriquit: {e}")
+            return False
