@@ -116,61 +116,40 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
 
     print(f"📨 Event de Stripe rebut: {event['type']}")
 
-    # ==========================================
-    # CAS A: COMPRA COMPLETADA (Donar VIP)
-    # ==========================================
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        
-        metadata = session.get("metadata", {})
-        user_id = metadata.get("user_id")
-        product_type = metadata.get("product_type")
-        subscription_id = session.get("subscription") # 👈 Guardem el ID de la subscripció
-
-        if user_id and product_type:
-            product_info = PRODUCTS_DB.get(product_type)
-            if product_info:
-                if product_info['vip_days'] > 0:
-                    # Ho afegim a la DB
-                    DatabaseService.grant_vip_access(
-                        user_id=user_id, 
-                        days=product_info['vip_days'], 
-                        correction_credits=product_info['credits']
-                    )
-                    
-                    # ✅ NOU: Guardem la ID de la subscripció a l'usuari per si cancel·la
-                    if subscription_id:
-                        from app.services.db import db
-                        db.collection("users").document(user_id).update({
-                            "subscription_id": subscription_id,
-                            "subscription_status": "active"
-                        })
-                else:
-                    DatabaseService.add_credits_only(user_id, product_info['credits'])
-
-    # ==========================================
-    # CAS B: SUBSCRIPCIÓ CANCEL·LADA O IMPAGADA (Treure VIP)
-    # ==========================================
-    elif event['type'] in ['customer.subscription.deleted', 'customer.subscription.updated']:
-        subscription = event['data']['object']
-        status = subscription.get('status')
-        
-        # Si s'ha cancel·lat o no ha pagat
-        if event['type'] == 'customer.subscription.deleted' or status in ['past_due', 'canceled', 'unpaid']:
-            sub_id = subscription.get('id')
-            print(f"⚠️ Subscripció {sub_id} cancel·lada o impagada. Retirant VIP...")
+    # AFEGIM EL TRY...EXCEPT AQUÍ PER EVITAR QUE EL SERVIDOR PETI EN SILENCI
+    try:
+        if event['type'] == 'checkout.session.completed':
+            session = event['data']['object']
             
-            from app.services.db import db
-            # Busquem a quin usuari pertany aquesta subscripció
-            users_ref = db.collection("users")
-            query = users_ref.where("subscription_id", "==", sub_id).stream()
-            
-            for doc in query:
-                doc.reference.update({
-                    "is_vip": False, 
-                    "subscription_status": "inactive"
-                    # Opcional: Podries deixar 'vip_expiry' a la data actual perquè caduqui avui
-                })
-                print(f"❌ VIP retirat a l'usuari: {doc.id}")
+            metadata = session.get("metadata", {})
+            user_id = metadata.get("user_id")
+            product_type = metadata.get("product_type")
+            subscription_id = session.get("subscription")
 
-    return {"status": "success"}
+            if user_id and product_type:
+                product_info = PRODUCTS_DB.get(product_type)
+                if product_info:
+                    if product_info['vip_days'] > 0:
+                        # Si això falla, anirà al except de sota directament
+                        DatabaseService.grant_vip_access(
+                            user_id=user_id, 
+                            days=product_info['vip_days'], 
+                            correction_credits=product_info['credits']
+                        )
+                        
+                        if subscription_id:
+                            from app.services.db import db
+                            db.collection("users").document(user_id).update({
+                                "subscription_id": subscription_id,
+                                "subscription_status": "active"
+                            })
+                    else:
+                        DatabaseService.add_credits_only(user_id, product_info['credits'])
+                        
+        return {"status": "success"}
+
+    except Exception as e:
+        # CAPTUREM L'ERROR I L'ENVIEM A LA CONSOLA I A STRIPE
+        error_msg = f"❌ Error intern processant el pagament: {str(e)}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
