@@ -714,69 +714,37 @@ export default function ExercisePlayer({ data, onBack, onOpenPricing }: Props) {
                   )}
 
                   {isInteractive && (
-                    <div className="space-y-6 mt-8">
-                      {data.questions.map((q, idx) => {
-                         const key = q.question || idx.toString();
-                         const userAnswer = userAnswers[key];
-                         const cleanCorrectAnswer = cleanOptionText(q.answer);
-                         const isCorrect = showAnswers && (userAnswer === cleanCorrectAnswer.toLowerCase() || userAnswer === q.answer.trim().toLowerCase());
-                         const displayNum = data.type === 'listening3' ? idx + 15 : idx + 1;
-                         return (
-                            <div key={idx} className={`p-8 rounded-sm border transition-all ${showAnswers ? (isCorrect ? 'bg-stone-50 border-stone-200' : 'bg-white border-red-200 shadow-sm') : 'bg-white border-stone-200 shadow-sm hover:border-slate-900'}`}>
-                                <div className="space-y-6">
-                                    <div className="flex gap-4 items-start border-b border-stone-100 pb-4">
-                                        <span className="font-serif font-black text-stone-300 text-3xl">{displayNum}</span>
-                                        <p className="font-serif font-bold text-slate-900 text-xl pt-1 leading-relaxed">
-                                            {q.question.replace(/^\d+[\.\-\)]?\s*/, '')}
-                                        </p>
-                                    </div>
-                                    {data.type === "reading_and_use_of_language4" && q.original_sentence && (
-                                        <div className="mb-6 bg-stone-50 p-6 rounded-sm border border-stone-200">
-                                            <p className="text-slate-800 font-serif text-lg mb-4 leading-relaxed">{q.original_sentence}</p>
-                                            <div className="bg-slate-900 text-white px-3 py-1.5 rounded-sm font-bold text-[10px] tracking-widest uppercase shadow-sm w-fit mb-4">{q.keyword}</div>
-                                            <p className="text-stone-500 font-serif">{q.second_sentence}</p>
-                                        </div>
-                                    )}
-
-                                    {q.options && q.options.length > 0 ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {q.options.map((opt, i) => {
-                                                const text = cleanOptionText(opt);
-                                                const isSelected = userAnswer === text.toLowerCase();
-                                                const isTheCorrectOption = text.toLowerCase() === cleanCorrectAnswer.toLowerCase();
-                                                let optClass = "p-5 border rounded-sm cursor-pointer transition-colors flex justify-between items-center select-none font-medium ";
-                                                if (showAnswers) {
-                                                    if (isTheCorrectOption) optClass += "bg-stone-100 border-stone-300 font-bold text-slate-900";
-                                                    else if (isSelected) optClass += "bg-red-50 border-red-200 text-red-800";
-                                                    else optClass += "opacity-50 grayscale border-stone-100";
-                                                } else {
-                                                    if (isSelected) optClass += "bg-slate-900 border-slate-900 text-white shadow-sm";
-                                                    else optClass += "bg-white hover:bg-stone-50 border-stone-200 text-slate-700";
-                                                }
-                                                return (<div key={i} onClick={() => handleSelect(key, text.toLowerCase())} className={optClass}><div className="flex items-center"><span className={`font-black mr-4 text-[10px] uppercase tracking-widest ${isSelected && !showAnswers ? 'text-stone-400' : 'text-stone-300'}`}>{String.fromCharCode(65 + i)}</span>{text}</div>{showAnswers && isTheCorrectOption && <CheckCircle className="w-5 h-5 text-stone-500" />}{showAnswers && isSelected && !isTheCorrectOption && <XCircle className="w-5 h-5 text-red-500" />}</div>);
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <div className="relative">
-                                            <input type="text" value={userAnswer || ""} disabled={showAnswers} autoComplete="off" spellCheck="false" onChange={(e) => handleSelect(key, e.target.value)} placeholder="Type your answer..." className={`w-full p-5 border rounded-sm outline-none font-serif text-lg ${showAnswers ? (isCorrect ? "bg-stone-50 border-stone-300 text-slate-900" : "bg-white border-red-300 text-red-900") : "focus:border-slate-900 bg-white text-slate-900 border-stone-200"}`} />
-                                            {showAnswers && !isCorrect && <div className="mt-4 text-[10px] font-bold uppercase tracking-widest text-slate-900 bg-stone-100 px-3 py-2 rounded-sm w-fit border border-stone-200">Correct Output: <span className="font-black ml-1">{cleanCorrectAnswer}</span></div>}
-                                        </div>
-                                    )}
-
-                                    {/* 👇 EXPLANATIONS PEDAGÒGIQUES PER PREGUNTES ESTÀNDARD 👇 */}
-                                    {showAnswers && q.explanation && (
-                                        <div className="mt-6 p-5 bg-stone-50 border border-stone-200 rounded-sm">
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2 flex items-center gap-2"><Sparkles className="w-3.5 h-3.5" /> Examiner Note</p>
-                                            <p className="text-sm text-stone-600 leading-relaxed font-medium">{q.explanation}</p>
-                                        </div>
-                                    )}
-
-                                </div>
-                            </div>
-                         );
-                      })}
-                    </div>
-                  )}
+             <div className="pt-12 mt-12 border-t border-stone-200 bg-transparent flex flex-col items-center justify-center pb-12">
+               {!showAnswers ? (
+                 <div className="flex flex-col items-center gap-4">
+                     <div className="flex items-center gap-2 text-stone-500">
+                         <AlertCircle className="w-4 h-4" />
+                         <span className="text-xs font-bold uppercase tracking-widest">Review your answers before submitting</span>
+                     </div>
+                     <button 
+                        // 👈 AQUÍ HI HA LA MÀGIA DE L'SCROLL AUTOMÀTIC SENSE TRENCAR L'ESPAI
+                        onClick={() => { checkScore(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
+                        disabled={isListening && (!user || !user.is_vip)} 
+                        className="flex items-center justify-center gap-3 px-12 py-4 rounded-sm font-black uppercase tracking-widest text-xs text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+                     >
+                       <Eye className="w-4 h-4" /> Assess Performance
+                     </button>
+                 </div>
+               ) : (
+                 <div className="flex flex-col items-center gap-8 w-full animate-in fade-in slide-in-from-bottom-4">
+                   <div className="flex flex-col items-center gap-2">
+                       <span className="text-xs font-bold text-stone-400 uppercase tracking-widest">Diagnostic Result</span>
+                       <div className="text-5xl font-serif font-black text-slate-900 bg-white px-12 py-8 rounded-sm border border-stone-200 shadow-sm flex items-baseline gap-2">
+                         {score} <span className="text-2xl text-stone-400 font-medium">/ {data.questions.length}</span>
+                       </div>
+                   </div>
+                   <button onClick={onBack} className="flex items-center justify-center gap-3 px-10 py-4 rounded-sm font-bold uppercase tracking-widest text-xs text-slate-900 bg-white border border-stone-300 hover:border-slate-900 hover:bg-stone-50 transition-colors shadow-sm">
+                     Next Mission <ArrowRight className="w-4 h-4"/>
+                   </button>
+                 </div>
+               )}
+             </div>
+           )}
                 </>
               )}
 
