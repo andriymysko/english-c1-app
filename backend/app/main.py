@@ -62,9 +62,8 @@ def read_root():
 # ==========================================
 # 4. REGISTRE DE ROUTERS (LA MÀGIA DE FASTAPI)
 # ==========================================
-# Aquí deleguem tota la feina als teus altres arxius
 app.include_router(exercises_router)
-app.include_router(payment_router, prefix="/payment") # Recomano un prefix per endreçar les URLs de Stripe
+app.include_router(payment_router) # 👈 HEM TRET EL PREFIX PERQUÈ COINCIDEIXI AMB LA URL DE STRIPE
 
 if __name__ == "__main__":
     import uvicorn

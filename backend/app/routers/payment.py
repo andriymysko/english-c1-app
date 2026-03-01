@@ -89,8 +89,8 @@ async def create_checkout_session(data: dict):
             
             # 2. ARREGLEM LA REDIRECCIÓ (Landing Page)
             # Afegim /profile al final perquè torni directament al perfil de l'usuari
-            success_url=f'{FRONTEND_URL}/profile?success=true', # 👈 Canviat
-            cancel_url=f'{FRONTEND_URL}/profile?canceled=true', # 👈 Canviat
+            success_url=f'{FRONTEND_URL}/?payment=success',
+            cancel_url=f'{FRONTEND_URL}/?payment=canceled',
             
             metadata={
                 "user_id": user_id,
