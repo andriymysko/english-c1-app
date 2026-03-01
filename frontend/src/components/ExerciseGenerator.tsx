@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   BookOpen, PenTool, Mic, Headphones, 
   Loader2, Play, BarChart2, GraduationCap, 
-  Layout, LogOut, Download, Zap, ShoppingBag, Crown, Lock, Flame
+  Layout, LogOut, Download, Zap, ShoppingBag, Crown, Lock, Flame, Settings
 } from 'lucide-react';
 import ExercisePlayer from './ExercisePlayer';
 import ExamPlayer from './ExamPlayer';
@@ -89,6 +89,7 @@ export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Pr
   const [activeSkill, setActiveSkill] = useState<SkillKey>('reading');
    
   const [loadingPartId, setLoadingPartId] = useState<string | null>(null);
+  const [loadingPortal, setLoadingPortal] = useState(false); // 👈 ESTAT DEL PORTAL DE STRIPE
   
   const [examLoading, setExamLoading] = useState(false);
   const [downloadingPack, setDownloadingPack] = useState(false);
@@ -104,15 +105,15 @@ export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Pr
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
-    if (query.get('success') === 'true') {
-      setCurrentView('profile'); 
+    if (query.get('success') === 'true' || query.get('payment') === 'success') {
+      setCurrentView('dashboard'); 
       toast.success("Payment Successful! 🌟", {
         description: "Your VIP Pass is now active.",
         duration: 5000,
       });
       window.history.replaceState({}, '', '/');
     }
-    if (query.get('canceled') === 'true') {
+    if (query.get('canceled') === 'true' || query.get('payment') === 'canceled') {
       setCurrentView('pricing'); 
       window.history.replaceState({}, '', '/');
       toast.info("Payment canceled");
@@ -127,6 +128,33 @@ export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Pr
         });
     }
   }, [user]);
+
+  // 👈 LÒGICA PER OBRIR EL PORTAL DE STRIPE
+  const handleManageSubscription = async () => {
+    if (!user) return;
+    setLoadingPortal(true);
+    try {
+        const API_URL = import.meta.env.VITE_API_URL || "https://english-c1-api.onrender.com";
+        const response = await fetch(`${API_URL}/create-portal-session/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: user.uid })
+        });
+        
+        const data = await response.json();
+        
+        if (data.url) {
+            window.location.href = data.url;
+        } else {
+            toast.error(data.detail || "Error opening portal");
+        }
+    } catch (error) {
+        console.error("Failed to open billing portal:", error);
+        toast.error("Failed to connect to billing server.");
+    } finally {
+        setLoadingPortal(false);
+    }
+  };
 
   const handlePartClick = (partId: string, isPremiumPart: boolean = false) => {
     if (isVip) {
@@ -325,7 +353,6 @@ export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Pr
           {/* EL SEGELL ETHERNALS */}
           <div className="pt-4 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-400 opacity-60 hover:opacity-100 transition-opacity cursor-default">
             <svg className="w-3.5 h-3.5" viewBox="0 0 26 26" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square">
-              {/* Coordenades pures de Fibonacci: 5, 13 i 21 */}
               <polygon points="13 5 5 13 13 21 21 13" />
             </svg>
             <span className="text-[8px] tracking-[0.2em] font-black uppercase mt-0.5">
@@ -359,10 +386,22 @@ export default function ExerciseGenerator({ onOpenExtras, onOpenVocabulary }: Pr
                     <div>
                         <h1 className="text-2xl lg:text-4xl font-serif font-black text-slate-900">Hello, <span className="text-slate-500">{user?.email?.split('@')[0]}</span></h1>
                         <p className="text-stone-500 mt-2 font-medium">Ready to ace your Cambridge C1 Exam?</p>
+                        
+                        {/* 👈 BOTÓ MANAGE PLAN COL·LOCAT AQUÍ */}
                         {isVip && (
-                            <span className="inline-flex items-center gap-1 mt-3 px-2 py-1 bg-stone-200 text-slate-800 text-xs font-bold rounded-sm uppercase tracking-wider">
-                                <Crown className="w-3 h-3 fill-current" /> VIP MEMBER
-                            </span>
+                            <div className="flex items-center gap-3 mt-4">
+                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-stone-200 text-slate-800 text-xs font-bold rounded-sm uppercase tracking-wider">
+                                    <Crown className="w-3 h-3 fill-current" /> VIP MEMBER
+                                </span>
+                                <button 
+                                    onClick={handleManageSubscription}
+                                    disabled={loadingPortal}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-stone-200 text-slate-600 text-[10px] font-bold rounded-sm uppercase tracking-widest hover:bg-stone-50 transition-colors shadow-sm disabled:opacity-50"
+                                >
+                                    {loadingPortal ? <Loader2 className="w-3 h-3 animate-spin" /> : <Settings className="w-3 h-3" />}
+                                    Manage Plan
+                                </button>
+                            </div>
                         )}
                     </div>
                     

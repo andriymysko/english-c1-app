@@ -153,3 +153,38 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
         error_msg = f"❌ Error intern processant el pagament: {str(e)}"
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
+
+@payment_router.post("/create-portal-session/")
+async def create_portal_session(data: dict):
+    user_id = data.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Missing user_id")
+
+    # 1. Busquem l'usuari a la teva base de dades
+    from app.services.db import db
+    user_doc = db.collection("users").document(user_id).get()
+    
+    if not user_doc.exists:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user_data = user_doc.to_dict()
+    subscription_id = user_data.get("subscription_id")
+
+    if not subscription_id:
+        raise HTTPException(status_code=400, detail="No active subscription found.")
+
+    try:
+        # 2. Obtenim el 'customer_id' directament des de la subscripció de Stripe
+        sub = stripe.Subscription.retrieve(subscription_id)
+        stripe_customer_id = sub.customer
+
+        # 3. Creem la sessió del Portal i li diem que torni a l'aplicació en tancar
+        portal_session = stripe.billing_portal.Session.create(
+            customer=stripe_customer_id,
+            return_url=f"{FRONTEND_URL}/",
+        )
+        return {"url": portal_session.url}
+        
+    except Exception as e:
+        print(f"❌ Error generant el Portal de Stripe: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

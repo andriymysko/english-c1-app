@@ -13,7 +13,8 @@ import { Loader2 } from 'lucide-react';
 function AppContent() {
   const { user, loading } = useAuth();
   
-  const [publicView, setPublicView] = useState<'landing' | 'login' | 'privacy' | 'terms'>('landing');
+  const initialPath = window.location.pathname.includes('privacy') ? 'privacy' : window.location.pathname.includes('terms') ? 'terms' : 'landing';
+  const [publicView, setPublicView] = useState<'landing' | 'login' | 'privacy' | 'terms'>(initialPath);
   const [privateView, setPrivateView] = useState<'generator' | 'extras' | 'vocabulary'>('generator');
   
   // 👈 ESTAT PER CONTROLAR L'ONBOARDING
